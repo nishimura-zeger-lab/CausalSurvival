@@ -62,7 +62,7 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
 estimateNuisanceH <- function(dlong, J, h.estimate="glm"){
 
   ## container
-  id <- t <- h1 <- h0 <- rep(0, length=)
+  ID <- t <- h1 <- h0 <- c()
 
 
   for (i in 1:J){
@@ -72,17 +72,24 @@ estimateNuisanceH <- function(dlong, J, h.estimate="glm"){
     d_test <- subset(dlong, id %in% idx_test)
     d_train <- subset(dlong, id %in% idx_train)
 
+
     ## Survival hazard: glm
-    fitL <- glm(Lm ~ A * (t + age65 + cardiovascular + female + CHADS2),
-                data = d_train, subset = Im == 1, family = binomial())
+    fitL <- glm(Lt ~ treatment * (t + age65 + cardiovascular + female + CHADS2),
+                data = d_train, subset = It == 1, family = binomial())
     ## predict
-    h11 <- bound01(predict(fitL, newdata = mutate(d_test, A = 1), type = 'response'))
-    h01 <- bound01(predict(fitL, newdata = mutate(d_test, A = 0), type = 'response'))
+    h1temp <- bound01(predict(fitL, newdata = mutate(d_test, treatment = 1), type = 'response'))
+    h0temp <- bound01(predict(fitL, newdata = mutate(d_test, treatment = 0), type = 'response'))
+
 
     ## store
-
-
+    ID <- c(ID, idx_test)
+    T <- c(T, d_test$t)
+    h1 <- c(h1, h1temp)
+    h0 <- c(h0, h0temp)
   }
+    ## result
+    out <- data.frame(id=ID, t=T, h1=h1, h0=h0)
+    return(out)
 }
 
 
@@ -96,7 +103,7 @@ estimateNuisanceH <- function(dlong, J, h.estimate="glm"){
 estimateNuisanceGR <- function(dlong, J, gR.estimate="glm"){
 
   ## container
-  id <- t <- gR1 <- gR0 <- rep(0, length=)
+  ID <- T <- gR1 <- gR0 <- c()
 
 
   for (i in 1:J){
@@ -106,11 +113,26 @@ estimateNuisanceGR <- function(dlong, J, gR.estimate="glm"){
     d_test <- subset(dlong, id %in% idx_test)
     d_train <- subset(dlong, id %in% idx_train)
 
-    ## Censoring hazard
+
+    ## formula for glm
+    # formula <- as.formula(paste("Rt~treatment*(t+", covariates.names))
+    ## model: glm
+    fitR <- glm(Rt ~ treatment * (t + age65 + cardiovascular + female + CHADS2),
+                data = d_train, subset = Jt == 1, family = binomial())
+    ## predict
+    gR1temp <- bound01(predict(fitR, newdata = mutate(d_test, treatment = 1), type = 'response'))
+    gR0temp <- bound01(predict(fitR, newdata = mutate(d_test, treatment = 0), type = 'response'))
 
 
-
+    ## store
+    ID <- c(ID, idx_test)
+    T <- c(T, d_test$t)
+    gR1 <- c(gR1, gR1temp)
+    gR0 <- c(gR0, gR0temp)
   }
+    ## result
+    out <- data.frame(id=ID, t=T, gR1=gR1, gR0=gR0)
+    return(out)
 }
 
 
@@ -122,7 +144,7 @@ estimateNuisanceGR <- function(dlong, J, gR.estimate="glm"){
 #' @param gA.estimate Model for estimating nuisance parameter: treatment probability
 #' @export
 
-estimateNuisanceGA <- function(dlong, J, id, treatment, covariates, gA.estimate="LASSO"){
+estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO"){
 
   ## container
   ID <- gA1 <- c()
@@ -135,7 +157,7 @@ estimateNuisanceGA <- function(dlong, J, id, treatment, covariates, gA.estimate=
   for (i in 1:J){
     ## training and testing sets
     idx_test <- index_ls[[i]]
-    idx_train <- setdiff(unique(dlong$id), idx_test)
+    idx_train <- setdiff(id, idx_test)
 
 
     ## prepare training set into appropriate format
