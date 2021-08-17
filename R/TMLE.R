@@ -22,8 +22,12 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariants,
   index_ls <- crossFit(eventObserved=eventObserved, J=J)
 
 
-  ## transform data into long format
+  ## Wide-form dataset
+  dwide <- data.frame(id=1:length(time), time=time, eventObserved=eventObserved, treatment=treatment)
 
+
+  ## transform data into long format
+  dlong <- transformData(dwide=)
 
 
 
@@ -74,6 +78,8 @@ estimateNuisance <- function(dlong, J=5, freq.time=90,
 
     ## store
 
+
+
     ## Censoring hazard
 
 
@@ -86,32 +92,37 @@ estimateNuisance <- function(dlong, J=5, freq.time=90,
 
 #' Transform survival data from wide-format to long-format
 #'
-#' @param dwide Wide-format survival data with columns: time (observed time), eventObserved (Observed event)
+#' @param dwide Wide-format survival data with columns: time (observed time), eventObserved (Observed event), other covariates
 #' @param freq.time Map time interval to coarser intervals
-#' @export dlong A long-format survival data (with coarsening if freq.time > 1)
 #'
+#' @export dlong A long-format survival data (with coarsening if freq.time > 1)
+#'               with columns: t (time points), It, Jt, Rt, Lt (four indicator functions) and other covairates
+
 transformData <- function(dwide, freq.time){
-  ## Transform a dataset from the short to the long form.
+  ## Coarsen data
   if(freq.time > 1) dwide$time <- dwide$time %/% freq.time + 1
 
+  ## number of subjects
   n <- dim(dwide)[1]
+  ## maximum follow-up time
   maxtime <- max(dwide$time)
 
-  m <- rep(1:maxtime, n)
-  Lm <- Rm <- rep(NA, n*maxtime)
-  Im <- Jm <- 1*(m == 1)
+  ## time points for each subjects
+  t <- rep(1:maxtime, n)
 
-  for(t in 1:maxtime){
-    Rm[m == t] <- (1 - dwide$eventObserved) * (dwide$time == t)
-    Lm[m == t] <- dwide$eventObserved * (dwide$time == t)
-    Im[m == t] <- (dwide$time >= t)
-    Jm[m == t] <- (dwide$time > t) * dwide$eventObserved + (dwide$time >= t) * (1 - dwide$eventObserved)
+  ## Indicator variables for each time point (see `Cross-fitted estimator for survival analysis` for definition)
+  Lt <- Rt <- rep(NA, n*maxtime)
+  It <- Jt <- 1*(t == 1)
+  for(i in 1:maxtime){
+    Rt[t == i] <- (1 - dwide$eventObserved) * (dwide$time == i)
+    Lt[t == i] <- dwide$eventObserved * (dwide$time == i)
+    It[t == i] <- (dwide$time >= i)
+    Jt[t == i] <- (dwide$time > i) * dwide$eventObserved + (dwide$time >= i) * (1 - dwide$eventObserved)
   }
 
-  dlong <- data.frame(dwide[as.numeric(gl(n, maxtime)), ], m = m, Im, Jm, Rm, Lm)
-
+  ## Long-format dataset
+  dlong <- data.frame(dwide[as.numeric(gl(n, maxtime)), ], t = t, It, Jt, Rt, Lt)
   return(dlong)
-
 }
 
 
