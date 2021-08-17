@@ -5,12 +5,13 @@
 #' @param h.estimate Model for estimating nuisance parameter: survival hazards
 #' @param gR.estimate Model for estimating nuisance parameter: censoring hazards
 #' @param gA.estimate Model for estimating nuisance parameter: treatment probability
+#' @param tau Time of interest
 #' @export
 
 estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covariates.names,
                              J=5, h.estimate="glm", gR.estimate="glm", gA.estimate="LASSO",
                             includeCovariatesInHestimate="",includeCovariatesIngRestimate="", includeCovariatesIngAestimate="all",
-                             freq.time=90){
+                             freq.time=90, tau){
 
   ## Indicator for event
   eventObserved <- ifelse(is.na(eventTime), 0, 1)
@@ -35,20 +36,104 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
 
 
   ## Estimate cross-fitted nuisance parameter
-
+  dH <- estimateNuisanceH(dlong, J=5, h.estimate="glm")
+  dGR <- estimateNuisanceGR(dlong, J=5, gR.estimate="glm")
+  dGA <- estimateNuisanceGA(dlong, J=5, treatment=treatment, covariates=covariates, gA.estimate="LASSO")
+  d <- cbind(dH, dGR)
 
 
   ## Update h
+  h1 <- d$h1
+  h0 <- d$h0
+  h  <- A*h1 + (1-A)*h0
+  gR1 <- d$gR1
+  gR0 <- d$gR0
+  gA1 <- dGA$gA1
+  gA0 <- 1 - gA1
+  ID <- dlong$id
+  A <- dlong$treatment
 
+  ## number of subjects
+  n <- length(unique(ID))
+  ## time points
+  m <- as.numeric(dlong$m)
+  ## max follow-up time
+  K <- max(m)
 
+  ind <- outer(m, 1:K, "<=")
+
+  crit <- TRUE
+  iter <- 1
+
+  while(crit && iter <= 20){
+
+    S1 <- tapply(1 - h1, ID, cumprod, simplify = FALSE)
+    S0 <- tapply(1 - h0, ID, cumprod, simplify = FALSE)
+
+    G1 <- tapply(1 - gR1, ID, cumprod, simplify = FALSE)
+    G0 <- tapply(1 - gR0, ID, cumprod, simplify = FALSE)
+
+    St1 <- do.call("rbind", S1[ID])
+    St0 <- do.call("rbind", S0[ID])
+
+    Sm1 <- unlist(S1)
+    Sm0 <- unlist(S0)
+
+    Gm1 <- unlist(G1)
+    Gm0 <- unlist(G0)
+
+    ## clever covariate for survival hazard
+    H1 <- - (ind * St1)[, tau] / bound(Sm1 * gA1[ID] * Gm1)
+    H0 <- - (ind * St0)[, tau] / bound(Sm0 * gA0[ID] * Gm0)
+    H <- A * H1 + (1-A) * H0
+
+    ## update for survival hazard
+    eps   <- coef(glm2::glm2(Lm ~ 0 + offset(qlogis(h)) + H,
+                       family = binomial(), subset = Im == 1, data = dlong))
+
+    ## NA as 0 for the new values
+    eps[is.na(eps)] <- 0
+
+    ## update values
+    h1 <- bound01(plogis(qlogis(h1) + eps * H1))
+    h0 <- bound01(plogis(qlogis(h0) + eps * H0))
+    h  <- A * h1  + (1 - A) * h0
+
+    iter <-  iter + 1
+    crit <- abs(eps) > 1e-3/n^(0.6)
+  }
 
   ## S_tmle
+  S1 <- tapply(1 - h1, ID, cumprod, simplify = FALSE)
+  S0 <- tapply(1 - h0, ID, cumprod, simplify = FALSE)
 
+  G1 <- tapply(1 - gR1, ID, cumprod, simplify = FALSE)
+  G0 <- tapply(1 - gR0, ID, cumprod, simplify = FALSE)
 
+  St1 <- do.call('rbind', S1[ID])
+  St0 <- do.call('rbind', S0[ID])
+
+  Sm1 <- unlist(S1)
+  Sm0 <- unlist(S0)
+  Gm1 <- unlist(G1)
+  Gm0 <- unlist(G0)
+
+  H1 <- - (ind * St1)[, tau] / bound(Sm1 * gA1[ID] * Gm1)
+  H0 <- - (ind * St0)[, tau] / bound(Sm0 * gA0[ID] * Gm0)
+
+  DT <- with(dlong, tapply(Im * (A * H1 - (1 - A) * H0) * (Lm - h), id, sum))
+  DW1 <- with(dlong, St1[m == 1, tau])
+  DW0 <- with(dlong, St0[m == 1, tau])
+  theta1 <- mean(DW1)
+  theta0 <- mean(DW0)
+  theta <- theta1 - theta0
+  D <- DT + DW1 - DW0 - theta
+  sdn <- sqrt(var(D) / n)
+
+  ## result
+  out <- list(S1=theta1, S0=theta0, std.error.diff=sdn)
+  return(out)
 }
-
-
-
 
 
 
