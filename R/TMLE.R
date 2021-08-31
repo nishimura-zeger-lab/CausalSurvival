@@ -2,15 +2,20 @@
 #'
 #' @param covariants Design matrix in triplet format (row index, col index, and value)
 #' @param J For cross-fitting: random partition of subjects into J prediction sets of approximately the same size.
-#' @param h.estimate Model for estimating nuisance parameter: survival hazards
-#' @param gR.estimate Model for estimating nuisance parameter: censoring hazards
-#' @param gA.estimate Model for estimating nuisance parameter: treatment probability
+#' @param h.estimate Model for estimating nuisance parameter: survival hazards. Options currently include glm
+#' @param gR.estimate Model for estimating nuisance parameter: censoring hazards. Options currently include glm
+#' @param gA.estimate Model for estimating nuisance parameter: treatment probability. Options currently include LASSO
+#' @param maxCohortSizeForFitting If the target or comparator cohort are larger than this number, they
+#'                                 will be downsampled before fitting the propensity model. The model
+#'                                 will be used to compute propensity scores for all subjects. The
+#'                                 purpose of the sampling is to gain speed.
 #' @param tau Time of interest
 #' @export
 
 estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covariates.names,
-                             J=5, h.estimate="glm", gR.estimate="glm", gA.estimate="LASSO",
-                            includeCovariatesInHestimate="",includeCovariatesIngRestimate="", includeCovariatesIngAestimate="all",
+                             J=5, h.estimate="glm", gR.estimate="glm",
+                             gA.estimate="LASSO", maxCohortSizeForFitting=250000,
+#                           includeCovariatesInHestimate="",includeCovariatesIngRestimate="", includeCovariatesIngAestimate="all",
                              freq.time=90, tau){
 
   ## Indicator for event
@@ -36,9 +41,9 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
 
 
   ## Estimate cross-fitted nuisance parameter
-  dH <- estimateNuisanceH(dlong, J=5, h.estimate="glm")
-  dGR <- estimateNuisanceGR(dlong, J=5, gR.estimate="glm")
-  dGA <- estimateNuisanceGA(dlong, J=5, treatment=treatment, covariates=covariates, gA.estimate="LASSO")
+  dH <- estimateNuisanceH(dlong, J=J, h.estimate="glm")
+  dGR <- estimateNuisanceGR(dlong, J=J, gR.estimate="glm")
+  dGA <- estimateNuisanceGA(J=J, id=id, treatment=treatment, covariates=covariates, gA.estimate="LASSO", maxCohortSizeForFitting=maxCohortSizeForFitting)
   d <- cbind(dH, dGR)
 
 
@@ -224,12 +229,12 @@ estimateNuisanceGR <- function(dlong, J, gR.estimate="glm"){
 
 #' Estimate cross-fitted nuisance parameter: treatment probability
 #'
-#' @param dlong Long-format survival data from function transformData(dwide, freq.time)
 #' @param J For cross-fitting
 #' @param gA.estimate Model for estimating nuisance parameter: treatment probability
+#' @param maxCohortSizeForFitting
 #' @export
 
-estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO"){
+estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO", maxCohortSizeForFitting){
 
   ## container
   ID <- gA1 <- c()
@@ -248,14 +253,27 @@ estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO"
     ## prepare training set into appropriate format
     outcomes_train <- outcomes[which(outcomes$rowId %in% idx_train), ]
     covariates_train <- covariates[which(covariates$i %in% idx_train), ]
+    ## downsize
+    set.seed(0)
+    targetRowIds <- outcomes_train$rowId[which(outcomes_train$y == 1)]
+    targetRowIds <- sample(targetRowIds, size=min(maxCohortSizeForFitting, sum(outcomes_train$y == 1)), replace = FALSE)
+    comparatorRowIds <- outcomes_train$rowId[which(outcomes_train$y == 0)]
+    comparatorRowIds <- sample(comparatorRowIds, size=min(maxCohortSizeForFitting, sum(outcomes_train$y == 0)), replace = FALSE)
+
+    outcomes_train_sub <- outcomes_train[which(outcomes_train$rowId %in% c(targetRowIds, comparatorRowIds)), ]
+    covariates_train_sub <- covariates_train[which(covariates_train$i %in% c(targetRowIds, comparatorRowIds)), ]
+
+    colnames(covariates_train_sub) <- c("rowId", "covariateId", "covariateValue")
     colnames(covariates_train) <- c("rowId", "covariateId", "covariateValue")
+
+
     # parameters
     floatingPoint <- getOption("floatingPoint")
     if (is.null(floatingPoint)) {
       floatingPoint <- 64
     }
     # convert to data structure
-    cyclopsData <- Cyclops::convertToCyclopsData(outcomes_train, covariates_train, modelType = "lr", quiet = TRUE, floatingPoint = floatingPoint)
+    cyclopsData <- Cyclops::convertToCyclopsData(outcomes_train_sub, covariates_train_sub, modelType = "lr", quiet = TRUE, floatingPoint = floatingPoint)
 
 
     # prior
@@ -263,16 +281,34 @@ estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO"
     control = createControl(noiseLevel = "silent", cvType = "auto", seed = 1, tolerance = 2e-07, cvRepetitions = 10, startingVariance = 0.01)
 
 
-    ## model: logistic regression
+    ## model: LASSO
     cyclopsFit <- Cyclops::fitCyclopsModel(cyclopsData, prior = prior, control = control)
 
 
+
+    ## adjust intercept to full-training dataset
+    y.bar <- mean(outcomes_train_sub$y)
+    y.odds <- y.bar/(1 - y.bar)
+    y.bar.new <- mean(outcomes_train$y)
+    y.odds.new <- y.bar.new/(1 - y.bar.new)
+    delta <- log(y.odds) - log(y.odds.new)
+    cfs <- coef(cyclopsFit)
+    cfs[1] <- cfs[1] - delta
+    cyclopsFit$estimation$estimate[1] <- cfs[1]
+
+
+
+    ## testing set
+    outcomes_test <- outcomes[which(outcomes$rowId %in% idx_test), ]
+    covariates_test <- covariates[which(covariates$i %in% idx_test), ]
+
+    outcomes_test <- data.table::setDT(outcomes_test)
+    colnames(covariates_test) <- c("rowId", "covariateId", "covariateValue")
+
+
+
     ## predict on testing set
-    cov_test <- cov[idx_test,]
-    c <- coef(cyclopsFit)
-    gAtemp <- as.matrix(c %*% t(as.matrix(cbind(rep(1, length=length(idx_test)), cov_test))))
-    gAtemp <- as.vector(gAtemp)
-    gAtemp <- exp(gAtemp)/(1+exp(gAtemp))
+    gAtemp <- Cyclops::predict(cyclopsFit, newOutcomes = outcomes_test, newCovariates = covariates_test)
 
 
     ## store
@@ -328,7 +364,7 @@ transformData <- function(dwide, freq.time){
 #' @param J For cross-fitting: random partition of subjects into J prediction sets of approximately the same size.
 #' @export
 
-crossFit <- function(eventObserved, id, J=5){
+crossFit <- function(eventObserved, id, J){
 
   ## divide data into J groups with equal percentage of events
   set.seed(08082021)
