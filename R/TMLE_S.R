@@ -55,7 +55,14 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
   dH <- estimateNuisanceH(dlong, J=J, h.estimate="glm")
   dGR <- estimateNuisanceGR(dlong, J=J, gR.estimate="glm")
   dGA <- estimateNuisanceGA(J=J, id=id, treatment=treatment, covariates=covariates, gA.estimate="LASSO", maxCohortSizeForFitting=maxCohortSizeForFitting)
-  d <- cbind(dH, dGR)
+  d <- dplyr::inner_join(dH, dGR, by=c("id", "t"))
+
+
+  ## into the same order
+  dlong <- dlong[order(dlong$id, dlong$t), ]
+  d <- d[order(d$id, d$t), ]
+  dGA <- dGA[order(dGA$id), ]
+
 
 
   ## Update h
