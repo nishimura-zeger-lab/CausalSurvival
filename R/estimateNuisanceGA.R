@@ -81,7 +81,7 @@ estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO"
 
 
     ## store
-    ID <- c(ID, idx_test)
+    ID <- c(ID, idx_test[order(idx_test)])
     gA1 <- c(gA1, gAtemp)
   }
 
