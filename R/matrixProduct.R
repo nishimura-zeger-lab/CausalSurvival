@@ -20,8 +20,18 @@ pooled_design_matvec <- function(temporal_effect, X_baseline){
 #' @param weight vector
 #' @export result A matrix
 pooled_design_information <- function(X_baseline, weight){
-
-}
+  result <- as(sparseMatrix(i={},j={},dims=c(dim(X_baseline)[2],dim(X_baseline)[2])),"dgCMatrix")
+  X_baseline2 <- as(sparseMatrix(i={},j={},dims=c(dim(X_baseline)[1],dim(X_baseline)[2])),"dgCMatrix")
+  n_nonzero <- length(X_baseline@x)
+  for (k in 1:n_nonzero){
+    X_baseline2[(X_baseline@i[k] + 1), (X_baseline@j[k] + 1)] <- X_baseline2[(X_baseline@i[k] + 1), (X_baseline@j[k] + 1)] + X_baseline@x[k]*weight[X_baseline@j[k] + 1]
+  }
+  # for (m in ){
+  #   for (n in )
+  #     result[(X_baseline@j[k] + 1), (X_baseline@j[k] + 1)] <- result[(X_baseline@j[k] + 1), (X_baseline@j[k] + 1)] + X_baseline@x[k] *
+  # }
+  return(result)
+  }
 
 
 
