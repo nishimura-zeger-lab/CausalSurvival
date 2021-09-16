@@ -1,4 +1,4 @@
-#' Calculate X^T y for pooled logistic regression
+#' Calculate X^T y, D and X^T diag(D) X for pooled logistic regression
 #'
 #' @param X_baseline Baseline variables that won't interact with time in regression,
 #'                  sparse matrix of class "dgTMatrix"
@@ -8,7 +8,8 @@
 #' @param time Observed time
 #' @param id Subject id
 #' @export result A vector
-pooled_design_matvec <- function(X_baseline, temporal_effect, eventObserved, time, id){
+pooled_design <- function(X_baseline, temporal_effect, beta, eventObserved, time, id){
+
   ## index for decreasing survival time
   indx <- order(time, decreasing = TRUE)
   ## order observed data into decreasing survival time
@@ -17,66 +18,65 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, eventObserved, tim
   time_reorder <- time[indx]
   X_baseline_reorder <- X_baseline[indx, ]
   temporal_effect_reorder <- temporal_effect[indx, ]
+
   ## Add intercept term to X_baseline_reorder and temporal_effect_reorder
   X_baseline_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), X_baseline_reorder)
   temporal_effect_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), temporal_effect_reorder)
+
   ## subset index for each time point
   K <- max(time_reorder)
   indx_subset <- sapply(1:K, function(x) sum(time_reorder>=x), USE.NAMES = FALSE)
+
   ## container
-  result_X <- rep(0, length=dim(temporal_effect_reorder)[2])
-  result_temporal <- rep(0, length=dim(X_baseline_reorder)[2])
+  result_X <- rep(0, length=dim(X_baseline_reorder)[2])
+  result_temporal <- rep(0, length=dim(temporal_effect_reorder)[2])
+  result_info <- matrix(0, nrow=(dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2]),
+                        ncol=(dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2]))
+  result_mu <- c()
+
   ## loop over each time point
   for (i in 1:K){
+    ## X^T y
     result_X <- result_X + t(X_baseline_reorder[indx_subset[i], ])%*%time_reorder[indx_subset[i]]
-    result_temporal <- result_temporal + i*t(result_temporal[indx_subset[i], ])%*%time_reorder[indx_subset[i]] ## could add functions to i
+    result_temporal <- result_temporal + i*t(temporal_effect_reorder[indx_subset[i], ])%*%time_reorder[indx_subset[i]] ## could add functions to i
+    ## mu
+    temp_mu <- 1/(1+exp(-X_baseline_reorder[indx_subset[i], ]%*%beta[1:dim(X_baseline_reorder)[2]]-i*temporal_effect_reorder[indx_subset[i], ]%*%beta[(dim(X_baseline_reorder)[2]+1):length(beta)]))
+    result_mu <- c(result_mu, temp_mu)
+    ## X^T diag(D) X
+    temp_X <- t(X_baseline_reorder[indx_subset[i], ])%*%diag(temp_mu)%*%X_baseline_reorder[indx_subset[i], ]
+    temp_temporal <- (i^2)*t(temporal_effect_reorder[indx_subset[i], ])%*%diag(temp_mu)%*%temporal_effect_reorder[indx_subset[i], ]
+    temp_Xtemporal <- i*t(X_baseline_reorder[indx_subset[i], ])%*%diag(temp_mu)%*%temporal_effect_reorder[indx_subset[i], ]
+    result_info <- result_info + cbind(rbind(temp_X, t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
+
+    ## clear workspace
+    rm(list=c("temp_mu", "temp_X", "temp_temporal", "temp_Xtemporal"))
   }
   ## result
-  return(c(result_X, result_temporal))
-}
-
-
-
-#' Calculate X^T diag(D) X for pooled logistic regression
-#'
-#' @param X_baseline Baseline variables that won't interact with time in regression,
-#'                  sparse matrix of class "dgTMatrix"
-#' @param temporal_effect Baseline variables that will interact with time in regression,
-#'                        sparse matrix of class "dgTMatrix" or matrix
-#' @param eventObserved Binary outcome variable
-#' @param time Observed time
-#' @param id Subject id
-#' @export result A matrix
-pooled_design_information <- function(X_baseline, temporal_effect, eventObserved, time, id){
-  ## index for decreasing survival time
-  indx <- order(time, decreasing = TRUE)
-  ## order observed data into decreasing survival time
-  id_reorder <- id[indx]
-  eventObserved_reorder <- eventObserved[indx]
-  time_reorder <- time[indx]
-  X_baseline_reorder <- X_baseline[indx, ]
-  temporal_effect_reorder <- temporal_effect[indx, ]
-  ## Add intercept term to X_baseline_reorder and temporal_effect_reorder
-  X_baseline_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), X_baseline_reorder)
-  temporal_effect_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), temporal_effect_reorder)
-  ## subset index for each time point
-  K <- max(time_reorder)
-  indx_subset <- sapply(1:K, function(x) sum(time_reorder>=x), USE.NAMES = FALSE)
-  ## calculate weights in IRLS
-
-  ## container
-
-  ## loop over each time point
-
-  ## result
-
-
+  return(list(design_matvec=c(result_X, result_temporal),
+              design_information=result_info, mu=result_mu,
+              indx_reorder=indx, indx_subset=indx_subset))
 }
 
 
 
 #' Coefficients for pooled logistic regression (via iterative reweighted least square)
+#'
+#'
+coef_pooled <- function(design_matvec, design_information, mu, eventObserved, indx_reorder, indx_subset){
 
+  ## order observed data into decreasing survival time
+  eventObserved_reorder <- eventObserved[indx_reorder]
+
+  ## iterate until converge
+  crit <- TRUE
+  iter <- 1
+  while(crit && iter <= 20){
+
+  }
+
+  ## result
+
+}
 
 
 
