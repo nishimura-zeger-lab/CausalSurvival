@@ -19,6 +19,8 @@ pooled_design <- function(X_baseline, temporal_effect, beta, eventObserved, time
   time_reorder <- time[indx]
   X_baseline_reorder <- X_baseline[indx, ]
   temporal_effect_reorder <- temporal_effect[indx, ]
+  ## clear workspace
+  rm(list=c("id", "eventObserved", "time", "X_baseline", "temporal_effect"))
 
   ## Add intercept term to X_baseline_reorder and temporal_effect_reorder
   X_baseline_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), X_baseline_reorder)
@@ -43,9 +45,15 @@ pooled_design <- function(X_baseline, temporal_effect, beta, eventObserved, time
 
   ## loop over each time point
   for (i in 1:K){
+    ## outcome variable
+    if (estimate_hazard == "survival"){
+      y <- eventObserved_reorder * (time_reorder == i)
+    }else if(estimate_hazard == "censoring"){
+      y <- (1 - eventObserved_reorder) * (time_reorder == i)
+    }
     ## X^T y
-    result_Xy <- result_Xy + t(X_baseline_reorder[indx_subset[i], ])%*%time_reorder[indx_subset[i]]
-    result_temporaly <- result_temporaly + i*t(temporal_effect_reorder[indx_subset[i], ])%*%time_reorder[indx_subset[i]] ## could add functions to i
+    result_Xy <- result_Xy + t(X_baseline_reorder[indx_subset[i], ])%*%y[indx_subset[i]]
+    result_temporaly <- result_temporaly + i*t(temporal_effect_reorder[indx_subset[i], ])%*%y[indx_subset[i]] ## could add functions to i
     ## mu
     temp_mu <- 1/(1+exp(-X_baseline_reorder[indx_subset[i], ]%*%beta[1:dim(X_baseline_reorder)[2]]-i*temporal_effect_reorder[indx_subset[i], ]%*%beta[(dim(X_baseline_reorder)[2]+1):length(beta)]))
     result_mu <- c(result_mu, temp_mu)
