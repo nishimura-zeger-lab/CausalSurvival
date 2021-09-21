@@ -18,7 +18,11 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
   eventObserved_reorder <- eventObserved[indx]
   time_reorder <- time[indx]
   X_baseline_reorder <- X_baseline[indx, ]
-  temporal_effect_reorder <- temporal_effect[indx, ]
+  if(is.null(dim(temporal_effect))){
+    temporal_effect_reorder <- temporal_effect[indx]
+  }else{
+    temporal_effect_reorder <- temporal_effect[indx, ]
+  }
   ## clear workspace
   rm(list=c("id", "eventObserved", "time", "X_baseline", "temporal_effect"))
 
@@ -44,7 +48,7 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
                                            temporal_effect_reorder=temporal_effect_reorder,
                                            eventObserved_reorder=eventObserved_reorder,
                                            time_reorder=time_reorder, estimate_hazard=estimate_hazard,
-                                           y=y, indx_subset=indx_subset)
+                                           indx_subset=indx_subset, K=K)
 
   ## iterate until converge
   while(crit && iter <= 20){
@@ -52,7 +56,7 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
     ## calculate iterative components
     comp <- pooled_design_iter(X_baseline_reorder=X_baseline_reorder,
                                temporal_effect_reorder=temporal_effect_reorder,
-                               y=y, beta=beta, indx_subset=indx_subset)
+                               beta=beta, indx_subset=indx_subset, K=K)
 
     ## beta_new
     beta_new <- solve(comp$design_information) %*% (comp$design_information %*% beta + design_matvec_Xy - comp$design_matvec_Xmu)
@@ -66,6 +70,8 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
 
     ## clear workspace
     rm(list=c("comp","beta_new"))
+
+    print(iter)
   }
 
   ## result
@@ -87,7 +93,7 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
 #' @param y Outcome variable in the pooled logistic regression
 #' @param indx_subset Subset index for each time point
 #' @export result
-pooled_design_matvec <- function(X_baseline_reorder, temporal_effect_reorder, eventObserved_reorder, time_reorder, estimate_hazard, indx_subset){
+pooled_design_matvec <- function(X_baseline_reorder, temporal_effect_reorder, eventObserved_reorder, time_reorder, estimate_hazard, indx_subset, K){
 
   ## container
   result_Xy <- rep(0, length=dim(X_baseline_reorder)[2])
@@ -121,11 +127,10 @@ pooled_design_matvec <- function(X_baseline_reorder, temporal_effect_reorder, ev
 #'                        sparse matrix of class "dgTMatrix" or matrix,
 #'                        reorder observations into decreasing survival time,
 #'                        intercept included
-#' @param y Outcome variable in the pooled logistic regression
 #' @param beta Current iteration of coefficient value
 #' @param indx_subset Subset index for each time point
 #' @export result A list
-pooled_design_iter <- function(X_baseline_reorder, temporal_effect_reorder, y, beta, indx_subset){
+pooled_design_iter <- function(X_baseline_reorder, temporal_effect_reorder, beta, indx_subset, K){
 
   ## container
   result_info <- matrix(0, nrow=(dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2]),
