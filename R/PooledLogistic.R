@@ -56,6 +56,8 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
                                            time_reorder=time_reorder, estimate_hazard=estimate_hazard,
                                            indx_subset=indx_subset, K=K)
 
+  dev_resid <- sum((design_matvec_Xy$Y-predict_pooled(coef=beta, X_baseline=X_baseline_reorder, temporal_effect=temporal_effect_reorder, K=K))^2)
+
   ## iterate until converge
   while(crit && iter <= 20){
 
@@ -65,14 +67,18 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
                                beta=beta, indx_subset=indx_subset, K=K)
 
     ## beta_new
-    beta_new <- solve(comp$design_information) %*% (comp$design_information %*% beta + design_matvec_Xy - comp$design_matvec_Xmu)
+    beta_new <- solve(comp$design_information) %*% (comp$design_information %*% beta + design_matvec_Xy$matvec - comp$design_matvec_Xmu)
+
+    ## new residual
+    dev_resid_new <- sum((design_matvec_Xy$Y-predict_pooled(coef=beta_new, X_baseline=X_baseline_reorder, temporal_effect=temporal_effect_reorder, K=K))^2)
 
     ## stopping rule
     iter <-  iter + 1
-    crit <- max(abs(beta_new-beta)/abs(beta)) > 1e-5
+    crit <- abs(dev_resid_new-dev_resid)/abs(dev_resid) > 1e-5
 
     ## update value
     beta <- beta_new
+    dev_resid <- dev_resid_new
 
     ## clear workspace
     rm(list=c("comp","beta_new"))
@@ -104,6 +110,7 @@ pooled_design_matvec <- function(X_baseline_reorder, temporal_effect_reorder, ev
   ## container
   result_Xy <- rep(0, length=dim(X_baseline_reorder)[2])
   result_temporaly <- rep(0, length=dim(temporal_effect_reorder)[2])
+  Y <- c()
 
   ## loop over each time point
   for (i in 1:K){
@@ -113,12 +120,13 @@ pooled_design_matvec <- function(X_baseline_reorder, temporal_effect_reorder, ev
     }else if(estimate_hazard == "censoring"){
       y <- (1 - eventObserved_reorder) * (time_reorder == i)
     }
+    Y <- c(Y, y)
   ## X^T y
   result_Xy <- result_Xy + t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%y[1:indx_subset[i]]
   result_temporaly <- result_temporaly + i*t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])%*%y[1:indx_subset[i]] ## could add functions to i
   }
   ## result
-  return(c(result_Xy[, 1], result_temporaly[, 1]))
+  return(list(matvec=c(result_Xy[, 1], result_temporaly[, 1]), Y=Y))
 }
 
 
@@ -143,11 +151,12 @@ pooled_design_iter <- function(X_baseline_reorder, temporal_effect_reorder, beta
                         ncol=(dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2]))
   result_Xmu <- rep(0, length=dim(X_baseline_reorder)[2])
   result_temporalmu <- rep(0, length=dim(temporal_effect_reorder)[2])
-
+  mu <- c()
   ## loop over each time point
   for (i in 1:K){
     ## mu
     temp_mu <- 1/(1+exp(-X_baseline_reorder[1:indx_subset[i], , drop=FALSE]%*%beta[1:dim(X_baseline_reorder)[2]]-i*temporal_effect_reorder[1:indx_subset[i], , drop=FALSE]%*%beta[(dim(X_baseline_reorder)[2]+1):length(beta)]))
+    mu <- c(mu, temp_mu[, 1])
     ## X^T mu
     result_Xmu <- result_Xmu + t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%temp_mu[, 1]
     result_temporalmu <- result_temporalmu + i*t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])%*%temp_mu[, 1]
@@ -162,7 +171,8 @@ pooled_design_iter <- function(X_baseline_reorder, temporal_effect_reorder, beta
   }
   ## result
   return(list(design_matvec_Xmu=c(result_Xmu[, 1], result_temporalmu[, 1]),
-              design_information=result_info))
+              design_information=result_info),
+              mu=mu)
 }
 
 
