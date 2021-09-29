@@ -9,7 +9,7 @@
 #' @param id Subject id
 #' @param estimate_hazard "survival" or "censoring"
 #' @export
-coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, estimate_hazard){
+coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, estimate_hazard, maxiter, threshold){
 
   ## index for decreasing survival time
   indx <- order(time, decreasing = TRUE)
@@ -56,10 +56,10 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
                                            time_reorder=time_reorder, estimate_hazard=estimate_hazard,
                                            indx_subset=indx_subset, K=K)
 
-  dev_resid <- sum((design_matvec_Xy$Y-predict_pooled(coef=beta, X_baseline=X_baseline_reorder, temporal_effect=temporal_effect_reorder, K=K))^2)
+  dev_resid <- sum((design_matvec_Xy$Y-predict_pooled(coef=beta, X_baseline=X_baseline_reorder[, -1], temporal_effect=temporal_effect_reorder[, -1, drop=FALSE], K=K))^2)
 
   ## iterate until converge
-  while(crit && iter <= 20){
+  while(crit && iter <= maxiter){
 
     ## calculate iterative components
     comp <- pooled_design_iter(X_baseline_reorder=X_baseline_reorder,
@@ -70,11 +70,11 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
     beta_new <- solve(comp$design_information) %*% (comp$design_information %*% beta + design_matvec_Xy$matvec - comp$design_matvec_Xmu)
 
     ## new residual
-    dev_resid_new <- sum((design_matvec_Xy$Y-predict_pooled(coef=beta_new, X_baseline=X_baseline_reorder, temporal_effect=temporal_effect_reorder, K=K))^2)
+    dev_resid_new <- sum((design_matvec_Xy$Y-predict_pooled(coef=beta_new, X_baseline=X_baseline_reorder[, -1], temporal_effect=temporal_effect_reorder[, -1, drop=FALSE], K=K))^2)
 
     ## stopping rule
     iter <-  iter + 1
-    crit <- abs(dev_resid_new-dev_resid)/abs(dev_resid) > 1e-5
+    crit <- abs(dev_resid_new-dev_resid)/abs(dev_resid) > threshold
 
     ## update value
     beta <- beta_new
@@ -151,12 +151,11 @@ pooled_design_iter <- function(X_baseline_reorder, temporal_effect_reorder, beta
                         ncol=(dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2]))
   result_Xmu <- rep(0, length=dim(X_baseline_reorder)[2])
   result_temporalmu <- rep(0, length=dim(temporal_effect_reorder)[2])
-  mu <- c()
-  ## loop over each time point
+
+    ## loop over each time point
   for (i in 1:K){
     ## mu
     temp_mu <- 1/(1+exp(-X_baseline_reorder[1:indx_subset[i], , drop=FALSE]%*%beta[1:dim(X_baseline_reorder)[2]]-i*temporal_effect_reorder[1:indx_subset[i], , drop=FALSE]%*%beta[(dim(X_baseline_reorder)[2]+1):length(beta)]))
-    mu <- c(mu, temp_mu[, 1])
     ## X^T mu
     result_Xmu <- result_Xmu + t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%temp_mu[, 1]
     result_temporalmu <- result_temporalmu + i*t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])%*%temp_mu[, 1]
@@ -171,8 +170,7 @@ pooled_design_iter <- function(X_baseline_reorder, temporal_effect_reorder, beta
   }
   ## result
   return(list(design_matvec_Xmu=c(result_Xmu[, 1], result_temporalmu[, 1]),
-              design_information=result_info),
-              mu=mu)
+              design_information=result_info))
 }
 
 
@@ -186,7 +184,11 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, K){
 
   ## Add intercept term to X_baseline and temporal_effect
   X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
-  temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
+  if(is.null(temporal_effect)){
+    temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
+  }else{
+    temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
+  }
 
   ## predict
   LP1 <- X_baseline%*%coef[1:dim(X_baseline)[2]]
