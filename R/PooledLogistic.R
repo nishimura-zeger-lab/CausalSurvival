@@ -67,7 +67,7 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
                                beta=beta, indx_subset=indx_subset, K=K)
 
     ## beta_new
-    beta_new <- solve(comp$design_information) %*% (comp$design_information %*% beta + design_matvec_Xy$matvec - comp$design_matvec_Xmu)
+    beta_new <- solve(comp$design_information, (comp$design_information %*% beta + design_matvec_Xy$matvec - comp$design_matvec_Xmu))
 
     ## new residual
     dev_resid_new <- sum((design_matvec_Xy$Y-predict_pooled(coef=beta_new, X_baseline=X_baseline_reorder[, -1], temporal_effect=temporal_effect_reorder[, -1, drop=FALSE], K=K))^2)
