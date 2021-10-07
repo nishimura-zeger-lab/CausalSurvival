@@ -184,9 +184,9 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, is.temporal, maxTi
 
   ## Add intercept term to X_baseline and temporal_effect
   X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
-  if (is.null(temporal_effect) & is.temporal == FALSE) {
+  if (is.null(temporal_effect) & !is.temporal) {
     temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
-  } else if (is.temporal == TRUE) {
+  } else if (is.temporal) {
     temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
   }
 
