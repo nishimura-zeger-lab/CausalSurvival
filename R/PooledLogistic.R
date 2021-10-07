@@ -92,7 +92,6 @@ coef_pooled <- function(X_baseline, temporal_effect, is.temporal, eventObserved,
 }
 
 
-
 #' Calculate X^T y for pooled logistic regression (this part doesn't need to iterate)
 #'
 #' @param X_baseline_reorder Baseline variables that won't interact with time in regression,
@@ -185,17 +184,17 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, is.temporal, maxTi
 
   ## Add intercept term to X_baseline and temporal_effect
   X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
-  if(is.null(temporal_effect) & is.temporal==FALSE){
+  if (is.null(temporal_effect) & is.temporal == FALSE) {
     temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
-  }else if(is.temporal==TRUE){
+  } else if (is.temporal == TRUE) {
     temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
   }
 
   ## predict
-  LP1 <- X_baseline%*%coef[1:dim(X_baseline)[2]]
-  LP2 <- temporal_effect%*%coef[(dim(X_baseline)[2]+1):length(coef)]
-  LP <- rep(LP1, maxTime)+rep(1:maxTime, each=dim(X_baseline)[1])*rep(LP2, maxTime)
-  p <- exp(LP)/(1+exp(LP))
+  LP1 <- X_baseline %*% coef[1:dim(X_baseline)[2]]
+  LP2 <- temporal_effect %*% coef[(dim(X_baseline)[2] + 1):length(coef)]
+  LP <- rep(LP1, maxTime) + rep(1:maxTime, each = dim(X_baseline)[1]) * rep(LP2, maxTime)
+  p <- exp(LP) / (1 + exp(LP))
 
   ## result
   return(p)
