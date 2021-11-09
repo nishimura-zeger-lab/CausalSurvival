@@ -1,21 +1,26 @@
 #' Estimate cross-fitted TMLE of survival probability at time tau
 #'
 #' @param covariates Design matrix in triplet format (row index, col index, and value)
-#' @param crossFit For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
-#' @param SurvHaz.estimate Model for estimating nuisance parameter: survival hazards. Options currently include logistic LASSO
-#' @param CenHaz.estimate Model for estimating nuisance parameter: censoring hazards. Options currently include logistic LASSO
+#' @param covariates.names Corresponding covariates name in ''covariates''
+#' @param crossFitnum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
+#' @param SurvHaz.estimate Model for estimating nuisance parameter: survival hazards. Options currently include logistic LASSO, glm
+#' @param CenHaz.estimate Model for estimating nuisance parameter: censoring hazards. Options currently include logistic LASSO, glm
 #' @param TreatProb.estimate Model for estimating nuisance parameter: treatment probability. Options currently include logistic LASSO
 #' @param maxCohortSizeForFitting If the target or comparator cohort are larger than this number, they
 #'                                 will be downsampled before fitting the propensity model. The model
 #'                                 will be used to compute propensity scores for all subjects. The
 #'                                 purpose of the sampling is to gain speed.
+#' @param covID.SurvHaz Covariates id to include in modeling discrete survival hazards. If NULL, then include all covariates in the model
+#' @param covID.CenHaz Covariates id to include in modeling discrete censoring hazards. If NULL, then include all covariates in the model
+#' @param covID.TreatProb Covariates id to include in modeling treatment probability. If NULL, then include all covariates in the model
 #' @param freq.time Coarsen observed time to XXX days intervals
-#' @param tau Time of interest
-#' @return A list S1: S(1, tau); S0: S(0, tau); std.error.diff: standard error of S1-S0
+#' @param tau Time of interest. Can be a vector (multiple time of interest)
+#' @return A list SurvProb1: S(1, tau); SurvProb0: S(0, tau); std.error.diff: standard error of SurvProb1-SurvProb0
 
 estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covariates.names,
-                             crossFit=5, SurvHaz.estimate="LASSO", CenHaz.estimate="LASSO",
+                             crossFitnum=5, SurvHaz.estimate="LASSO", CenHaz.estimate="LASSO",
                              TreatProb.estimate="LASSO", maxCohortSizeForFitting=250000,
+                             covID.SurvHaz=NULL, covID.CenHaz=NULL, covID.TreatProb=NULL,
                              freq.time=90, tau){
 
   ## Indicator for event
@@ -29,21 +34,13 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
 
 
   ## Get index for cross-fitting
-  index_ls <- crossFit(eventObserved=eventObserved, id=id, J=J)
+  index_ls <- crossFit(eventObserved=eventObserved, id=id, crossFitnum=crossFitnum)
+
 
 
   ## Wide-form dataset
   dwide <- data.frame(id=id, time=time, eventObserved=eventObserved, treatment=treatment)
 
-
-
-  ## Temporary: add covariates to dlong for estimating h and gR
-  cov_name <- c("gender = FEMALE", "CHADS2", "Subgroup: Elderly (age >=65)", "condition_era group during day -30 through 0 days relative to index: Acute disease of cardiovascular system")
-  index_cov <- which(covariates.names %in% cov_name)
-  cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
-  cov_new <- cov[, index_cov]
-  dwide <- cbind(dwide, as.matrix(cov_new))
-  colnames(dwide)[5:8] <- c("age65", "cardiovascular", "female", "CHADS2")
 
 
   ## transform data into long format
@@ -52,117 +49,119 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
 
 
   ## Estimate cross-fitted nuisance parameter
-  dH <- estimateNuisanceH(dlong, J=J, h.estimate="glm")
-  dGR <- estimateNuisanceGR(dlong, J=J, gR.estimate="glm")
-  dGA <- estimateNuisanceGA(J=J, id=id, treatment=treatment, covariates=covariates, gA.estimate="LASSO", maxCohortSizeForFitting=maxCohortSizeForFitting)
-  d <- dplyr::inner_join(dH, dGR, by=c("id", "t"))
+  SurvHaz <- estimateSurvHaz(dlong=dlong, covariates=covariates, covID.SurvHaz=covID.SurvHaz, crossFitnum=crossFitnum, SurvHaz.estimate=SurvHaz.estimate)
+  CenHaz <- estimateCenHaz(dlong=dlong, covariates=covariates, covID.CenHaz=covID.CenHaz, crossFitnum=crossFitnum, index_ls=index_ls, CenHaz.estimate=CenHaz.estimate)
+  TreatProb <- estimateTreatProb(id=id, treatment=treatment,
+                                 covariates=covariates, covID.TreatProb=covID.TreatProb,
+                                 TreatProb.estimate=TreatProb.estimate,
+                                 maxCohortSizeForFitting=maxCohortSizeForFitting,
+                                 index_ls=index_ls, crossFitnum=crossFitnum)
 
 
   ## into the same order
-  dlong <- dlong[order(dlong$id, dlong$t), ]
-  d <- d[order(d$id, d$t), ]
-  dGA <- dGA[order(dGA$id), ]
+  SurvHaz <- SurvHaz[order(SurvHaz$ID), ]
+  CenHaz <- CenHaz[order(CenHaz$ID), ]
+  TreatProb <- TreatProb[order(TreatProb$id), ]
 
 
+  ## container
+  SurvProb1_result <- SurvProb0_result <- std.error.diff <- rep(0, length=length(tau))
 
-  ## Update h
-  h1 <- d$h1
-  h0 <- d$h0
-  h  <- A*h1 + (1-A)*h0
-  gR1 <- d$gR1
-  gR0 <- d$gR0
-  gA1 <- dGA$gA1
-  gA0 <- 1 - gA1
-  ID <- dlong$id
-  A <- dlong$treatment
+  ## calculate censoring probability that doesn't need iterative updates
+  CenProb1List <- tapply(1 - CenHaz$CenHaz1, dlong$id, cumprod, simplify = FALSE)
+  CenProb0List <- tapply(1 - CenHaz$CenHaz0, dlong$id, cumprod, simplify = FALSE)
 
-  ## clear workspace
-  rm(list=c("dGA"))
+  CenProb1 <- unlist(CenProb1List, use.names = FALSE)
+  CenProb0 <- unlist(CenProb0List, use.names = FALSE)
 
-  ## number of subjects
-  n <- length(unique(ID))
-  ## time points
-  m <- as.numeric(dlong$t)
-  ## max follow-up time
-  K <- max(m)
+  rm(list=c("CenProb1List", "CenProb0List", "CenHaz"))
 
-  ind <- (m <= tau)
+  for (TimePoint in tau){
 
-  crit <- TRUE
-  iter <- 1
+    ## initial SurvHaz
+    SurvHaz1 <- SurvHaz$SurvHaz1
+    SurvHaz0 <- SurvHaz$SurvHaz0
+    SurvHaz_obs  <- dlong$treatment*SurvHaz1 + (1-dlong$treatment)*SurvHaz0
 
-  G1 <- tapply(1 - gR1, ID, cumprod, simplify = FALSE)
-  G0 <- tapply(1 - gR0, ID, cumprod, simplify = FALSE)
+    ## parameter
+    ind <- (dlong$m <= TimePoint)
+    crit <- TRUE
+    iter <- 1
 
-  Gm1 <- unlist(G1, use.names = FALSE)
-  Gm0 <- unlist(G0, use.names = FALSE)
+    ## iterate
+    while(crit && iter <= 20){
 
-  ## clear workspace
-  rm(list=c("G1", "G0"))
+      SurvProb1List <- tapply(1 - SurvHaz1, dlong$id, cumprod, simplify = FALSE)
+      SurvProb0List <- tapply(1 - SurvHaz0, dlong$id, cumprod, simplify = FALSE)
 
-  while(crit && iter <= 20){
+      SurvProb1 <- unlist(SurvProb1List, use.names = FALSE)
+      SurvProb0 <- unlist(SurvProb0List, use.names = FALSE)
 
-    S1 <- tapply(1 - h1, ID, cumprod, simplify = FALSE)
-    S0 <- tapply(1 - h0, ID, cumprod, simplify = FALSE)
+      rm(list=c("SurvProb1List", "SurvProb0List"))
 
-    Sm1 <- unlist(S1, use.names = FALSE)
-    Sm0 <- unlist(S0, use.names = FALSE)
+      ## clever covariate for updating survival hazard
+      H1 <- - (ind * rep(SurvProb1[which(dlong$t == TimePoint)], each=max(dlong$t))) / bound(SurvProb1 * TreatProb$TreatProb[dlong$id] * CenProb1)
+      H0 <- - (ind * rep(SurvProb0[which(dlong$t == TimePoint)], each=max(dlong$t))) / bound(SurvProb0 * (1-TreatProb$TreatProb[dlong$id]) * CenProb0)
+      H <- dlong$treatment * H1 + (1-dlong$treatment) * H0
+
+      ## update for survival hazard
+      eps   <- coef(glm2::glm2(Lt ~ 0 + offset(qlogis(SurvHaz_obs)) + H,
+                         family = binomial(), subset = It == 1, data = dlong))
+
+      ## NA as 0 for the new values
+      eps[is.na(eps)] <- 0
+
+      ## update values
+      SurvHaz1 <- bound01(plogis(qlogis(SurvHaz1) + eps * H1))
+      SurvHaz0 <- bound01(plogis(qlogis(SurvHaz0) + eps * H0))
+      SurvHaz_obs  <- dlong$treatment * SurvHaz1  + (1 - dlong$treatment) * SurvHaz0
+
+      iter <-  iter + 1
+      crit <- abs(eps) > 1e-3/length(id)^(0.6)
+
+      ## clear
+      rm(list=c("H1", "H0", "H","SurvProb1", "SurvProb0"))
+
+    }
+
+    ## result for time tau
+    SurvProb1List <- tapply(1 - SurvHaz1, dlong$id, cumprod, simplify = FALSE)
+    SurvProb0List <- tapply(1 - SurvHaz0, dlong$id, cumprod, simplify = FALSE)
+
+    SurvProb1 <- unlist(SurvProb1List, use.names = FALSE)
+    SurvProb0 <- unlist(SurvProb0List, use.names = FALSE)
+
+    rm(list=c("SurvProb1List", "SurvProb0List", "SurvHaz1", "SurvHaz0"))
+
+    H1 <- - (ind * rep(SurvProb1[which(dlong$t == TimePoint)], each=max(dlong$t))) / bound(SurvProb1 * TreatProb$TreatProb[dlong$id] * CenProb1)
+    H0 <- - (ind * rep(SurvProb0[which(dlong$t == TimePoint)], each=max(dlong$t))) / bound(SurvProb0 * (1-TreatProb$TreatProb[dlong$id]) * CenProb0)
+
+    DT <- with(dlong, tapply(It * (treatment * H1 - (1 - treatment) * H0) * (Lt - SurvHaz_obs), id, sum))
+    DW1 <- SurvProb1[which(dlong$t == TimePoint)]
+    DW0 <- SurvProb0[which(dlong$t == TimePoint)]
+
+    ## S(1, tau)
+    SurvProb1_mean <- mean(DW1)
+    ## S(0, tau)
+    SurvProb0_mean <- mean(DW0)
+    ## S(1, tau)-S(0, tau)
+    SurvProb_mean <- SurvProb1_mean - SurvProb0_mean
+    ## standard error of S(1, tau)-S(0, tau)
+    D <- DT + DW1 - DW0 - SurvProb_mean
+    sdn <- sqrt(var(D) / length(id))
+
+    ## store
+    SurvProb1_result[TimePoint] <- SurvProb1_mean
+    SurvProb0_result[TimePoint] <- SurvProb0_mean
+    std.error.diff[TimePoint] <- sdn
 
     ## clear workspace
-    rm(list=c("S1", "S0"))
+    rm(list=c("SurvProb1", "SurvProb0", "H1", "H0", "DT", "DW1", "DW0", "D"))
 
-    ## clever covariate for survival hazard
-    H1 <- - (ind * Sm1) / bound(Sm1 * gA1[ID] * Gm1)
-    H0 <- - (ind * Sm0) / bound(Sm0 * gA0[ID] * Gm0)
-    H <- A * H1 + (1-A) * H0
-
-    ## update for survival hazard
-    eps   <- coef(glm2::glm2(Lt ~ 0 + offset(qlogis(h)) + H,
-                       family = binomial(), subset = It == 1, data = dlong))
-
-    ## NA as 0 for the new values
-    eps[is.na(eps)] <- 0
-
-    ## update values
-    h1 <- bound01(plogis(qlogis(h1) + eps * H1))
-    h0 <- bound01(plogis(qlogis(h0) + eps * H0))
-    h  <- A * h1  + (1 - A) * h0
-
-    iter <-  iter + 1
-    crit <- abs(eps) > 1e-3/n^(0.6)
-  }
-
-  ## S_tmle
-  S1 <- tapply(1 - h1, ID, cumprod, simplify = FALSE)
-  S0 <- tapply(1 - h0, ID, cumprod, simplify = FALSE)
-
-  G1 <- tapply(1 - gR1, ID, cumprod, simplify = FALSE)
-  G0 <- tapply(1 - gR0, ID, cumprod, simplify = FALSE)
-
-  Sm1 <- unlist(S1, use.names = FALSE)
-  Sm0 <- unlist(S0, use.names = FALSE)
-
-  Gm1 <- unlist(G1, use.names = FALSE)
-  Gm0 <- unlist(G0, use.names = FALSE)
-
-  H1 <- - (ind * Sm1) / bound(Sm1 * gA1[ID] * Gm1)
-  H0 <- - (ind * Sm0) / bound(Sm0 * gA0[ID] * Gm0)
-  DT <- with(dlong, tapply(It * (A * H1 - (1 - A) * H0) * (Lt - h), ID, sum))
-
-  DW1 <- Sm1[which(m == tau)]
-  DW0 <- Sm0[which(m == tau)]
-  ## S1
-  theta1 <- mean(DW1)
-  ## S0
-  theta0 <- mean(DW0)
-  ## d_S
-  theta <- theta1 - theta0
-  ## standard error of d_S
-  D <- DT + DW1 - DW0 - theta
-  sdn <- sqrt(var(D) / n)
+}
 
   ## result
-  out <- list(S1=theta1, S0=theta0, std.error.diff=sdn)
+  out <- list(SurvProb1=SurvProb1_result, SurvProb0=SurvProb0_result, std.error.diff=std.error.diff)
   return(out)
 }
 
