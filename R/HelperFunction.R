@@ -18,9 +18,9 @@ bound <- function(x, r = 0.001){
 #' Transform survival data from wide-format to long-format
 #'
 #' @param dwide Wide-format survival data with columns: time (observed time), eventObserved (Observed event), id
-#' @param freq.time Map time interval to coarser intervals
+#' @param freq.time Coarsen observed time to XXX days intervals
 #'
-#' @export dlong A long-format survival data (with coarsening if freq.time > 1)
+#' @return A long-format survival data (with coarsening if freq.time > 1)
 #'               with columns: t (time points), It, Jt, Rt, Lt (four indicator functions) and other covariates
 
 transformData <- function(dwide, freq.time){
@@ -54,14 +54,14 @@ transformData <- function(dwide, freq.time){
 
 #' Index for cross-fitting
 #'
-#' @param J For cross-fitting: random partition of subjects into J prediction sets of approximately the same size.
-#' @export
+#' @param crossFitnum For cross-fitting: random partition of subjects into J prediction sets of approximately the same size.
+#' @return
 
-crossFit <- function(eventObserved, id, J){
+crossFit <- function(eventObserved, id, crossFitnum){
 
-  ## divide data into J groups with equal percentage of events
+  ## divide data into XXX groups with equal percentage of events
   set.seed(08082021)
-  n_folds <- J
+  n_folds <- crossFitnum
   ## ID for subjects with or without observed events
   index_event <- id[which(eventObserved==1)]
   index_noevent <- id[which(eventObserved==0)]
