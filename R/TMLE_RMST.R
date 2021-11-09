@@ -3,9 +3,9 @@
 #' @param covariates Design matrix in triplet format (row index, col index, and value)
 #' @param covariates.names Corresponding covariates name in ''covariates''
 #' @param crossFitnum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
-#' @param SurvHaz.estimate Model for estimating nuisance parameter: survival hazards. Options currently include logistic LASSO, glm
-#' @param CenHaz.estimate Model for estimating nuisance parameter: censoring hazards. Options currently include logistic LASSO, glm
-#' @param TreatProb.estimate Model for estimating nuisance parameter: treatment probability. Options currently include logistic LASSO
+#' @param SurvHaz.estimate Model for estimating survival hazards. Options currently include logistic LASSO, glm
+#' @param CenHaz.estimate Model for estimating censoring hazards. Options currently include logistic LASSO, glm
+#' @param TreatProb.estimate Model for estimating treatment probability. Options currently include logistic LASSO
 #' @param maxCohortSizeForFitting If the target or comparator cohort are larger than this number, they
 #'                                 will be downsampled before fitting the propensity model. The model
 #'                                 will be used to compute propensity scores for all subjects. The
