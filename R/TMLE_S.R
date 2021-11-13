@@ -84,7 +84,7 @@ estimateTMLEprob <- function(dlong, survHaz, cenHaz, treatProb, tau){
     H0 <- - (ind * rep(SurvProb0[which(dlong$t == TimePoint)], each=max(dlong$t))) / bound(SurvProb0 * (1-treatProb[dlong$id]) * CenProb0)
     DT <- with(dlong, tapply(It * (treatment * H1 - (1 - treatment) * H0) * (Lt - SurvHaz_obs), id, sum))
 
-    rm(list=c("H1", "H0"))
+    rm(list=c("H1", "H0", "ind"))
 
     DW1 <- SurvProb1[which(dlong$t == TimePoint)]
     DW0 <- SurvProb0[which(dlong$t == TimePoint)]

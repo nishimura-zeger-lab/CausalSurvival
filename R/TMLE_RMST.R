@@ -95,7 +95,7 @@ estimateTMLErmst <- function(dlong, survHaz, cenHaz, treatProb, tau){
     cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, dlong$id, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
     H0 <- - cumProb0TillTimePoint / bound(SurvProb0 * (1-treatProb[dlong$id]) * CenProb0)
 
-    rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint"))
+    rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint", "ind"))
 
     DT <- with(dlong, tapply(It * (treatment * H1 - (1 - treatment) * H0) * (Lt - SurvHaz_obs), id, sum))
 
