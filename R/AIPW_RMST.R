@@ -1,4 +1,4 @@
-#' Estimate cross-fitted Augmented IPW of RMST
+#' Estimate cross-fitted Augmented IPW of restricted mean survival time (RMST)
 #'
 #' @param dlong Long-format survival data from function transformData(dwide, freqTime), must include columns: id, t, treatment, Lt, It
 #' @param survHaz Data frame with two columns: SurvHaz1, SurvHaz0
@@ -50,7 +50,7 @@ estimateAIPWrmst <- function(dlong, survHaz, cenHaz, treatProb, tau){
     cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, dlong$id, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
     H0 <- - cumProb0TillTimePoint / bound(SurvProb0 * (1-treatProb[dlong$id]) * CenProb0)
 
-    rm(list=c("ind", "cumProb1TillTimePoint", "cumProb0TillTimePoint"))
+    rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint"))
 
     DT1 <- with(dlong, tapply(It * treatment * H1 * (Lt - SurvHaz_obs), id, sum))
     DT0 <- with(dlong, tapply(It * (1 - treatment) * H0 * (Lt - SurvHaz_obs), id, sum))
@@ -65,7 +65,7 @@ estimateAIPWrmst <- function(dlong, survHaz, cenHaz, treatProb, tau){
     D <- DT1 - DT0 + DW1 - DW0
     sdn <- sqrt(var(D) / length(unique(dlong$id)))
 
-    rm(list=c("D", "DW1", "DW0", "DT1", "DT0"))
+    rm(list=c("D", "DW1", "DW0", "DT1", "DT0", "ind"))
 
     ## store
     RMST1_result[TimePoint] <- aipw[2]
