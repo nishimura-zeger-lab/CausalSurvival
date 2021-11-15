@@ -4,12 +4,13 @@
 #'                  sparse matrix of class "dgTMatrix"
 #' @param temporal_effect Baseline variables that will interact with time in regression,
 #'                        sparse matrix of class "dgTMatrix" or matrix
-#' @param is.temporal Whether there is temporal effect
+#' @param is.temporal Whether there is temporal effect, i.e. whether time t is a variable in the regression
 #' @param eventObserved Binary outcome variable
 #' @param time Observed time
 #' @param id Subject id
 #' @param estimate_hazard "survival" or "censoring"
-#' @export
+#' @return
+
 coef_pooled <- function(X_baseline, temporal_effect, is.temporal, eventObserved, time, id, estimate_hazard, maxiter, threshold){
 
   ## index for decreasing survival time
@@ -31,24 +32,24 @@ coef_pooled <- function(X_baseline, temporal_effect, is.temporal, eventObserved,
 
   ## Add intercept term to X_baseline_reorder and temporal_effect_reorder
   X_baseline_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), X_baseline_reorder)
-  if(is.null(temporal_effect_reorder) & is.temporal==FALSE){
+  if(is.null(temporal_effect_reorder) & !is.temporal){
     temporal_effect_reorder <- cbind(rep(0, dim(X_baseline_reorder)[1]), temporal_effect_reorder)
-  }else if(is.temporal==TRUE){
+  }else if(is.temporal){
     temporal_effect_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), temporal_effect_reorder)
   }
 
   ## subset index for each time point
   maxTime <- max(time_reorder)
   if (estimate_hazard == "survival"){
-    indx_subset <- sapply(1:maxTime, function(x) sum(time_reorder>=x), USE.NAMES = FALSE)
+    indx_subset <- sapply(1:maxTime, function(x) sum(time_reorder >= x), USE.NAMES = FALSE)
   }else if(estimate_hazard == "censoring"){
-    indx_subset <- sapply(1:maxTime, function(x) sum((time_reorder>x)*eventObserved_reorder+(time_reorder>=x)*(1-eventObserved_reorder)), USE.NAMES = FALSE)
+    indx_subset <- sapply(1:maxTime, function(x) sum((time_reorder > x)*eventObserved_reorder+(time_reorder >= x)*(1 - eventObserved_reorder)), USE.NAMES = FALSE)
   }
 
   ## initial value
-  crit <- TRUE
+  converged <- FALSE
   iter <- 1
-  beta <- rep(0, length=dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2])
+  beta <- rep(0, length=dim(temporal_effect_reorder)[2] + dim(X_baseline_reorder)[2])
 
   ## calculate X^T y
   design_matvec_Xy <- pooled_design_matvec(X_baseline_reorder=X_baseline_reorder,
@@ -57,10 +58,10 @@ coef_pooled <- function(X_baseline, temporal_effect, is.temporal, eventObserved,
                                            time_reorder=time_reorder, estimate_hazard=estimate_hazard,
                                            indx_subset=indx_subset, maxTime=maxTime)
 
-  dev_resid <- sum((design_matvec_Xy$Y-predict_pooled(coef=beta, X_baseline=X_baseline_reorder[, -1], temporal_effect=temporal_effect_reorder[, -1, drop=FALSE], maxTime=maxTime))^2)
+  dev_resid <- sum((design_matvec_Xy$Y - predict_pooled(coef=beta, X_baseline=X_baseline_reorder[, -1], temporal_effect=temporal_effect_reorder[, -1, drop=FALSE], maxTime=maxTime))^2)
 
   ## iterate until converge
-  while(crit && iter <= maxiter){
+  while((!converged) && iter <= maxiter){
 
     ## calculate iterative components
     comp <- pooled_design_iter(X_baseline_reorder=X_baseline_reorder,
@@ -71,11 +72,11 @@ coef_pooled <- function(X_baseline, temporal_effect, is.temporal, eventObserved,
     beta_new <- solve(comp$design_information, (comp$design_information %*% beta + design_matvec_Xy$matvec - comp$design_matvec_Xmu))
 
     ## new residual
-    dev_resid_new <- sum((design_matvec_Xy$Y-predict_pooled(coef=beta_new, X_baseline=X_baseline_reorder[, -1], temporal_effect=temporal_effect_reorder[, -1, drop=FALSE], maxTime=maxTime))^2)
+    dev_resid_new <- sum((design_matvec_Xy$Y - predict_pooled(coef=beta_new, X_baseline=X_baseline_reorder[, -1], temporal_effect=temporal_effect_reorder[, -1, drop=FALSE], maxTime=maxTime))^2)
 
     ## stopping rule
     iter <-  iter + 1
-    crit <- abs(dev_resid_new-dev_resid)/abs(dev_resid) > threshold
+    converged <- (abs(dev_resid_new-dev_resid)/abs(dev_resid) <= threshold)
 
     ## update value
     beta <- beta_new
@@ -122,8 +123,8 @@ pooled_design_matvec <- function(X_baseline_reorder, temporal_effect_reorder, ev
     }
     Y <- c(Y, y)
   ## X^T y
-  result_Xy <- result_Xy + t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%y[1:indx_subset[i]]
-  result_temporaly <- result_temporaly + i*t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])%*%y[1:indx_subset[i]] ## could add functions to i
+  result_Xy <- result_Xy + t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE]) %*% y[1:indx_subset[i]]
+  result_temporaly <- result_temporaly + i * t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE]) %*% y[1:indx_subset[i]] ## could add functions to i
   }
   ## result
   return(list(matvec=c(result_Xy[, 1], result_temporaly[, 1]), Y=Y))
@@ -143,26 +144,26 @@ pooled_design_matvec <- function(X_baseline_reorder, temporal_effect_reorder, ev
 #'                        intercept included
 #' @param beta Current iteration of coefficient value
 #' @param indx_subset Subset index for each time point
-#' @export result A list
+#' @return A list
 pooled_design_iter <- function(X_baseline_reorder, temporal_effect_reorder, beta, indx_subset, maxTime){
 
   ## container
-  result_info <- matrix(0, nrow=(dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2]),
-                        ncol=(dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2]))
+  result_info <- matrix(0, nrow=(dim(temporal_effect_reorder)[2] + dim(X_baseline_reorder)[2]),
+                        ncol=(dim(temporal_effect_reorder)[2] + dim(X_baseline_reorder)[2]))
   result_Xmu <- rep(0, length=dim(X_baseline_reorder)[2])
   result_temporalmu <- rep(0, length=dim(temporal_effect_reorder)[2])
 
     ## loop over each time point
   for (i in 1:maxTime){
     ## mu
-    temp_mu <- 1/(1+exp(-X_baseline_reorder[1:indx_subset[i], , drop=FALSE]%*%beta[1:dim(X_baseline_reorder)[2]]-i*temporal_effect_reorder[1:indx_subset[i], , drop=FALSE]%*%beta[(dim(X_baseline_reorder)[2]+1):length(beta)]))
+    temp_mu <- 1/(1+exp(-X_baseline_reorder[1:indx_subset[i], , drop=FALSE] %*% beta[1:dim(X_baseline_reorder)[2]]-i * temporal_effect_reorder[1:indx_subset[i], , drop=FALSE] %*% beta[(dim(X_baseline_reorder)[2]+1):length(beta)]))
     ## X^T mu
-    result_Xmu <- result_Xmu + t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%temp_mu[, 1]
-    result_temporalmu <- result_temporalmu + i*t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])%*%temp_mu[, 1]
+    result_Xmu <- result_Xmu + t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE]) %*% temp_mu[, 1]
+    result_temporalmu <- result_temporalmu + i * t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE]) %*% temp_mu[, 1]
     ## X^T diag(D) X
-    temp_X <- t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%((temp_mu[, 1])*X_baseline_reorder[1:indx_subset[i], , drop=FALSE])
-    temp_temporal <- (i^2)*t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])%*%((temp_mu[, 1])*temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])
-    temp_Xtemporal <- i*t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%((temp_mu[, 1])*temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])
+    temp_X <- t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE]) %*% ((temp_mu[, 1]) * X_baseline_reorder[1:indx_subset[i], , drop=FALSE])
+    temp_temporal <- (i^2) * t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE]) %*% ((temp_mu[, 1]) * temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])
+    temp_Xtemporal <- i * t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE]) %*% ((temp_mu[, 1]) * temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])
     result_info <- result_info + cbind(rbind(temp_X, t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
 
     ## clear workspace
@@ -178,7 +179,8 @@ pooled_design_iter <- function(X_baseline_reorder, temporal_effect_reorder, beta
 
 
 #' Prediction for pooled logistic regression
-#' @export result probability, in the order of: t1(id1, id2....), t2(id1, id2....),.....
+#'
+#' @return Probability, in the order of: id1(t1, t2....), id2(t1, t2....)....
 
 predict_pooled <- function(coef, X_baseline, temporal_effect, is.temporal, maxTime){
 
@@ -191,9 +193,9 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, is.temporal, maxTi
   }
 
   ## predict
-  LP1 <- X_baseline %*% coef[1:dim(X_baseline)[2]]
-  LP2 <- temporal_effect %*% coef[(dim(X_baseline)[2] + 1):length(coef)]
-  logitProb <- rep(LP1, maxTime) + rep(1:maxTime, each = dim(X_baseline)[1]) * rep(LP2, maxTime)
+  timeIndepLP <- X_baseline %*% coef[1:dim(X_baseline)[2]]
+  timeDepenLP <- temporal_effect %*% coef[(dim(X_baseline)[2] + 1):length(coef)]
+  logitProb <- rep(timeIndepLP, each=maxTime) + rep(1:maxTime, dim(X_baseline)[1]) * rep(timeDepenLP, each=maxTime)
   predictedProb <- exp(logitProb) / (1 + exp(logitProb))
 
   return(predictedProb)
