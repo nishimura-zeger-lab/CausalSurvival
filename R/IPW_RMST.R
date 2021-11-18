@@ -61,7 +61,7 @@ estimateIPWrmst <- function(dlong, cenHaz, treatProb, tau){
     rm(list=c("indTillTimePoint"))
 
     DT1ipw <- with(dlong, tapply(It * treatment * Z1ipw * Lt, id, sum))
-    DT0ipw <- with(dlong, tapply(Im * (1-treatment) * Z0ipw * Lt , id, sum))
+    DT0ipw <- with(dlong, tapply(It * (1-treatment) * Z0ipw * Lt , id, sum))
 
     ipw  <- tau + c(mean(DT0ipw), mean(DT1ipw))
 
