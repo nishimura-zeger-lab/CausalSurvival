@@ -29,6 +29,7 @@ estimateTMLErmst <- function(dlong, survHaz, cenHaz, treatProb, tau){
 
     if(TimePoint == 1){next}
 
+
     ## initial SurvHaz
     SurvHaz1 <- survHaz$SurvHaz1
     SurvHaz0 <- survHaz$SurvHaz0
@@ -69,8 +70,8 @@ estimateTMLErmst <- function(dlong, survHaz, cenHaz, treatProb, tau){
       eps[is.na(eps)] <- 0
 
       ## update values
-      SurvHaz1 <- bound01(plogis(qlogis(SurvHaz1) + eps * H1))
-      SurvHaz0 <- bound01(plogis(qlogis(SurvHaz0) + eps * H0))
+      SurvHaz1 <- plogis(qlogis(SurvHaz1) + eps * H1)
+      SurvHaz0 <- plogis(qlogis(SurvHaz0) + eps * H0)
       SurvHaz_obs  <- dlong$treatment * SurvHaz1  + (1 - dlong$treatment) * SurvHaz0
 
       iter <-  iter + 1
@@ -95,14 +96,14 @@ estimateTMLErmst <- function(dlong, survHaz, cenHaz, treatProb, tau){
     cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, dlong$id, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
     H0 <- - cumProb0TillTimePoint / bound(SurvProb0 * (1-treatProb[dlong$id]) * CenProb0)
 
-    rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint", "ind"))
+    rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint"))
 
     DT <- with(dlong, tapply(It * (treatment * H1 - (1 - treatment) * H0) * (Lt - SurvHaz_obs), id, sum))
 
     DW1 <- tapply(ind * SurvProb1, dlong$id, sum)
     DW0 <- tapply(ind * SurvProb0, dlong$id, sum)
 
-    rm(list=c("SurvProb1", "SurvProb0"))
+    rm(list=c("SurvProb1", "SurvProb0", "ind"))
 
     ## RMST(1, tau)
     RMST1_mean <- mean(DW1)
@@ -122,7 +123,7 @@ estimateTMLErmst <- function(dlong, survHaz, cenHaz, treatProb, tau){
   }
 
   ## result
-  out <- data.frame(RMST1=SurvRMST1, SurvRMST0=SurvRMST0, SErmstDiff=SErmstDiff_result)
+  out <- data.frame(RMST1=RMST1_result, RMST0=RMST0_result, SErmstDiff=SErmstDiff_result)
   return(out)
 }
 

@@ -7,8 +7,8 @@ bound01 <- function(x, r = 1e-10){
 }
 
 
-## bound number to (0, Inf)
-bound <- function(x, r = 0.001){
+## bound number to (r, Inf)
+bound <- function(x, r = 1e-7){
   xx <- x
   xx[x < r] <- r
   return(as.numeric(xx))
@@ -20,7 +20,7 @@ bound <- function(x, r = 0.001){
 #' @param dwide Wide-format survival data with columns: time (observed time), eventObserved (Observed event), id
 #' @param freqTime Coarsen observed time to XXX days intervals
 #'
-#' @return A long-format survival data (with coarsening if freq.time > 1)
+#' @return A long-format survival data (with coarsening if freqTime > 1)
 #'               with columns: t (time points), It, Jt, Rt, Lt (four indicator functions) and other covariates
 
 transformData <- function(dwide, freqTime){

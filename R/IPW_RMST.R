@@ -103,6 +103,3 @@ estimateIPWrmst <- function(dlong, cenHaz, treatProb, tau){
 
 
 
-
-
-
