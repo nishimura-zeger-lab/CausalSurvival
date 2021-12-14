@@ -123,7 +123,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb, treatPr
 #' @param index_ls Index for cross-fitting
 #'                 Default is no cross-fitting, index_ls = NULL
 #' @param timeEffect Functions of time in the discrete censoring hazards model.
-#'                   Options currently include "linear", "cubic"
+#'                   Options currently include "linear", "ns"
 #' @param interactWithTime Data frame that include variables that interact with time in the censoring hazards model
 #' @param cenHazEstimate Model for estimating censoring hazards. Options currently include "LASSO", "glm"
 #' @return A data frame with columns: ID, CenHaz1, CenHaz0
@@ -156,7 +156,11 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
     if (cenHazEstimate == "glm"){
       ## data
       X_baseline <- cbind(dlong$treatment[dlong$t==1], cov)[idx_train, ]
-      temporal_effect <- interactWithTime[idx_train, ]
+      if(is.null(dim(interactWithTime))){
+        temporal_effect <- interactWithTime[idx_train]
+      }else{
+        temporal_effect <- interactWithTime[idx_train, ]
+      }
       eventObserved <- (dlong$eventObserved[dlong$t==1])[idx_train]
       time <- (dlong$time[dlong$t==1])[idx_train]
       estimate_hazard <- "censoring"
@@ -164,7 +168,11 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
       ## reorder data
       time_indx <- order(time, decreasing = TRUE)
       X_baseline <- X_baseline[time_indx, ]
-      temporal_effect <- temporal_effect[time_indx, ]
+      if(is.null(dim(interactWithTime))){
+        temporal_effect <- temporal_effect[time_indx]
+      }else{
+        temporal_effect <- temporal_effect[time_indx, ]
+      }
       eventObserved <- eventObserved[time_indx]
       time <- time[time_indx]
       rm(time_indx)
@@ -177,25 +185,25 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
       ## prediction
       is.temporal <- TRUE
 
-      X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)
-      temporal_effect <- interactWithTime
+      X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
       if(is.null(temporal_effect) & !is.temporal){
         temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
       }else if(is.temporal & timeEffect == "linear"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
-      }else if(is.temporal & timeEffect == "cubic"){
-        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 rep(1, dim(X_baseline)[1]), temporal_effect)
+      }else if(timeEffect == "ns"){
+        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
+                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect,
+                                 temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
 
       CenHaz1temp <- predict_pooled(coef=coef_CenHaz, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                     temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
-                                    is.temporal = TRUE, maxTime=maxTime)
+                                    is.temporal = is.temporal, maxTime=maxTime)
 
       X_baseline <- cbind(rep(1, dim(cov)[1]), rep(0, dim(cov)[1]), cov)
       CenHaz0temp <- predict_pooled(coef=coef_CenHaz, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                     temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
-                                    is.temporal = TRUE, maxTime=maxTime)
+                                    is.temporal = is.temporal, maxTime=maxTime)
 
       ## clear workspace
       rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time", "idx_train", "coef_CenHaz"))
@@ -205,10 +213,17 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
       inx_train_LASSO <- which(dlong$id %in% idx_train & dlong$Jt == 1)
       outcomes <- data.frame(rowId = 1:dim(dlong[inx_train_LASSO, ])[1], y = dlong$Rt[inx_train_LASSO])
       if(timeEffect == "linear"){
-        cov_long <- cbind(dlong$treatment[inx_train_LASSO], dlong$t[inx_train_LASSO], cov[dlong$id[inx_train_LASSO], ])
+        cov_long <- cbind(dlong$treatment[inx_train_LASSO], dlong$t[inx_train_LASSO], interactWithTime[dlong$id[inx_train_LASSO]], cov[dlong$id[inx_train_LASSO], ])
       }else if(timeEffect == "cubic"){
         cov_long <- cbind(dlong$treatment[inx_train_LASSO],
                           dlong$t[inx_train_LASSO], (dlong$t[inx_train_LASSO])^2, (dlong$t[inx_train_LASSO])^3,
+                          dlong$t[inx_train_LASSO] * interactWithTime[dlong$id[inx_train_LASSO]],
+                          (dlong$t[inx_train_LASSO])^2 * interactWithTime[dlong$id[inx_train_LASSO]],
+                          (dlong$t[inx_train_LASSO])^3 * interactWithTime[dlong$id[inx_train_LASSO]],
+                          cov[dlong$id[inx_train_LASSO], ])
+      }else if(timeEffect == "ns"){
+        cov_long <- cbind(dlong$treatment[inx_train_LASSO], ns(dlong$t[inx_train_LASSO], df=5),
+                          ns(dlong$t[inx_train_LASSO], df=5) * interactWithTime[dlong$id[inx_train_LASSO]],
                           cov[dlong$id[inx_train_LASSO], ])
       }
       covariates <- as.data.frame(summary(cov_long))
@@ -221,11 +236,13 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
 
       # prior
       if(timeEffect == "linear"){
-        prior = Cyclops::createPrior("laplace", exclude = c(1, 2), useCrossValidation = TRUE)
+        prior = Cyclops::createPrior("laplace", exclude = 1:(2+!is.null(interactWithTime)), useCrossValidation = TRUE)
       }else if(timeEffect == "cubic"){
-        prior = Cyclops::createPrior("laplace", exclude = c(1, 2, 3, 4), useCrossValidation = TRUE)
+        prior = Cyclops::createPrior("laplace", exclude = 1:(4+3*!is.null(interactWithTime)), useCrossValidation = TRUE)
+      }else if(timeEffect == "ns"){
+        prior = Cyclops::createPrior("laplace", exclude = 1:(6+5*!is.null(interactWithTime)), useCrossValidation = TRUE)
       }
-      control = Cyclops::createControl(noiseLevel = "silent", cvType = "auto", fold = 10, seed = 1, tolerance = 1e-06, cvRepetitions = 5, startingVariance = 0.01)
+      control = Cyclops::createControl(noiseLevel = "silent", cvType = "auto", fold = 5, seed = 1, tolerance = 1e-06, cvRepetitions = 1, startingVariance = 0.01)
 
       ## model: LASSO
       cyclopsFit <- Cyclops::fitCyclopsModel(cyclopsData, prior = prior, control = control)
@@ -241,26 +258,32 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
       coef_CenHaz <- coef(cyclopsFit)
 
       if(timeEffect == "linear"){
-        timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_CenHaz[-3], each=maxTime)
-        timeDepenLP1 <- rep(1:maxTime, length(idx_test)) * coef_CenHaz[3]
+        timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP1 <- cbind(rep(1:maxTime, length(idx_test)), rep(1:maxTime, length(idx_test)) * TreatmentIndi1 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+!is.null(interactWithTime))]
       }else if(timeEffect == "cubic"){
-        timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_CenHaz[-c(3, 4, 5)], each=maxTime)
-        timeDepenLP1 <- rep(1:maxTime, length(idx_test)) * coef_CenHaz[3] +
-          (rep(1:maxTime, length(idx_test)))^2 * coef_CenHaz[4] +
-          (rep(1:maxTime, length(idx_test)))^3 * coef_CenHaz[5]
+        timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+3*!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP1 <- cbind(rep(1:maxTime, length(idx_test)), (rep(1:maxTime, length(idx_test)))^2, (rep(1:maxTime, length(idx_test)))^3,
+                              rep(1:maxTime, length(idx_test)) * TreatmentIndi1 * !is.null(interactWithTime), (rep(1:maxTime, length(idx_test)))^2 * TreatmentIndi1 * !is.null(interactWithTime),
+                              (rep(1:maxTime, length(idx_test)))^3 * TreatmentIndi1 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+3*!is.null(interactWithTime))]
+      }else if(timeEffect == "ns"){
+        timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+5*!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP1 <- cbind(ns(rep(1:maxTime, length(idx_test)), df=5), ns(rep(1:maxTime, length(idx_test)), df=5) * TreatmentIndi1 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+5*!is.null(interactWithTime))]
       }
 
       LP1 <- timeIndepLP1 + timeDepenLP1
       CenHaz1temp <- exp(LP1)/(1+exp(LP1))
 
       if(timeEffect == "linear"){
-        timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_CenHaz[-3], each=maxTime)
-        timeDepenLP0 <- rep(1:maxTime, length(idx_test))*coef_CenHaz[3]
+        timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP0 <- cbind(rep(1:maxTime, length(idx_test)), rep(1:maxTime, length(idx_test)) * TreatmentIndi0 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+!is.null(interactWithTime))]
       }else if(timeEffect == "cubic"){
-        timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_CenHaz[-c(3, 4, 5)], each=maxTime)
-        timeDepenLP0 <- rep(1:maxTime, length(idx_test)) * coef_CenHaz[3] +
-          (rep(1:maxTime, length(idx_test)))^2 * coef_CenHaz[4] +
-          (rep(1:maxTime, length(idx_test)))^3 * coef_CenHaz[5]
+        timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+3*!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP0 <- cbind(rep(1:maxTime, length(idx_test)), (rep(1:maxTime, length(idx_test)))^2, (rep(1:maxTime, length(idx_test)))^3,
+                              rep(1:maxTime, length(idx_test)) * TreatmentIndi0 * !is.null(interactWithTime), (rep(1:maxTime, length(idx_test)))^2 * TreatmentIndi0 * !is.null(interactWithTime),
+                              (rep(1:maxTime, length(idx_test)))^3 * TreatmentIndi0 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+3*!is.null(interactWithTime))]
+      }else if(timeEffect == "ns"){
+        timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+5*!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP0 <- cbind(ns(rep(1:maxTime, length(idx_test)), df=5), ns(rep(1:maxTime, length(idx_test)), df=5) * TreatmentIndi0 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+5*!is.null(interactWithTime))]
       }
 
       LP0 <- timeIndepLP0 + timeDepenLP0
@@ -351,15 +374,15 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
 
       rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time"))
 
-      X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)
-      temporal_effect <- interactWithTime
+      X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
       if(is.null(temporal_effect) & !is.temporal){
         temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
       }else if(is.temporal & timeEffect == "linear"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
-      }else if(is.temporal & timeEffect == "cubic"){
-        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 rep(1, dim(X_baseline)[1]), temporal_effect)
+      }else if(timeEffect == "ns"){
+        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
+                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect,
+                                 temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
 
       SurvHaz1temp <- predict_pooled(coef=coef_SurvHaz, X_baseline=X_baseline[idx_test, , drop=FALSE],
@@ -377,7 +400,20 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
       ## data
       inx_train_LASSO <- which(dlong$id %in% idx_train & dlong$It == 1)
       outcomes <- data.frame(rowId = 1:dim(dlong[inx_train_LASSO, ])[1], y = dlong$Lt[inx_train_LASSO])
-      cov_long <- cbind(dlong$treatment[inx_train_LASSO], dlong$t[inx_train_LASSO], cov[dlong$id[inx_train_LASSO], ])
+      if(timeEffect == "linear"){
+        cov_long <- cbind(dlong$treatment[inx_train_LASSO], dlong$t[inx_train_LASSO], interactWithTime[dlong$id[inx_train_LASSO]], cov[dlong$id[inx_train_LASSO], ])
+      }else if(timeEffect == "cubic"){
+        cov_long <- cbind(dlong$treatment[inx_train_LASSO],
+                          dlong$t[inx_train_LASSO], (dlong$t[inx_train_LASSO])^2, (dlong$t[inx_train_LASSO])^3,
+                          dlong$t[inx_train_LASSO] * interactWithTime[dlong$id[inx_train_LASSO]],
+                          (dlong$t[inx_train_LASSO])^2 * interactWithTime[dlong$id[inx_train_LASSO]],
+                          (dlong$t[inx_train_LASSO])^3 * interactWithTime[dlong$id[inx_train_LASSO]],
+                          cov[dlong$id[inx_train_LASSO], ])
+      }else if(timeEffect == "ns"){
+        cov_long <- cbind(dlong$treatment[inx_train_LASSO], ns(dlong$t[inx_train_LASSO], df=5),
+                          ns(dlong$t[inx_train_LASSO], df=5) * interactWithTime[dlong$id[inx_train_LASSO]],
+                          cov[dlong$id[inx_train_LASSO], ])
+      }
       covariates <- as.data.frame(summary(cov_long))
       colnames(covariates) <- c("rowId", "covariateId", "covariateValue")
       ## convert to CyclopsData
@@ -386,8 +422,14 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
       rm(list=c("inx_train_LASSO", "outcomes", "cov_long", "covariates"))
 
       # prior
-      prior = Cyclops::createPrior("laplace", exclude = c(1, 2), useCrossValidation = TRUE)
-      control = Cyclops::createControl(noiseLevel = "silent", cvType = "auto", fold = 10, seed = 1, tolerance = 1e-06, cvRepetitions = 5, startingVariance = 0.01)
+      if(timeEffect == "linear"){
+        prior = Cyclops::createPrior("laplace", exclude = 1:(2+!is.null(interactWithTime)), useCrossValidation = TRUE)
+      }else if(timeEffect == "cubic"){
+        prior = Cyclops::createPrior("laplace", exclude = 1:(4+3*!is.null(interactWithTime)), useCrossValidation = TRUE)
+      }else if(timeEffect == "ns"){
+        prior = Cyclops::createPrior("laplace", exclude = 1:(6+5*!is.null(interactWithTime)), useCrossValidation = TRUE)
+      }
+      control = Cyclops::createControl(noiseLevel = "silent", cvType = "auto", fold = 5, seed = 1, tolerance = 1e-06, cvRepetitions = 1, startingVariance = 0.01)
 
       ## model
       cyclopsFit <- Cyclops::fitCyclopsModel(cyclopsData, prior = prior, control = control)
@@ -401,13 +443,36 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
 
       coef_SurvHaz <- coef(cyclopsFit)
 
-      timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_SurvHaz[-3], each=maxTime)
-      timeDepenLP1 <- rep(1:maxTime, length(idx_test))*coef_SurvHaz[3]
+      if(timeEffect == "linear"){
+        timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_SurvHaz[-3:-(3+!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP1 <- cbind(rep(1:maxTime, length(idx_test)), rep(1:maxTime, length(idx_test)) * TreatmentIndi1 * interactWithTime) %*% coef_SurvHaz[3:(3+!is.null(interactWithTime))]
+      }else if(timeEffect == "cubic"){
+        timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_SurvHaz[-3:-(5+3*!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP1 <- cbind(rep(1:maxTime, length(idx_test)), (rep(1:maxTime, length(idx_test)))^2, (rep(1:maxTime, length(idx_test)))^3,
+                              rep(1:maxTime, length(idx_test)) * TreatmentIndi1 * interactWithTime, (rep(1:maxTime, length(idx_test)))^2 * TreatmentIndi1 * interactWithTime,
+                              (rep(1:maxTime, length(idx_test)))^3 * TreatmentIndi1 * interactWithTime) %*% coef_SurvHaz[3:(5+3*!is.null(interactWithTime))]
+      }else if(timeEffect == "ns"){
+        timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_SurvHaz[-3:-(7+5*!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP1 <- cbind(ns(rep(1:maxTime, length(idx_test)), df=5), ns(rep(1:maxTime, length(idx_test)), df=5) * TreatmentIndi1 * interactWithTime) %*% coef_SurvHaz[3:(7+5*!is.null(interactWithTime))]
+      }
+
       LP1 <- timeIndepLP1 + timeDepenLP1
       SurvHaz1temp <- exp(LP1)/(1+exp(LP1))
 
-      timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_SurvHaz[-3], each=maxTime)
-      timeDepenLP0 <- rep(1:maxTime, length(idx_test))*coef_SurvHaz[3]
+
+      if(timeEffect == "linear"){
+        timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_SurvHaz[-3:-(3+!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP0 <- cbind(rep(1:maxTime, length(idx_test)), rep(1:maxTime, length(idx_test)) * TreatmentIndi0 * interactWithTime) %*% coef_SurvHaz[3:(3+!is.null(interactWithTime))]
+      }else if(timeEffect == "cubic"){
+        timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_SurvHaz[-3:-(5+3*!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP0 <- cbind(rep(1:maxTime, length(idx_test)), (rep(1:maxTime, length(idx_test)))^2, (rep(1:maxTime, length(idx_test)))^3,
+                              rep(1:maxTime, length(idx_test)) * TreatmentIndi0 * interactWithTime, (rep(1:maxTime, length(idx_test)))^2 * TreatmentIndi0 * interactWithTime,
+                              (rep(1:maxTime, length(idx_test)))^3 * TreatmentIndi0 * interactWithTime) %*% coef_SurvHaz[3:(5+3*!is.null(interactWithTime))]
+      }else if(timeEffect == "ns"){
+        timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_SurvHaz[-3:-(7+5*!is.null(interactWithTime))], each=maxTime)
+        timeDepenLP0 <- cbind(ns(rep(1:maxTime, length(idx_test)), df=5), ns(rep(1:maxTime, length(idx_test)), df=5) * TreatmentIndi0 * interactWithTime) %*% coef_SurvHaz[3:(7+5*!is.null(interactWithTime))]
+      }
+
       LP0 <- timeIndepLP0 + timeDepenLP0
       SurvHaz0temp <- exp(LP0)/(1+exp(LP0))
 
