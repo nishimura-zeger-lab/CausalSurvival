@@ -16,7 +16,8 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
 Imports: 
     tidyverse,
-    data.table
+    data.table,
+    Matrix
 Suggests:
     usethis, 
     testthat
