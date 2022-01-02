@@ -77,7 +77,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, Y=Y, indx_subset=indx_subset, maxTime=maxTime)
     ## stopping rule
     iter <-  iter + 1
-    converged <- (abs(dev_resid_new-dev_resid)/abs(dev_resid) <= threshold)
+    converged <- (abs(dev_resid_new-dev_resid)/(0.1 + abs(dev_resid_new)) <= threshold)
 
     ## update value
     beta <- beta_new
