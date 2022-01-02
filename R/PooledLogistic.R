@@ -179,7 +179,7 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
 #'                        reorder observations into decreasing survival time,
 #'                        intercept included
 #' @param timeEffect Functions of time in the discrete censoring hazards model.
-#'                   Options currently include "linear", "cubic", NULL
+#'                   Options currently include "linear", "ns", NULL
 #' @param beta Current iteration of coefficient value
 #' @param indx_subset Subset index for each time point
 #' @return A list
@@ -214,20 +214,20 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
     ## mu(1-mu)
     diagmu <- temp_mu[, 1]*(1-temp_mu[, 1])
     ## X^T mu
-    baselineMu <- baselineMu + t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1]
+    baselineMu <- baselineMu + Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1]
     if(timeEffect == "linear" | is.null(timeEffect)){
       temporalMu <- temporalMu + t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1] * i
     }else if(timeEffect == "ns"){
       temporalMu <- temporalMu +  t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1] * timeNS
     }
     ## X^T diag(D) X
-    temp_X <- t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * X_baseline[1:atRiskIndx, ,drop=FALSE])
+    temp_X <- Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * X_baseline[1:atRiskIndx, ,drop=FALSE])
     if(timeEffect == "linear" | is.null(timeEffect)){
       temp_temporal <- (i^2 * t(temporal_effect[1:atRiskIndx, ,drop=FALSE])) %*% (diagmu * temporal_effect[1:atRiskIndx, ,drop=FALSE])
-      temp_Xtemporal <- (i * t(X_baseline[1:atRiskIndx, ,drop=FALSE])) %*% (diagmu * temporal_effect[1:atRiskIndx, ,drop=FALSE])
+      temp_Xtemporal <- (i * Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE])) %*% (diagmu * temporal_effect[1:atRiskIndx, ,drop=FALSE])
     }else if(timeEffect == "ns"){
       temp_temporal <- (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS))
-      temp_Xtemporal <- t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS))
+      temp_Xtemporal <- Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS))
     }
     fisher_info <- fisher_info + cbind(rbind(temp_X, t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
 
