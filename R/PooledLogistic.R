@@ -229,7 +229,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
       temp_temporal <- (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS))
       temp_Xtemporal <- Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS))
     }
-    fisher_info <- fisher_info + cbind(rbind(temp_X, t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
+    fisher_info <- fisher_info + cbind(rbind(temp_X, Matrix::t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
 
     rm(list=c("temp_mu", "temp_X", "temp_temporal", "temp_Xtemporal",
               "atRiskIndx", "timeIndepCoef", "timeDepCoef",
