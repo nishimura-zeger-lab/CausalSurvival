@@ -166,7 +166,7 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
       estimate_hazard <- "censoring"
 
       ## reorder data
-      time_indx <- order(time, decreasing = TRUE)
+      time_indx <- order(time, 1-eventObserved, decreasing = TRUE)
       X_baseline <- X_baseline[time_indx, ]
       if(is.null(dim(interactWithTime))){
         temporal_effect <- temporal_effect[time_indx]
