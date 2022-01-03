@@ -89,7 +89,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   }
 
   ## result
-  return(beta)
+  return(list(estimates=beta, sd=sd))
 }
 
 
