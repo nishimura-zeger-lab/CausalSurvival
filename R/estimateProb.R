@@ -137,9 +137,6 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
   if (!is.null(covIdCenHaz)){
     cov <- cov[, covIdCenHaz]
   }
-  ## parameter
-  maxTime <- min(max(dlong$time[dlong$eventObserved == 1]), max(dlong$time[dlong$eventObserved == 0]))
-
 
   for (i in 1:crossFitNum){
 
@@ -197,6 +194,9 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
                                  rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect,
                                  temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
+
+      ## parameter
+      maxTime <- min(max(dlong$time[dlong$eventObserved == 1]), max(dlong$time[dlong$eventObserved == 0]))
 
       CenHaz1temp <- predict_pooled(coef=coef_CenHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                     temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
@@ -335,8 +335,7 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
   if (!is.null(covIdSurvHaz)){
     cov <- cov[, covIdSurvHaz]
   }
-  ## parameter
-  maxTime <- min(max(dlong$time[dlong$eventObserved == 1]), max(dlong$time[dlong$eventObserved == 0]))
+
 
   for (i in 1:crossFitNum){
 
@@ -387,6 +386,9 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
                                  rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect,
                                  temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
+
+      ## parameter
+      maxTime <- min(max(dlong$time[dlong$eventObserved == 1]), max(dlong$time[dlong$eventObserved == 0]))
 
       SurvHaz1temp <- predict_pooled(coef=coef_SurvHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                      temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
