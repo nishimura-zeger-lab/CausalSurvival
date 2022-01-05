@@ -260,7 +260,7 @@ resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_
 
   ## container
   resid <- 0
-  if(timeEffect == "ns") {nsBase <- splines::ns(c(1:maxTime, 1:maxTime), df=5)}
+  if(timeEffect == "ns") {nsBase <- splines::ns(c(1:maxTime), df=5)}
 
   ## loop over each time point
   for (i in 1:maxTime){
@@ -303,7 +303,7 @@ resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_
 #' @return Probability, in the order of: id1(t1, t2....), id2(t1, t2....)....
 #'
 
-predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTime){
+predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTime, maxTimeSplines){
 
   ## predict
   timeIndepLP <- X_baseline %*% coef[1:dim(X_baseline)[2]]
@@ -312,7 +312,7 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTim
     timeDepenLP <- temporal_effect %*% coef[(dim(X_baseline)[2] + 1):length(coef)]
     logitProb <- rep(timeIndepLP, each=maxTime) + rep(1:maxTime, dim(X_baseline)[1]) * rep(timeDepenLP, each=maxTime)
   }else if(timeEffect == "ns"){
-    nsBase <- splines::ns(c(1:maxTime, 1:maxTime), df=5)
+    nsBase <- splines::ns(c(1:maxTimeSplines), df=5)
     timeDepenLP <- unlist(lapply(1:maxTime, function(i) {temporal_effect %*% (coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5)))}), use.names = FALSE)
     timeDepenLP <- timeDepenLP[order(rep(1:dim(X_baseline)[1], maxTime))]
     logitProb <- rep(timeIndepLP, each=maxTime) + timeDepenLP
