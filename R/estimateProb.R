@@ -138,7 +138,7 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
     cov <- cov[, covIdCenHaz]
   }
   ## parameter
-  maxTime <- max(dlong$t)
+  maxTime <- min(max(dlong$time[dlong$eventObserved == 1]), max(dlong$time[dlong$eventObserved == 0]))
 
 
   for (i in 1:crossFitNum){
@@ -334,7 +334,7 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
     cov <- cov[, covIdSurvHaz]
   }
   ## parameter
-  maxTime <- max(dlong$t)
+  maxTime <- min(max(dlong$time[dlong$eventObserved == 1]), max(dlong$time[dlong$eventObserved == 0]))
 
   for (i in 1:crossFitNum){
 
