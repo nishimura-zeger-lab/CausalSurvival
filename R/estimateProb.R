@@ -198,12 +198,12 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
 
       CenHaz1temp <- predict_pooled(coef=coef_CenHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                     temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
-                                    is.temporal = is.temporal, maxTime=maxTime)
+                                    maxTime=maxTime)
 
       X_baseline <- cbind(rep(1, dim(cov)[1]), rep(0, dim(cov)[1]), cov)
       CenHaz0temp <- predict_pooled(coef=coef_CenHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                     temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
-                                    is.temporal = is.temporal, maxTime=maxTime)
+                                    maxTime=maxTime)
 
       ## clear workspace
       rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time", "idx_train", "coef_CenHaz"))
@@ -387,12 +387,12 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
 
       SurvHaz1temp <- predict_pooled(coef=coef_SurvHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                      temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
-                                     is.temporal = TRUE, maxTime=maxTime)
+                                     maxTime=maxTime)
 
       X_baseline <- cbind(rep(1, dim(cov)[1]), rep(0, dim(cov)[1]), cov)
       SurvHaz0temp <- predict_pooled(coef=coef_SurvHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                      temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
-                                     is.temporal = TRUE, maxTime=maxTime)
+                                     maxTime=maxTime)
 
       rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time", "idx_train", "coef_SurvHaz"))
 
