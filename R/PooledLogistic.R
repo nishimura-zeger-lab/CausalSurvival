@@ -37,10 +37,11 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   }
 
   ## subset index for each time point
-  maxTime <- max(time)
   if (estimate_hazard == "survival"){
+    maxTime <- max(time[eventObserved==1])
     indx_subset <- sapply(1:maxTime, function(x) sum(time >= x), USE.NAMES = FALSE)
   }else if(estimate_hazard == "censoring"){
+    maxTime <- max(time[eventObserved==0])
     indx_subset <- sapply(1:maxTime, function(x) sum((time > x)*eventObserved+(time >= x)*(1 - eventObserved)), USE.NAMES = FALSE)
   }
 
