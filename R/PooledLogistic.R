@@ -12,17 +12,24 @@
 #' @param time Observed survival time. Ordered into decreasing observed survival time
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
+#' @param sigma Penalized parameter for ridge regression, a scalar. If sigma = NULL, then no penalization.
 #' @return A vector of coefficients in the order of: intercept, baseline covariates, time,
 #'                                                   interaction term between baseline covariates and time
 
 
 coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
-                        time, eventObserved, estimate_hazard,
+                        time, eventObserved, estimate_hazard, sigma,
                         maxiter, threshold){
 
   ## check and warning for reorder
 
 
+  ## penalized parameter: lambda
+  if(is.null(sigma)){
+    lambda <- 0
+  }else(){
+    lambda <- 1/(2*(sigma^2))
+  }
 
   ## Add intercept term to X_baseline and temporal_effect
   X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
@@ -72,7 +79,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                                beta=beta, indx_subset=indx_subset, maxTime=maxTime)
 
     ## beta_new
-    beta_new <- solve(comp$fisher_info, (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
+    beta_new <- solve((comp$fisher_info-2*lambda), (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
 
     ## new residual
     dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, Y=Y, indx_subset=indx_subset, maxTime=maxTime)
@@ -90,7 +97,8 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   }
 
   ## result
-  return(list(estimates=beta, sd=sqrt(diag(solve(comp$fisher_info)))))
+  var <- solve((comp$fisher_info - 2*lambda), (comp$fisher_info %*% solve(comp$fisher_info - 2*lambda)))
+  return(list(estimates=beta, sd=sqrt(diag(var))))
 }
 
 
