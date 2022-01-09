@@ -13,13 +13,17 @@
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
 #' @param sigma Penalized parameter for ridge regression, a scalar. If sigma = NULL, then no penalization.
+#' @param maxiter Maximum iterations
+#' @param threshold Threshold for convergence
+#' @param printIter TRUE/FALSE. Whether to print iterations or not
 #' @return A vector of coefficients in the order of: intercept, baseline covariates, time,
-#'                                                   interaction term between baseline covariates and time
+#'                                                   interaction term between baseline covariates and time.
+#'         And the standard error of the estimated coefficients
 
 
 coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                         time, eventObserved, estimate_hazard, sigma,
-                        maxiter, threshold){
+                        maxiter, threshold, printIter){
 
   ## check and warning for reorder
 
@@ -93,7 +97,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 
     rm(list=c("beta_new", "dev_resid_new"))
 
-    print(iter)
+    if(printIter){print(iter)}
   }
 
   ## result
@@ -106,6 +110,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 #' @param time Observed survival time. Ordered into decreasing observed survival time
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
+#' @param maxTime Maximum time for estimation
 #' @return A vector
 
 outcomeY <- function(time, eventObserved, estimate_hazard, maxTime){
@@ -144,6 +149,7 @@ outcomeY <- function(time, eventObserved, estimate_hazard, maxTime){
 #' @param Y Outcome variable in the pooled logistic regression.
 #'          Long-format, include outcome with all individuals at each time point
 #' @param indx_subset Subset index for each time point
+#' @param maxTime Maximum time for estimation
 #' @return A vector
 
 pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, indx_subset, maxTime){
@@ -189,6 +195,7 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
 #'                   Options currently include "linear", "ns", NULL
 #' @param beta Current iteration of coefficient value
 #' @param indx_subset Subset index for each time point
+#' @param maxTime Maximum time for estimation
 #' @return A list
 
 pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, indx_subset, maxTime){
@@ -262,6 +269,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
 #' @param Y Outcome variable in the pooled logistic regression.
 #'          Long-format, include outcome with all individuals at each time point
 #' @param indx_subset Subset index for each time point
+#' @param maxTime Maximum time for estimation
 #'
 
 resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_subset, maxTime){
@@ -308,8 +316,9 @@ resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_
 #' @param timeEffect Functions of time in the discrete censoring hazards model.
 #'                   Options currently include "linear", "cubic", NULL
 #' @param indx_subset Subset index for each time point
+#' @param maxTime Maximum time for prediction
+#' @param maxTimeSplines Maximum time used in regression. Relavant when using ns(time, df=5)
 #' @return Probability, in the order of: id1(t1, t2....), id2(t1, t2....)....
-#'
 
 predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTime, maxTimeSplines){
 
@@ -335,6 +344,20 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTim
 
 
 
+#' “evidence maximization” approach for tunning the penalty parameter
+
+tuneSigma <- function(){
+
+}
+
+
+
+
+#' Laplace’s method for estimating marginal likelihood
+
+marginLik <- function(){
+
+}
 
 
 
