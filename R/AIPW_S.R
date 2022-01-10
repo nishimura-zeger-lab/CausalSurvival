@@ -16,16 +16,16 @@ estimateAIPWprob <- function(dlong, survHaz, cenHaz, treatProb, tau){
   SurvProb1_result <- SurvProb0_result <- SEprobDiff_result <- rep(0, length=length(tau))
 
   ## calculate survival and censoring probability
-  SurvProb1List <- tapply(1 - survHaz$SurvHaz1, dlong$id, cumprod, simplify = FALSE)
-  SurvProb0List <- tapply(1 - survHaz$SurvHaz0, dlong$id, cumprod, simplify = FALSE)
+  SurvProb1List <- tapply(1 - survHaz$Haz1, dlong$id, cumprod, simplify = FALSE)
+  SurvProb0List <- tapply(1 - survHaz$Haz0, dlong$id, cumprod, simplify = FALSE)
 
   SurvProb1 <- unlist(SurvProb1List, use.names = FALSE)
   SurvProb0 <- unlist(SurvProb0List, use.names = FALSE)
 
   rm(list=c("SurvProb1List", "SurvProb0List"))
 
-  CenProb1List <- tapply(1 - cenHaz$CenHaz1, dlong$id, cumprod, simplify = FALSE)
-  CenProb0List <- tapply(1 - cenHaz$CenHaz0, dlong$id, cumprod, simplify = FALSE)
+  CenProb1List <- tapply(1 - cenHaz$Haz1, dlong$id, cumprod, simplify = FALSE)
+  CenProb0List <- tapply(1 - cenHaz$Haz0, dlong$id, cumprod, simplify = FALSE)
 
   CenProb1 <- unlist(CenProb1List, use.names = FALSE)
   CenProb0 <- unlist(CenProb0List, use.names = FALSE)
