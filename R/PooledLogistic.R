@@ -31,7 +31,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   ## penalized parameter: lambda
   if(is.null(sigma)){
     lambda <- 0
-  }else(){
+  }else{
     lambda <- 1/(2*(sigma^2))
   }
 
@@ -78,12 +78,12 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 
     ## calculate iterative components
     comp <- pooled_design_iter(X_baseline=X_baseline,
-                               temporal_effect=temporal_effect,
+                               temporal_effect=temporal_effect, Y=Y,
                                timeEffect=timeEffect,
                                beta=beta, indx_subset=indx_subset, maxTime=maxTime)
 
     ## beta_new
-    beta_new <- solve((comp$fisher_info-2*lambda), (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
+    beta_new <- solve((comp$fisher_info + 2*lambda), (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
 
     ## new residual
     dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, Y=Y, indx_subset=indx_subset, maxTime=maxTime)
@@ -101,8 +101,10 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   }
 
   ## result
-  var <- solve((comp$fisher_info - 2*lambda), (comp$fisher_info %*% solve(comp$fisher_info - 2*lambda)))
-  return(list(estimates=beta, sd=sqrt(diag(var))))
+  var <- solve((comp$fisher_info + 2*lambda), (comp$fisher_info %*% solve(comp$fisher_info + 2*lambda)))
+  return(list(estimates=beta, sd=sqrt(diag(var)),
+              fisherInfo = comp$fisher_info + 2*lambda,
+              logLik=comp$logLik))
 }
 
 
@@ -191,6 +193,8 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
 #'                        sparse matrix of class "dgTMatrix" or matrix,
 #'                        reorder observations into decreasing survival time,
 #'                        intercept included
+#' @param Y Outcome variable in the pooled logistic regression.
+#'          Long-format, include outcome with all individuals at each time point
 #' @param timeEffect Functions of time in the discrete censoring hazards model.
 #'                   Options currently include "linear", "ns", NULL
 #' @param beta Current iteration of coefficient value
@@ -198,13 +202,14 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
 #' @param maxTime Maximum time for estimation
 #' @return A list
 
-pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, indx_subset, maxTime){
+pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta, indx_subset, maxTime){
 
   ## container
   fisher_info <- matrix(0, nrow=(dim(temporal_effect)[2] + dim(X_baseline)[2]),
                         ncol=(dim(temporal_effect)[2] + dim(X_baseline)[2]))
   baselineMu <- rep(0, length=dim(X_baseline)[2])
   temporalMu <- rep(0, length=dim(temporal_effect)[2])
+  logLik <- 0
 
   ## natural spline for time
   if(timeEffect == "ns"){nsBase <- splines::ns(c(1:maxTime, 1:maxTime), df=5)}
@@ -216,6 +221,8 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
     timeIndepCoef <- beta[1:dim(X_baseline)[2]]
     timeDepCoef <- beta[(dim(X_baseline)[2]+1):length(beta)]
     baselineEffect <- X_baseline[1:atRiskIndx, ,drop=FALSE] %*% timeIndepCoef
+    n <- dim(X_baseline)[1]
+    y <- Y[((i-1)*n+1):(i*n)]
     ## mu
     if(timeEffect == "linear" | is.null(timeEffect)){
       temporalEffect <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% timeDepCoef * i
@@ -244,6 +251,8 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
       temp_Xtemporal <- Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS))
     }
     fisher_info <- fisher_info + cbind(rbind(temp_X, Matrix::t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
+    ## log likelihood
+    logLik <- logLik + y[1:atRiskIndx] * log(temp_mu[, 1]) + (1-y[1:atRiskIndx]) * log(1-temp_mu[, 1])
 
     rm(list=c("temp_mu", "temp_X", "temp_temporal", "temp_Xtemporal",
               "atRiskIndx", "timeIndepCoef", "timeDepCoef",
@@ -251,7 +260,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
   }
   ## result
   return(list(Xmu=c(baselineMu[, 1], temporalMu[, 1]),
-              fisher_info=fisher_info))
+              fisher_info=fisher_info, logLik=logLik))
 }
 
 
@@ -345,9 +354,42 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTim
 
 
 #' “evidence maximization” approach for tunning the penalty parameter
+#' @param X_baseline Baseline variables that won't interact with time in regression,
+#'                  sparse matrix of class "dgTMatrix".
+#'                  Rows are ordered into decreasing survival time.
+#' @param is.temporal Whether there is temporal effect, i.e. whether time t is a variable in the regression
+#' @param temporal_effect Baseline variables that will interact with time in regression,
+#'                        sparse matrix of class "dgTMatrix" or matrix.
+#'                        Rows are ordered into decreasing survival time
+#' @param timeEffect Functions of time in the discrete censoring hazards model.
+#'                   Options currently include "linear", "ns", NULL (if is.temporal = FALSE)
+#' @param time Observed survival time. Ordered into decreasing observed survival time
+#' @param eventObserved Event indicator. Ordered into decreasing observed survival time
+#' @param estimate_hazard "survival" or "censoring"
+#' @param sigma A range of penalized parameters for ridge regression, a vector.
+#' @param maxiter Maximum iterations
+#' @param threshold Threshold for convergence
+#' @param printIter TRUE/FALSE. Whether to print iterations or not
 
-tuneSigma <- function(){
+coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
+                      timeEffect, eventObserved, time,
+                      estimate_hazard, sigma, maxiter, threshold, printIter){
 
+  result_temp <- sapply(sigma, function(s){
+    ## coef's for each sigma
+    coef_temp <- coef_pooled(X_baseline=X_baseline, is.temporal=is.temporal, temporal_effect=temporal_effect,
+                             timeEffect=timeEffect, eventObserved=eventObserved, time=time,
+                             estimate_hazard=estimate_hazard, sigma=s, maxiter=maxiter, threshold=threshold, printIter=printIter)
+    ## marginal likelihood for each sigma
+    marginalLik_temp <- marginalLik(betaMAP=coef_temp$estimates, sigma=s, p=length(coef_temp$estimates),
+                                    logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
+    ## result
+    return(c(coef_temp, marginalLik_temp))
+  }, USE.NAMES = FALSE)
+
+  ## pick the coef's and sigma with the largest marginal likelihood
+  pick <- which.max(result_temp[dim(result_temp)[1],])
+  return(result_temp[-dim(result_temp)[1], pick])
 }
 
 
@@ -355,7 +397,12 @@ tuneSigma <- function(){
 
 #' Laplace’s method for estimating marginal likelihood
 
-marginLik <- function(){
+marginalLik <- function(betaMAP, sigma, p, logLik, fisherInfo){
+
+  ## marginal likelihood
+  likelihood <- exp(logLik-p*log(sqrt(2*pi)*sigma)-sum(betaMAP^2)/(2*sigma^2))*(2*pi)^(p/2)*sqrt(det(fisherInfo))
+  ## result
+  return(likelihood)
 
 }
 
