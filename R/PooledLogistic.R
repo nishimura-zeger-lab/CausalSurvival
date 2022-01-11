@@ -384,7 +384,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
     marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, sigma=s, p=length(coef_temp$estimates),
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
     ## result
-    return(c(coef_temp, marginalLogLik_temp))
+    return(c(coef_temp$estimates, marginalLogLik_temp))
   }, USE.NAMES = FALSE)
 
   ## pick the coef's and sigma with the largest marginal likelihood
