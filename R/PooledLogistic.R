@@ -252,7 +252,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
     }
     fisher_info <- fisher_info + cbind(rbind(temp_X, Matrix::t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
     ## log likelihood
-    logLik <- logLik + y[1:atRiskIndx] * log(temp_mu[, 1]) + (1-y[1:atRiskIndx]) * log(1-temp_mu[, 1])
+    logLik <- logLik + sum(y[1:atRiskIndx] * log(temp_mu[, 1])) + sum((1-y[1:atRiskIndx]) * log(1-temp_mu[, 1]))
 
     rm(list=c("temp_mu", "temp_X", "temp_temporal", "temp_Xtemporal",
               "atRiskIndx", "timeIndepCoef", "timeDepCoef",
