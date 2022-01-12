@@ -95,7 +95,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                             temporal_effect=temporal_effect,
                             timeEffect=timeEffect, Y=Y, nsBase=nsBase,
                             indx_subset=indx_subset, maxTime=maxTime,
-                            center=center, centerTime=centerTime, lambda=lambda)
+                            center=center, centerTime=centerTime)
 
   ## iterate until converge
   while((!converged) && iter <= maxiter){
