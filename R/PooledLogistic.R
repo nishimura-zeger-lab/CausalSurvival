@@ -105,9 +105,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                                center=center, centerTime=centerTime)
 
     ## beta_new
-    Imod <- diag(dim(comp$fisher_info)[1])
-    Imod[1, 1] <- 0
-    beta_new <- solve((comp$fisher_info + 2*lambda*Imod), (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
+    beta_new <- solve((comp$fisher_info + 2*lambda*diag(dim(comp$fisher_info)[1])), (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
 
     ## new residual
     dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline,
@@ -345,6 +343,8 @@ resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, nsBas
     ## store
     resid <- resid + resid_temp
   }
+
+  resid <- resid + lambda * sum(coef^2)
 
   ## result
   return(resid)
