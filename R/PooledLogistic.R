@@ -320,7 +320,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, nsBase, timeEffec
 #' @param maxTime Maximum time for estimation
 #'
 
-resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, nsBase, indx_subset, maxTime, center, centerTime, lambda){
+resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, nsBase, indx_subset, maxTime, center, centerTime){
 
   ## container
   resid <- 0
@@ -346,8 +346,6 @@ resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, nsBas
     ## store
     resid <- resid + resid_temp
   }
-
-  resid <- resid + lambda * sum(coef^2)
 
   ## result
   return(resid)
