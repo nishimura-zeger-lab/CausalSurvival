@@ -29,11 +29,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 
 
   ## penalized parameter: lambda
-  if(is.null(lambda)){
-    lambda <- 0
-    center <- FALSE
-  }else{center <- TRUE}
-
+  if(lambda == 0){center <- FALSE}else{center <- TRUE}
 
   ## subset index for each time point
   if (estimate_hazard == "survival"){
