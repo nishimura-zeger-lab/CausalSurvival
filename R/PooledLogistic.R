@@ -116,7 +116,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 
     rm(list=c("beta_new", "logLikelihood_new"))
 
-    if(printIter){print(i)}
+    if(printIter){print(iter - 1)}
   }
 
   ## result
