@@ -86,11 +86,6 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   ## iterate until converge
   while((!converged) && iter <= maxiter){
 
-    ## calculate iterative components
-    comp <- pooled_design_iter(X_baseline=X_baseline,
-                               temporal_effect=temporal_effect, Y=Y,
-                               timeEffect=timeEffect,
-                               beta=beta, indx_subset=indx_subset, maxTime=maxTime)
 
     ## beta_new
     Imop <- diag(dim(comp$fisher_info)[1])
@@ -102,6 +97,12 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     # dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline,
     #                               temporal_effect=temporal_effect, timeEffect=timeEffect,
     #                               Y=Y, indx_subset=indx_subset, maxTime=maxTime, lambda = lambda)
+
+    ## calculate iterative components
+    comp <- pooled_design_iter(X_baseline=X_baseline,
+                               temporal_effect=temporal_effect, Y=Y,
+                               timeEffect=timeEffect,
+                               beta=beta, indx_subset=indx_subset, maxTime=maxTime)
 
     ## initial (penalized) log-likelihood
     logLikelihood_new <- comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2]]^2)
