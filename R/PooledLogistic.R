@@ -427,7 +427,7 @@ marginalLogLik <- function(betaMAP, lambda, p, logLik, fisherInfo){
   sigma <- 1/sqrt(2*lambda)
 
   ## marginal log likelihood
-  logLikelihood <- logLik - p * log(sqrt(2*pi)*sigma) - sum(betaMAP[2:(p+1)]^2)/(2*sigma^2) + length(betaMAP) * log(sqrt(2*pi)) + determinant(as.matrix(fisherInfo))$modulus/2
+  logLikelihood <- logLik - p * log(sqrt(2*pi)*sigma) - sum(betaMAP[2:(p+1)]^2)/(2*sigma^2) + length(betaMAP) * log(sqrt(2*pi)) + determinant(solve(as.matrix(fisherInfo)))$modulus/2
 
   ## result
   return(logLikelihood)
