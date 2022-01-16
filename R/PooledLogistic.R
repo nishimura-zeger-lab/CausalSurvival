@@ -435,7 +435,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
 marginalLogLik <- function(betaMAP, lambda, p, logLik, fisherInfo){
 
   ## marginal log likelihood
-  logLikelihood <- logLik + p*log(2*lambda)/2 - sum(betaMAP[2:(p+1)]^2)*lambda - determinant(as.matrix(fisherInfo))$modulus/2
+  logLikelihood <- logLik + p*log(2*lambda)/2 - sum(betaMAP[2:(p+1)]^2)*lambda - determinant(as.matrix(fisherInfo)[2:(p+1), 2:(p+1)])$modulus/2
 
   ## result
   return(logLikelihood)
