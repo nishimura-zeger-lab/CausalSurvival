@@ -23,7 +23,7 @@
 
 coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                         time, eventObserved, estimate_hazard, lambda,
-                        maxiter, threshold, printIter){
+                        maxiter, threshold, printIter, initial_coef){
 
   ## check and warning for reorder
 
@@ -55,7 +55,11 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   ## initial value
   converged <- FALSE
   iter <- 1
-  beta <- rep(0, length=dim(temporal_effect)[2] + dim(X_baseline)[2])
+  if(is.null(initial_coef)){
+    beta <- rep(0, length=dim(temporal_effect)[2] + dim(X_baseline)[2])
+  }else{
+    beta <- initial_coef
+  }
 
   ## outcome
   Y <- outcomeY(time=time, eventObserved=eventObserved, estimate_hazard=estimate_hazard, maxTime=maxTime)
@@ -88,10 +92,6 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     ## beta_new
     beta_new <- solve((comp$fisher_info + 2*lambda*Imop), (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
 
-    ## new residual
-    # dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline,
-    #                               temporal_effect=temporal_effect, timeEffect=timeEffect,
-    #                               Y=Y, indx_subset=indx_subset, maxTime=maxTime, lambda = lambda)
 
     ## calculate iterative components
     comp <- pooled_design_iter(X_baseline=X_baseline,
@@ -400,17 +400,27 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
                       timeEffect, eventObserved, time,
                       estimate_hazard, lambda, maxiter, threshold, printIter){
 
-  result_temp <- sapply(lambda, function(s){
+  result_temp <- c()
+
+  for (i in 1:length(lambda)){
+
+    if(i == 1){
+      initial_coef <- NULL
+    }else{initial_coef <- coef_temp$estimates}
+
     ## coef's for each lambda
     coef_temp <- coef_pooled(X_baseline=X_baseline, is.temporal=is.temporal, temporal_effect=temporal_effect,
                              timeEffect=timeEffect, eventObserved=eventObserved, time=time,
-                             estimate_hazard=estimate_hazard, lambda=s, maxiter=maxiter, threshold=threshold, printIter=printIter)
+                             estimate_hazard=estimate_hazard, lambda=lambda[i],
+                             maxiter=maxiter, threshold=threshold, printIter=printIter, initial_coef=initial_coef)
+
     ## marginal likelihood for each lambda
     marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, lambda=s, p=dim(X_baseline)[2],
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
     ## result
-    return(c(coef_temp$estimates, marginalLogLik_temp))
-  }, USE.NAMES = FALSE)
+    result_temp <- cbind(result_temp, c(coef_temp$estimates, marginalLogLik_temp))
+
+     }
 
   ## pick the coef's and lambda with the largest marginal likelihood
   pick <- which.max(result_temp[dim(result_temp)[1],])
