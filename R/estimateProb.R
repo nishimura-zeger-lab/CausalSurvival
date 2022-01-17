@@ -187,7 +187,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       ## model: glm
       coef_Haz <- coef_pooled(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
                                  timeEffect=timeEffect, eventObserved=eventObserved, time=time,
-                                 estimate_hazard=estimate_hazard, sigma=NULL,
+                                 estimate_hazard=estimate_hazard, lambda=NULL,
                                  maxiter=40, threshold=1e-14, printIter=TRUE)
 
       rm(list=c("X_baseline", "temporal_effect"))
@@ -197,7 +197,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       ## model: ridge
       coef_Haz <- coef_ridge(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
                                 timeEffect=timeEffect, eventObserved=eventObserved, time=time,
-                                estimate_hazard=estimate_hazard, sigma=exp(seq(log(0.01), log(2), length.out = 100)),
+                                estimate_hazard=estimate_hazard, lambda=exp(seq(log(0.01), log(2), length.out = 100)),
                                 maxiter=40, threshold=1e-14, printIter=TRUE)
 
       rm(list=c("X_baseline", "temporal_effect"))
