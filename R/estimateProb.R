@@ -206,8 +206,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
     ## prediction
     is.temporal <- TRUE
-    X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)
-    temporal_effect <- interactWithTime
+    X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)[idx_test, , drop=FALSE]
+    temporal_effect <- interactWithTime[idx_test]
     if(is.null(temporal_effect) & !is.temporal){
       temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
     }else if(is.temporal & timeEffect == "linear"){
@@ -220,19 +220,21 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
     ## parameter
     maxTime <- min(max(time[eventObserved == 1]), max(time[eventObserved == 0]))
-    if(timeEffect == "ns"){
+    if(timeEffect == "ns" & estimate_hazard == "censoring"){
       maxTimeSplines <- max(time[eventObserved == 0])
+    }else if(timeEffect == "ns" & estimate_hazard == "survival"){
+      maxTimeSplines <- max(time[eventObserved == 1])
     }else{
       maxTimeSplines <- NULL
     }
 
-    Haz1temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
-                                  temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
+    Haz1temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
+                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
                                   maxTime=maxTime, maxTimeSplines=maxTimeSplines)
 
-    X_baseline <- cbind(rep(1, dim(cov)[1]), rep(0, dim(cov)[1]), cov)
-    Haz0temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
-                                  temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
+    X_baseline[, 2] <- 0
+    Haz0temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
+                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
                                   maxTime=maxTime, maxTimeSplines=maxTimeSplines)
 
     ## clear workspace
