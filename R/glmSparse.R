@@ -1,12 +1,12 @@
 #' Coefficients for logistic regression with sparse matrix (via iterative reweighted least square)
 #'
 
-coefSparse <- function(outcome, offset, H, maxiter, threshold, initial_coef, printIter){
+coefSparse <- function(outcome, offset, H, subset, maxiter, threshold, initial_coef, printIter){
 
   ## subset
-  outcome <- outcome[which(dlong$It == 1)]
-  offset <- qlogis(offset)[which(dlong$It == 1)]
-  H <- H[which(dlong$It == 1), ]
+  outcome <- outcome[subset]
+  offset <- qlogis(offset)[subset]
+  H <- H[subset, ]
 
   ## initial value
   converged <- FALSE
@@ -59,7 +59,7 @@ coefSparse <- function(outcome, offset, H, maxiter, threshold, initial_coef, pri
   }
 
   ## result
-  return(list(estimates=beta, sd=sqrt(diag(solve(fisher_info)))))
+  return(beta)
 }
 
 
