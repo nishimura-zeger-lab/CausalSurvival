@@ -36,11 +36,11 @@ transformData <- function(dwide, freqTime){
   t <- rep(1:maxtime, n)
 
   ## Indicator variables for each time point (see `Cross-fitted estimator for survival analysis` for definition)
-  Lt <- Rt <- rep(NA, n*maxtime)
+  # Lt <- Rt <- rep(NA, n*maxtime)
   It <- Jt <- 1*(t == 1)
   for(i in 1:maxtime){
-    Rt[t == i] <- (1 - dwide$eventObserved) * (dwide$time == i)
-    Lt[t == i] <- dwide$eventObserved * (dwide$time == i)
+    # Rt[t == i] <- (1 - dwide$eventObserved) * (dwide$time == i)
+    # Lt[t == i] <- dwide$eventObserved * (dwide$time == i)
     It[t == i] <- (dwide$time >= i)
     Jt[t == i] <- (dwide$time > i) * dwide$eventObserved + (dwide$time >= i) * (1 - dwide$eventObserved)
   }

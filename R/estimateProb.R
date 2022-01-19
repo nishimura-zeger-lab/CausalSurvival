@@ -91,6 +91,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
     covariates_test <- covariates[which(covariates$i %in% idx_test), ]
 
     outcomes_test <- data.table::setDT(outcomes_test)
+    covariates_test <- data.table::setDT(covariates_test)
     colnames(covariates_test) <- c("rowId", "covariateId", "covariateValue")
 
 
@@ -166,19 +167,19 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     }else{
       temporal_effect <- interactWithTime[idx_train, ]
     }
-    eventObserved <- eventObserved[idx_train]
-    time <- time[idx_train]
+    d_eventObserved <- eventObserved[idx_train]
+    d_time <- time[idx_train]
 
     ## reorder data
-    time_indx <- order(time, 1-eventObserved, decreasing = TRUE)
+    time_indx <- order(d_time, 1-d_eventObserved, decreasing = TRUE)
     X_baseline <- X_baseline[time_indx, ]
     if(is.null(dim(interactWithTime))){
       temporal_effect <- temporal_effect[time_indx]
     }else{
       temporal_effect <- temporal_effect[time_indx, ]
     }
-    eventObserved <- eventObserved[time_indx]
-    time <- time[time_indx]
+    d_eventObserved <- d_eventObserved[time_indx]
+    d_time <- d_time[time_indx]
     rm(time_indx)
 
     ## model and prediction
@@ -186,7 +187,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
       ## model: glm
       coef_Haz <- coef_pooled(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
-                                 timeEffect=timeEffect, eventObserved=eventObserved, time=time,
+                                 timeEffect=timeEffect, eventObserved=d_eventObserved, time=d_time,
                                  estimate_hazard=estimate_hazard, lambda=NULL,
                                  maxiter=40, threshold=1e-14, printIter=TRUE)
 
@@ -196,8 +197,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
       ## model: ridge
       coef_Haz <- coef_ridge(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
-                                timeEffect=timeEffect, eventObserved=eventObserved, time=time,
-                                estimate_hazard=estimate_hazard, lambda=exp(seq(log(0.01), log(2), length.out = 100)),
+                                timeEffect=timeEffect, eventObserved=d_eventObserved, time=d_time,
+                                estimate_hazard=estimate_hazard, lambda=exp(seq(log(0.01), log(2), length.out = 10)),
                                 maxiter=40, threshold=1e-14, printIter=TRUE)
 
       rm(list=c("X_baseline", "temporal_effect"))
@@ -219,11 +220,11 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     }
 
     ## parameter
-    maxTime <- min(max(time[eventObserved == 1]), max(time[eventObserved == 0]))
+    maxTime <- min(max(d_time[d_eventObserved == 1]), max(d_time[d_eventObserved == 0]))
     if(timeEffect == "ns" & estimate_hazard == "censoring"){
-      maxTimeSplines <- max(time[eventObserved == 0])
+      maxTimeSplines <- max(d_time[d_eventObserved == 0])
     }else if(timeEffect == "ns" & estimate_hazard == "survival"){
-      maxTimeSplines <- max(time[eventObserved == 1])
+      maxTimeSplines <- max(d_time[d_eventObserved == 1])
     }else{
       maxTimeSplines <- NULL
     }
@@ -253,6 +254,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
   ## result
   out <- data.frame(ID=ID, Haz1=Haz1, Haz0=Haz0)
   out <- out[order(out$ID), ]
+  rownames(out) <- NULL
   return(out)
 }
 
