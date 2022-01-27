@@ -271,11 +271,13 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
     }
     fisher_info <- fisher_info + cbind(rbind(temp_X, Matrix::t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
     ## log likelihood
-    logLik <- logLik + sum(y[1:atRiskIndx] * log(temp_mu[, 1])) + sum((1-y[1:atRiskIndx]) * log(1-temp_mu[, 1]))
+    logLik_temp <- y[1:atRiskIndx] * log(temp_mu[, 1]) + (1-y[1:atRiskIndx]) * log(1-temp_mu[, 1])
+    logLik_temp[is.infinite(logLik_temp)] <- NA
+    logLik <- logLik + sum(logLik_temp, na.rm = TRUE)
 
     rm(list=c("temp_mu", "temp_X", "temp_temporal", "temp_Xtemporal",
               "atRiskIndx", "timeIndepCoef", "timeDepCoef",
-              "baselineEffect", "temporalEffect", "diagmu"))
+              "baselineEffect", "temporalEffect", "diagmu", "logLik_temp"))
   }
   ## result
   return(list(Xmu=c(baselineMu[, 1], temporalMu[, 1]),
@@ -418,7 +420,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
     marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, lambda=lambda[i], p=dim(X_baseline)[2],
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
     ## result
-    result_temp <- cbind(result_temp, c(coef_temp$estimates, marginalLogLik_temp))
+    result_temp <- cbind(result_temp, c(coef_temp$estimates[, 1], marginalLogLik_temp))
 
      }
 

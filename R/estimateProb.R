@@ -26,6 +26,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
   }
 
   for (i in 1:crossFitNum){
+
     if (is.null(index_ls)){
       ## training and testing sets are both the entire dataset
       idx_train <- idx_test <- id
@@ -132,17 +133,25 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
 #' @param timeEffect Functions of time in the discrete hazards model.
 #'                   Options currently include "linear", "ns"
 #' @param interactWithTime Data frame that include variables that interact with time in the hazards model
-#' @param hazEstimate Model for estimating censoring hazards. Options currently include "glm", "ridge"
+#' @param hazEstimate Model for estimating censoring hazards. Options currently include "glm", "ridge".
+#'                    If hazEstimate = NULL, then must provide coef_Haz to have prediction of hazards
 #' @param estimate_hazard "survival" or "censoring"
+#' @param coef Supply output from pooledLogistic to have prediction of hazards
 #' @return A data frame with columns: ID, Haz1, Haz0
 
 estimateHaz <- function(id, treatment, eventObserved, time,
                            covariates, covIdHaz,
                            crossFitNum=1, index_ls=NULL,
-                           timeEffect, interactWithTime, hazEstimate, estimate_hazard){
+                           timeEffect, interactWithTime, hazEstimate,
+                           estimate_hazard, getHaz, coef_H, maxTimePredict){
 
   ## container
-  ID <- Haz1 <- Haz0 <- c()
+  if(getHaz){
+    ID <- Haz1 <- Haz0 <- c()
+  }else{
+    coef_fit <- c()
+  }
+
   ## covariates to sparse matrix form, and delete unwanted covariates
   cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
   if (!is.null(covIdHaz)){
@@ -183,13 +192,13 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     rm(time_indx)
 
     ## model and prediction
-    if (hazEstimate == "glm"){
+    if(hazEstimate == "glm"){
 
       ## model: glm
       coef_Haz <- coef_pooled(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
                                  timeEffect=timeEffect, eventObserved=d_eventObserved, time=d_time,
                                  estimate_hazard=estimate_hazard, lambda=NULL,
-                                 maxiter=40, threshold=1e-14, printIter=TRUE)
+                                 maxiter=40, threshold=1e-14, printIter=TRUE, initial_coef=NULL)
 
       rm(list=c("X_baseline", "temporal_effect"))
 
@@ -198,17 +207,33 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       ## model: ridge
       coef_Haz <- coef_ridge(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
                                 timeEffect=timeEffect, eventObserved=d_eventObserved, time=d_time,
-                                estimate_hazard=estimate_hazard, lambda=exp(seq(log(0.01), log(2), length.out = 10)),
-                                maxiter=40, threshold=1e-14, printIter=TRUE)
+                                estimate_hazard=estimate_hazard, lambda=exp(seq(log(0.5), log(2), length.out = 30)),
+                                maxiter=40, threshold=1e-10, printIter=TRUE)
 
       rm(list=c("X_baseline", "temporal_effect"))
 
     }
 
     ## prediction
+    if(getHaz){
+
+      ## parameter: maxTimeSplines for prediction if use ns(time, df=5)
+      if(timeEffect == "ns" & estimate_hazard == "censoring"){
+        maxTimeSplines <- max(d_time[d_eventObserved == 0])
+      }else if(timeEffect == "ns" & estimate_hazard == "survival"){
+        maxTimeSplines <- max(d_time[d_eventObserved == 1])
+      }else{
+        maxTimeSplines <- NULL
+      }
+
+    ## prepare dataset for prediction
     is.temporal <- TRUE
     X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)[idx_test, , drop=FALSE]
-    temporal_effect <- interactWithTime[idx_test]
+    if(is.null(interactWithTime)){
+      temporal_effect <- interactWithTime[idx_test]
+    }else{
+      temporal_effect <- rep(1, length(idx_test))
+    }
     if(is.null(temporal_effect) & !is.temporal){
       temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
     }else if(is.temporal & timeEffect == "linear"){
@@ -219,43 +244,73 @@ estimateHaz <- function(id, treatment, eventObserved, time,
                                temporal_effect, temporal_effect, temporal_effect, temporal_effect)
     }
 
-    ## parameter
-    maxTime <- min(max(d_time[d_eventObserved == 1]), max(d_time[d_eventObserved == 0]))
-    if(timeEffect == "ns" & estimate_hazard == "censoring"){
-      maxTimeSplines <- max(d_time[d_eventObserved == 0])
-    }else if(timeEffect == "ns" & estimate_hazard == "survival"){
-      maxTimeSplines <- max(d_time[d_eventObserved == 1])
+    if(is.null(coef_H)){
+      ## prediction with derived coefficients
+      Haz1temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
+                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
+                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
+
+      X_baseline[, 2] <- 0
+      if(is.null(interactWithTime)){
+        temporal_effect <- interactWithTime[idx_test]
+      }else{
+        temporal_effect <- rep(0, length(idx_test))
+      }
+      Haz0temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
+                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
+                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
     }else{
-      maxTimeSplines <- NULL
+      ## prediction with input coefficients
+      Haz1temp <- predict_pooled(coef=coef_H[, i], X_baseline=X_baseline,
+                                 temporal_effect=temporal_effect, timeEffect=timeEffect,
+                                 maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
+
+      X_baseline[, 2] <- 0
+      if(is.null(interactWithTime)){
+        temporal_effect <- interactWithTime[idx_test]
+      }else{
+        temporal_effect <- rep(0, length(idx_test))
+      }
+      if(is.null(temporal_effect) & !is.temporal){
+        temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
+      }else if(is.temporal & timeEffect == "linear"){
+        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
+      }else if(timeEffect == "ns"){
+        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
+                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect,
+                                 temporal_effect, temporal_effect, temporal_effect, temporal_effect)
+      }
+      Haz0temp <- predict_pooled(coef=coef_H[, i], X_baseline=X_baseline,
+                                 temporal_effect=temporal_effect, timeEffect=timeEffect,
+                                 maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
     }
-
-    Haz1temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
-                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                  maxTime=maxTime, maxTimeSplines=maxTimeSplines)
-
-    X_baseline[, 2] <- 0
-    Haz0temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
-                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                  maxTime=maxTime, maxTimeSplines=maxTimeSplines)
-
     ## clear workspace
     rm(list=c("X_baseline", "temporal_effect", "idx_train", "coef_Haz"))
 
     ## store
-    ID <- c(ID, rep(idx_test, each=maxTime))
+    ID <- c(ID, rep(idx_test, each=maxTimePredict))
     Haz1 <- c(Haz1, Haz1temp)
     Haz0 <- c(Haz0, Haz0temp)
 
     ## clear workspace
     rm(list=c("Haz1temp", "Haz0temp", "idx_test"))
 
+    }else{
+    ## no prediction, output coefficients
+      coef_fit <- cbind(coef_fit, coef_Haz$estimates)
+    }
   }
 
   ## result
-  out <- data.frame(ID=ID, Haz1=Haz1, Haz0=Haz0)
-  out <- out[order(out$ID), ]
-  rownames(out) <- NULL
-  return(out)
+  if(getHaz){
+    out <- data.frame(ID=ID, Haz1=Haz1, Haz0=Haz0)
+    out <- out[order(out$ID), ]
+    rownames(out) <- NULL
+    return(out)
+  }else{
+    return(coef_fit)
+  }
+
 }
 
 
