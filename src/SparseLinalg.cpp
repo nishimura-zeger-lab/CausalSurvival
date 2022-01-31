@@ -4,10 +4,8 @@
 using Eigen::Map; // 'Map' (i.e. reference without making copies) R matrices
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
-using Eigen::DiagonalMatrix;
 using Eigen::SparseMatrix;
-typedef DiagonalMatrix<double, Eigen::Dynamic> EigenDiagonalMatrix;
-typedef Map<SparseMatrix<double, Eigen::ColMajor>> MappedCsc;
+typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> EigenDiagonalMatrix;
 typedef Map<SparseMatrix<double, Eigen::RowMajor>> MappedCsr;
 
 
