@@ -1,5 +1,5 @@
 ## bound number to (0, 1)
-bound01 <- function(x, r = 0.001){
+bound01 <- function(x, r = 1e-15){
   xx <- x
   xx[x < r] <- r
   xx[x > 1-r] <- 1-r
@@ -19,35 +19,59 @@ bound <- function(x, r = 1e-7){
 #'
 #' @param dwide Wide-format survival data with columns: time (observed time), eventObserved (Observed event), id
 #' @param freqTime Coarsen observed time to XXX days intervals
+#' @param type "survival" or "censoring"
 #'
 #' @return A long-format survival data (with coarsening if freqTime > 1)
 #'               with columns: t (time points), It, Jt, Rt, Lt (four indicator functions) and other covariates
 
-transformData <- function(dwide, freqTime){
+transformData <- function(dwide, freqTime, type){
+
   ## Coarsen data
   if(freqTime > 1) dwide$time <- dwide$time %/% freqTime + 1
 
   ## number of subjects
   n <- dim(dwide)[1]
-  ## maximum follow-up time
-  maxtime <- max(dwide$time)
 
+  if(type == "survival"){
+
+  ## maximum follow-up time
+  maxtime <- max(dwide$time[dwide$eventObserved == 1])
   ## time points for each subjects
   t <- rep(1:maxtime, n)
 
-  ## Indicator variables for each time point (see `Cross-fitted estimator for survival analysis` for definition)
   Lt <- rep(NA, n*maxtime)
   It <- 1*(t == 1)
+
   for(i in 1:maxtime){
-    # Rt[t == i] <- (1 - dwide$eventObserved) * (dwide$time == i)
     Lt[t == i] <- dwide$eventObserved * (dwide$time == i)
     It[t == i] <- (dwide$time >= i)
-    # Jt[t == i] <- (dwide$time > i) * dwide$eventObserved + (dwide$time >= i) * (1 - dwide$eventObserved)
   }
 
   ## Long-format dataset
   dlong <- data.frame(dwide[as.numeric(gl(n, maxtime)), ], t = t, It, Lt)
+
+  }else if(type == "censoring"){
+
+    ## maximum follow-up time
+    maxtime <- max(dwide$time[dwide$eventObserved == 0])
+    ## time points for each subjects
+    t <- rep(1:maxtime, n)
+
+    Rt <- rep(NA, n*maxtime)
+    Jt <- 1*(t == 1)
+
+    for(i in 1:maxtime){
+      Rt[t == i] <- (1 - dwide$eventObserved) * (dwide$time == i)
+      Jt[t == i] <- (dwide$time > i) * dwide$eventObserved + (dwide$time >= i) * (1 - dwide$eventObserved)
+    }
+
+    ## Long-format dataset
+    dlong <- data.frame(dwide[as.numeric(gl(n, maxtime)), ], t = t, Rt, Jt)
+
+  }
+
   return(dlong)
+
 }
 
 

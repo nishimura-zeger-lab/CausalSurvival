@@ -36,7 +36,7 @@ estimateTMLEprob_monotone <- function(treatment, eventObserved, time, survHaz, c
   ## dlong
   dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1)
   rownames(dlong) <- NULL
-  dlong <- dlong[which(dlong$t <= maxTime),]
+  dlong <- dlong[which(dlong$t <= maxTime), c("Lt", "It", "t")]
 
   ## iterate
   while((!converged) && iter <= 50){

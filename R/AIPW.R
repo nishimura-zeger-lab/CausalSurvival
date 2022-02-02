@@ -1,14 +1,14 @@
 #' Estimate (cross-fitted) Augmented IPW of survival probability / rmst at time tau
 #'
 #' @param survHaz Data frame with two columns: Haz1, Haz0
-#'                Estimated survival hazards for each person at each time points if receive treatment 1 (SurvHaz1) and if receive treatment 0 (SurvHaz0)
+#'                Estimated survival hazards for each person at each time points if receive treatment 1 (Haz1) and if receive treatment 0 (Haz0)
 #' @param cenHaz Data frame with two columns: Haz1, Haz0
-#'               Estimated censoring hazards for each person at each time points if receive treatment 1 (CenHaz1) and if receive treatment 0 (CenHaz0)
+#'               Estimated censoring hazards for each person at each time points if receive treatment 1 (Haz1) and if receive treatment 0 (Haz0)
 #' @param treatProb Estimated probability for treatment for each person if receive treatment 1
 #' @param tau Time of interest. Can be a vector (multiple time of interest)
 #' @return A data frame with three columns: estimand1, estimand0, SE
 
-estimateAIPWprob <- function(treatment, eventObserved, time, survHaz, cenHaz, treatProb, tau, estimand, printTau){
+estimateAIPW <- function(treatment, eventObserved, time, survHaz, cenHaz, treatProb, tau, estimand, printTau){
 
 
   ## container
@@ -17,10 +17,11 @@ estimateAIPWprob <- function(treatment, eventObserved, time, survHaz, cenHaz, tr
   ## parameter
   n <- length(unique(survHaz$ID))
   maxTime <- dim(survHaz)[1]/n
+  ID <- survHaz$ID
 
   ## calculate survival probability
-  SurvProb1List <- tapply(1 - survHaz$Haz1, survHaz$ID, cumprod, simplify = FALSE)
-  SurvProb0List <- tapply(1 - survHaz$Haz0, survHaz$ID, cumprod, simplify = FALSE)
+  SurvProb1List <- tapply(1 - survHaz$Haz1, ID, cumprod, simplify = FALSE)
+  SurvProb0List <- tapply(1 - survHaz$Haz0, ID, cumprod, simplify = FALSE)
 
   SurvProb1 <- unlist(SurvProb1List, use.names = FALSE)
   SurvProb0 <- unlist(SurvProb0List, use.names = FALSE)
@@ -28,13 +29,12 @@ estimateAIPWprob <- function(treatment, eventObserved, time, survHaz, cenHaz, tr
   rm(list=c("SurvProb1List", "SurvProb0List"))
 
   ## Observed estimated survival hazards
-  SurvHaz_obs <- treatProb[survHaz$ID] * survHaz$Haz1 + (1-treatProb[survHaz$ID]) * survHaz$Haz0
-
+  SurvHaz_obs <- treatProb[ID] * survHaz$Haz1 + (1-treatProb[ID]) * survHaz$Haz0
   rm(list=c("survHaz"))
 
   ## calculate censoring probability
-  CenProb1List <- tapply(1 - cenHaz$Haz1, survHaz$ID, cumprod, simplify = FALSE)
-  CenProb0List <- tapply(1 - cenHaz$Haz0, survHaz$ID, cumprod, simplify = FALSE)
+  CenProb1List <- tapply(1 - cenHaz$Haz1, ID, cumprod, simplify = FALSE)
+  CenProb0List <- tapply(1 - cenHaz$Haz0, ID, cumprod, simplify = FALSE)
 
   CenProb1 <- unlist(CenProb1List, use.names = FALSE)
   CenProb0 <- unlist(CenProb0List, use.names = FALSE)
@@ -44,11 +44,11 @@ estimateAIPWprob <- function(treatment, eventObserved, time, survHaz, cenHaz, tr
   ## dlong
   dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1)
   rownames(dlong) <- NULL
-  dlong <- dlong[which(dlong$t <= maxTime),]
+  dlong <- dlong[which(dlong$t <= maxTime), c("Lt", "It", "t")]
 
   ## denominator
-  weightH1 <- 1/(SurvProb1 * treatProb[survHaz$ID] * CenProb1)
-  weightH0 <- 1/(SurvProb0 * (1-treatProb[survHaz$ID]) * CenProb0)
+  weightH1 <- 1/(SurvProb1 * treatProb[ID] * CenProb1)
+  weightH0 <- 1/(SurvProb0 * (1-treatProb[ID]) * CenProb0)
 
   weightH1[which(weightH1 >= quantile(weightH1, probs = 0.95))] <- quantile(weightH1, probs = 0.95)
   weightH0[which(weightH0 >= quantile(weightH0, probs = 0.95))] <- quantile(weightH0, probs = 0.95)
@@ -73,22 +73,20 @@ estimateAIPWprob <- function(treatment, eventObserved, time, survHaz, cenHaz, tr
     H1 <- - (ind * rep(SurvProb1[which(dlong$t == TimePoint)], each=max(dlong$t))) * weightH1
     H0 <- - (ind * rep(SurvProb0[which(dlong$t == TimePoint)], each=max(dlong$t))) * weightH0
 
-    rm(list=c("weightH1", "weightH0"))
-
     }else if(estimand=="rmst"){
 
       ## solve estimating equation
-      cumProb1TillTimePoint <- unlist(tapply(ind * SurvProb1, survHaz$ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
+      cumProb1TillTimePoint <- unlist(tapply(ind * SurvProb1, ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
       H1 <- - cumProb1TillTimePoint * weightH1
-      cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, survHaz$ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
+      cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
       H0 <- - cumProb0TillTimePoint * weightH0
 
-      rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint", "weightH1", "weightH0"))
+      rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint"))
 
     }
 
-    DT1 <- tapply(dlong$It * treatment[SurvHaz$ID] * H1 * (dlong$Lt - SurvHaz_obs), survHaz$ID, sum)
-    DT0 <- tapply(dlong$It * (1 - treatment[SurvHaz$ID]) * H0 * (dlong$Lt - SurvHaz_obs), survHaz$ID, sum)
+    DT1 <- tapply(dlong$It * treatment[ID] * H1 * (dlong$Lt - SurvHaz_obs), ID, sum)
+    DT0 <- tapply(dlong$It * (1 - treatment[ID]) * H0 * (dlong$Lt - SurvHaz_obs), ID, sum)
 
     rm(list=c("H1", "H0"))
 
@@ -99,8 +97,8 @@ estimateAIPWprob <- function(treatment, eventObserved, time, survHaz, cenHaz, tr
 
     }else if(estimand=="rmst"){
 
-      DW1 <- tapply(ind * SurvProb1, SurvHaz$ID, sum)
-      DW0 <- tapply(ind * SurvProb0, SurvHaz$ID, sum)
+      DW1 <- tapply(ind * SurvProb1, ID, sum)
+      DW0 <- tapply(ind * SurvProb0, ID, sum)
 
     }
 
@@ -117,7 +115,7 @@ estimateAIPWprob <- function(treatment, eventObserved, time, survHaz, cenHaz, tr
     estimand0_result[TimePoint] <- aipw[1]
     SE_result[TimePoint] <- sdn
 
-    if(printTau){print(paste("Time point", i, "finished"))}
+    if(printTau){print(paste("Time point", TimePoint, "finished"))}
 
   }
 
