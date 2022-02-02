@@ -204,16 +204,16 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
     n <- dim(X_baseline)[1]
     y <- Y[((i-1)*n+1):(i*n)]
     ## X^T y
-    result_Xy <- result_Xy + computeSubsetSparseMatVec(X=X_baseline, v=y, subsetSize=atRiskIndx, transposed=true)
+    result_Xy <- result_Xy + computeSubsetSparseMatVec(X=X_baseline, v=y, subsetSize=atRiskIndx, transposed=TRUE)
     if(timeEffect == "linear" | is.null(timeEffect)){
-      result_temporaly <- result_temporaly + computeSubsetMatVec(Y=temporal_effect, v=y, subsetSize=atRiskIndx, transposed=true) * i
+      result_temporaly <- result_temporaly + computeSubsetMatVec(Y=temporal_effect, v=y, subsetSize=atRiskIndx, transposed=TRUE) * i
     }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
       timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-indx)/indx))
-      result_temporaly <- result_temporaly + computeSubsetMatVec(Y=temporal_effect, v=y, subsetSize=atRiskIndx, transposed=true) * timeNS
+      result_temporaly <- result_temporaly + computeSubsetMatVec(Y=temporal_effect, v=y, subsetSize=atRiskIndx, transposed=TRUE) * timeNS
     }
   }
   ## result
-  return(c(result_Xy[, 1], result_temporaly[, 1]))
+  return(c(result_Xy, result_temporaly))
 }
 
 
@@ -257,27 +257,27 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
     atRiskIndx <- indx_subset[i]
     timeIndepCoef <- beta[1:dim(X_baseline)[2]]
     timeDepCoef <- beta[(dim(X_baseline)[2]+1):length(beta)]
-    baselineEffect <- computeSubsetSparseMatVec(X=X_baseline, v=timeIndepCoef, subsetSize=atRiskIndx, transposed=false)
+    baselineEffect <- computeSubsetSparseMatVec(X=X_baseline, v=timeIndepCoef, subsetSize=atRiskIndx, transposed=FALSE)
     n <- dim(X_baseline)[1]
     y <- Y[((i-1)*n+1):(i*n)]
     ## mu
     if((timeEffect == "linear" | is.null(timeEffect))){
-      temporalEffect <- computeSubsetMatVec(Y=temporal_effect, v=timeDepCoef, subsetSize=atRiskIndx, transposed=false) * i
+      temporalEffect <- computeSubsetMatVec(Y=temporal_effect, v=timeDepCoef, subsetSize=atRiskIndx, transposed=FALSE) * i
       temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
     }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
       timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-indx)/indx))
-      temporalEffect <- computeSubsetMatVec(Y=temporal_effect, v=(timeDepCoef*timeNS), subsetSize=atRiskIndx, transposed=false)
+      temporalEffect <- computeSubsetMatVec(Y=temporal_effect, v=(timeDepCoef*timeNS), subsetSize=atRiskIndx, transposed=FALSE)
       temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
     }
 
     ## mu(1-mu)
     diagmu <- temp_mu[, 1]*(1-temp_mu[, 1])
     ## X^T mu
-    baselineMu <- baselineMu + computeSubsetSparseMatVec(X=X_baseline, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=true)
+    baselineMu <- baselineMu + computeSubsetSparseMatVec(X=X_baseline, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=TRUE)
     if(timeEffect == "linear" | is.null(timeEffect)){
-      temporalMu <- temporalMu + computeSubsetMatVec(Y=temporal_effect, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=true) * i
+      temporalMu <- temporalMu + computeSubsetMatVec(Y=temporal_effect, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=TRUE) * i
     }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
-      temporalMu <- temporalMu + computeSubsetMatVec(Y=temporal_effect, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=true) * timeNS
+      temporalMu <- temporalMu + computeSubsetMatVec(Y=temporal_effect, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=TRUE) * timeNS
     }
     ## X^T diag(D) X
     temp_X <- computeSubsetSparseInformationMatrix(X=X_baseline, weight=diagmu, subsetSize=atRiskIndx)
@@ -324,11 +324,11 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
 predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTime, maxTimeSplines){
 
   ## predict
-  timeIndepLP <- computeSubsetSparseMatVec(X=X_baseline, v=coef[1:dim(X_baseline)[2]], subsetSize=dim(X_baseline)[1], transpose=false)
+  timeIndepLP <- computeSubsetSparseMatVec(X=X_baseline, v=coef[1:dim(X_baseline)[2]], subsetSize=dim(X_baseline)[1], transpose=FALSE)
 
   if(timeEffect == "linear" | is.null(timeEffect)){
 
-    timeDepenLP <- computeSubsetMatVec(Y=temporal_effect, v=coef[1:dim(X_baseline)[2]], subsetSize=dim(X_baseline)[1], transpose=false)
+    timeDepenLP <- computeSubsetMatVec(Y=temporal_effect, v=coef[1:dim(X_baseline)[2]], subsetSize=dim(X_baseline)[1], transpose=FALSE)
     logitProb <- rep(timeIndepLP, each=maxTime) + rep(1:maxTime, dim(X_baseline)[1]) * rep(timeDepenLP, each=maxTime)
 
   }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
@@ -340,7 +340,7 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTim
     for (i in 1:maxTime){
       timeDepenLP_temp <- computeSubsetMatVec(Y=temporal_effect,
                                               v=(coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-indx)/indx))),
-                                              subsetSize=dim(X_baseline)[1], transpose=false)
+                                              subsetSize=dim(X_baseline)[1], transpose=FALSE)
       timeDepenLP <- c(timeDepenLP, timeDepenLP_temp)
       rm(timeDepenLP_temp)
     }
