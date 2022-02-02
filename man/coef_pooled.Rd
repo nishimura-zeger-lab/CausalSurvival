@@ -12,8 +12,11 @@ coef_pooled(
   time,
   eventObserved,
   estimate_hazard,
+  lambda,
   maxiter,
-  threshold
+  threshold,
+  printIter,
+  initial_coef
 )
 }
 \arguments{
@@ -35,10 +38,19 @@ Options currently include "linear", "ns", NULL (if is.temporal = FALSE)}
 \item{eventObserved}{Event indicator. Ordered into decreasing observed survival time}
 
 \item{estimate_hazard}{"survival" or "censoring"}
+
+\item{lambda}{Penalized parameter for ridge regression, a scalar. If lambda = NULL, then no penalization.}
+
+\item{maxiter}{Maximum iterations}
+
+\item{threshold}{Threshold for convergence}
+
+\item{printIter}{TRUE/FALSE. Whether to print iterations or not}
 }
 \value{
 A vector of coefficients in the order of: intercept, baseline covariates, time,
-interaction term between baseline covariates and time
+interaction term between baseline covariates and time.
+And the standard error of the estimated coefficients
 }
 \description{
 Coefficients for pooled logistic regression (via iterative reweighted least square)

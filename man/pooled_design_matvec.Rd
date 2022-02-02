@@ -28,9 +28,11 @@ intercept included if there is temporal effect}
 Options currently include "linear", "cubic", NULL}
 
 \item{Y}{Outcome variable in the pooled logistic regression.
-Long-format, include outcome with the at-risk group at each time point}
+Long-format, include outcome with all individuals at each time point}
 
 \item{indx_subset}{Subset index for each time point}
+
+\item{maxTime}{Maximum time for estimation}
 }
 \value{
 A vector

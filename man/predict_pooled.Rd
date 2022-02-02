@@ -4,7 +4,14 @@
 \alias{predict_pooled}
 \title{Prediction for pooled logistic regression}
 \usage{
-predict_pooled(coef, X_baseline, temporal_effect, timeEffect, maxTime)
+predict_pooled(
+  coef,
+  X_baseline,
+  temporal_effect,
+  timeEffect,
+  maxTime,
+  maxTimeSplines
+)
 }
 \arguments{
 \item{X_baseline}{Baseline variables that won't interact with time in regression,
@@ -17,6 +24,12 @@ Need to include intercept if is.temporal = TRUE}
 
 \item{timeEffect}{Functions of time in the discrete censoring hazards model.
 Options currently include "linear", "cubic", NULL}
+
+\item{maxTime}{Maximum time for prediction}
+
+\item{maxTimeSplines}{Maximum time used in regression. Relavant when using ns(time, df=5)}
+
+\item{indx_subset}{Subset index for each time point}
 }
 \value{
 Probability, in the order of: id1(t1, t2....), id2(t1, t2....)....
