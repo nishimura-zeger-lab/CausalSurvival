@@ -209,7 +209,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       ## model: ridge
       coef_Haz <- coef_ridge(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
                                 timeEffect=timeEffect, eventObserved=d_eventObserved, time=d_time,
-                                estimate_hazard=estimate_hazard, sigma=exp(seq(log(0.01), log(1), length.out = 30)),
+                                estimate_hazard=estimate_hazard, sigma=exp(seq(log(1), log(0.01), length.out = 30)),
                                 maxiter=40, threshold=1e-8, printIter=TRUE)
 
       rm(list=c("X_baseline", "temporal_effect"))
