@@ -295,7 +295,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
     }else{
       ## prediction with input coefficients
-      Haz1temp <- predict_pooled(coef=coef_H[, i], X_baseline=X_baseline,
+      Haz1temp <- predict_pooled(coef=coef_H, X_baseline=X_baseline,
                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
 
@@ -324,7 +324,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
                                  rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect,
                                  temporal_effect, temporal_effect, temporal_effect)
       }
-      Haz0temp <- predict_pooled(coef=coef_H[, i], X_baseline=X_baseline,
+      Haz0temp <- predict_pooled(coef=coef_H, X_baseline=X_baseline,
                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
     }
@@ -341,7 +341,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
     }else{
     ## no prediction, output coefficients
-      coef_fit <- cbind(coef_fit, coef_Haz$estimates)
+      coef_fit <- rbind(coef_fit, coef_Haz$estimates)
     }
   }
 
