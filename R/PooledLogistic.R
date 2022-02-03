@@ -271,13 +271,13 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
     }
 
     ## mu(1-mu)
-    diagmu <- temp_mu[, 1]*(1-temp_mu[, 1])
+    diagmu <- temp_mu*(1-temp_mu)
     ## X^T mu
-    baselineMu <- baselineMu + computeSubsetSparseMatVec(X=X_baseline, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=TRUE)
+    baselineMu <- baselineMu + computeSubsetSparseMatVec(X=X_baseline, v=temp_mu, subsetSize=atRiskIndx, transposed=TRUE)
     if(timeEffect == "linear" | is.null(timeEffect)){
-      temporalMu <- temporalMu + computeSubsetMatVec(Y=temporal_effect, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=TRUE) * i
+      temporalMu <- temporalMu + computeSubsetMatVec(Y=temporal_effect, v=temp_mu, subsetSize=atRiskIndx, transposed=TRUE) * i
     }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
-      temporalMu <- temporalMu + computeSubsetMatVec(Y=temporal_effect, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=TRUE) * timeNS
+      temporalMu <- temporalMu + computeSubsetMatVec(Y=temporal_effect, v=temp_mu, subsetSize=atRiskIndx, transposed=TRUE) * timeNS
     }
     ## X^T diag(D) X
     temp_X <- computeSubsetSparseInformationMatrix(X=X_baseline, weight=diagmu, subsetSize=atRiskIndx)
@@ -285,12 +285,12 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
       temp_temporal <- computeSubsetInformationMatrix(Y=temporal_effect, weight=diagmu, subsetSize=atRiskIndx) * i^2
       temp_Xtemporal <- computeSubsetMatrix(X=X_baseline, weight=diagmu, Y=temporal_effect, subsetSize=atRiskIndx) * i
     }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
-      temp_temporal <- computeSubsetInformationMatrix(Y=t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS), weight=diagmu, subsetSize=atRiskIndx)
+      temp_temporal <- computeSubsetInformationMatrix(Y=t(t(temporal_effect) * timeNS), weight=diagmu, subsetSize=atRiskIndx)
       temp_Xtemporal <- computeSubsetMatrix(X=X_baseline, weight=diagmu, Y=t(t(temporal_effect)*timeNS), subsetSize=atRiskIndx)
     }
-    fisher_info <- fisher_info + cbind(rbind(temp_X, Matrix::t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
+    fisher_info <- fisher_info + cbind(rbind(temp_X, t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
     ## log likelihood
-    logLik_temp <- y[1:atRiskIndx] * log(temp_mu[, 1]) + (1-y[1:atRiskIndx]) * log(1-temp_mu[, 1])
+    logLik_temp <- y[1:atRiskIndx] * log(temp_mu) + (1-y[1:atRiskIndx]) * log(1-temp_mu)
     logLik_temp[is.infinite(logLik_temp)] <- NA
     logLik <- logLik + sum(logLik_temp, na.rm = TRUE)
 
@@ -299,7 +299,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
               "baselineEffect", "temporalEffect", "diagmu", "logLik_temp"))
   }
   ## result
-  return(list(Xmu=unname(c(baselineMu[, 1], temporalMu[, 1])),
+  return(list(Xmu=unname(c(baselineMu, temporalMu)),
               fisher_info=unname(fisher_info), logLik=logLik))
 }
 
