@@ -341,7 +341,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
     }else{
     ## no prediction, output coefficients
-      coef_fit <- rbind(coef_fit, coef_Haz$estimates)
+      coef_fit <- cbind(coef_fit, coef_Haz$estimates)
     }
   }
 
