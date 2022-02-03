@@ -231,6 +231,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     ## prepare dataset for prediction
     is.temporal <- TRUE
     X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)[idx_test, , drop=FALSE]
+    X_baseline <- Matrix::sparseMatrix(i = Matrix::summary(X_baseline)$i, j = Matrix::summary(X_baseline)$j,
+                                       x = Matrix::summary(X_baseline)$x, repr = "R")
     if(is.null(interactWithTime)){
       temporal_effect <- interactWithTime[idx_test]
     }else{
@@ -262,6 +264,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
                                   maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
 
       X_baseline[, 2] <- 0
+      X_baseline <- Matrix::sparseMatrix(i = Matrix::summary(X_baseline)$i, j = Matrix::summary(X_baseline)$j,
+                                         x = Matrix::summary(X_baseline)$x, repr = "R")
       if(is.null(interactWithTime)){
         temporal_effect <- interactWithTime[idx_test]
       }else{
@@ -300,6 +304,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
 
       X_baseline[, 2] <- 0
+      X_baseline <- Matrix::sparseMatrix(i = Matrix::summary(X_baseline)$i, j = Matrix::summary(X_baseline)$j,
+                                         x = Matrix::summary(X_baseline)$x, repr = "R")
       if(is.null(interactWithTime)){
         temporal_effect <- interactWithTime[idx_test]
       }else{
