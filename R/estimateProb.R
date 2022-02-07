@@ -25,7 +25,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
     covariates <- covariates[which(covariates$j %in% covIdTreatProb), ]
   }
 
-  for (i in 1:crossFitNum){
+  for (i in crossFitNum){
 
     if (is.null(index_ls)){
       ## training and testing sets are both the entire dataset
@@ -160,14 +160,14 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     cov <- cov[, covIdHaz]
   }
 
-  for (i in 1:crossFitNum){
+  for (i in crossFitNum){
 
     if (is.null(index_ls)){
       ## training and testing sets are both the entire dataset
       idx_train <- idx_test <- id
     }else{
       ## training and testing sets
-      idx_test <- index_ls[[crossFitNum]]
+      idx_test <- index_ls[[i]]
       idx_train <- setdiff(id, idx_test)
     }
 
@@ -286,7 +286,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
     }else{
       ## prediction with input coefficients
-      Haz1temp <- predict_pooled(coef=coef_H, X_baseline=X_baseline,
+      Haz1temp <- predict_pooled(coef=coef_H[, i], X_baseline=X_baseline,
                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines,
                                  nsBase=nsBase)
@@ -309,7 +309,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
                                  rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect,
                                  temporal_effect, temporal_effect, temporal_effect)
       }
-      Haz0temp <- predict_pooled(coef=coef_H, X_baseline=X_baseline,
+      Haz0temp <- predict_pooled(coef=coef_H[, i], X_baseline=X_baseline,
                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines,
                                  nsBase=nsBase)
