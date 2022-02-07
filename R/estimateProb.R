@@ -155,12 +155,12 @@ estimateHaz <- function(id, treatment, eventObserved, time,
   }
 
   ## covariates to sparse matrix form, and delete unwanted covariates
-  cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "R")
+  cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
   if (!is.null(covIdHaz)){
     cov <- cov[, covIdHaz]
   }
 
-  for (i in crossFitNum){
+  for (i in 1:crossFitNum){
 
     if (is.null(index_ls)){
       ## training and testing sets are both the entire dataset
@@ -193,6 +193,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     d_time <- d_time[time_indx]
     rm(time_indx)
 
+
     ## model and prediction
     if(hazEstimate == "glm"){
 
@@ -220,9 +221,9 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     if(getHaz){
 
       ## parameter: maxTimeSplines for prediction if use ns(time, df=5)
-      if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5") & estimate_hazard == "censoring"){
+      if(timeEffect == "ns" & estimate_hazard == "censoring"){
         maxTimeSplines <- max(d_time[d_eventObserved == 0])
-      }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5") & estimate_hazard == "survival"){
+      }else if(timeEffect == "ns" & estimate_hazard == "survival"){
         maxTimeSplines <- max(d_time[d_eventObserved == 1])
       }else{
         maxTimeSplines <- NULL
@@ -240,28 +241,22 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     }
     if(is.null(temporal_effect) & !is.temporal){
       temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
+      nsBase <- NULL
     }else if(is.temporal & timeEffect == "linear"){
       temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
-    }else if(timeEffect == "ns2"){
-      temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                               temporal_effect, temporal_effect)
-    }else if(timeEffect == "ns3"){
-      temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                               temporal_effect, temporal_effect, temporal_effect)
-    }else if(timeEffect == "ns4"){
-      temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                               rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
-    }else if(timeEffect == "ns5"){
+      nsBase <- NULL
+    }else if(timeEffect == "ns"){
       temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
                                rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect,
                                temporal_effect, temporal_effect, temporal_effect)
+      nsBase <- splines::ns(c(1:maxTimeSplines), knots=quantile(rep(1:maxTimeSplines, each=indx_subset), probs=c(0.2, 0.4, 0.6, 0.8)))
     }
 
     if(is.null(coef_H)){
       ## prediction with derived coefficients
       Haz1temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
                                   temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
+                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines, nsBase=nsBase)
 
       X_baseline[, 2] <- 0
       X_baseline <- Matrix::sparseMatrix(i = Matrix::summary(X_baseline)$i, j = Matrix::summary(X_baseline)$j,
@@ -276,16 +271,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
         temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
       }else if(is.temporal & timeEffect == "linear"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
-      }else if(timeEffect == "ns2"){
-        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 temporal_effect, temporal_effect)
-      }else if(timeEffect == "ns3"){
-        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 temporal_effect, temporal_effect, temporal_effect)
-      }else if(timeEffect == "ns4"){
-        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
-      }else if(timeEffect == "ns5"){
+      }else if(timeEffect == "ns"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
                                  rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect,
                                  temporal_effect, temporal_effect, temporal_effect)
@@ -293,7 +279,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
       Haz0temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
                                   temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
+                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines,
+                                  nsBase=nsBase)
 
       rm(coef_Haz)
 
@@ -301,7 +288,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       ## prediction with input coefficients
       Haz1temp <- predict_pooled(coef=coef_H, X_baseline=X_baseline,
                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                 maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
+                                 maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines,
+                                 nsBase=nsBase)
 
       X_baseline[, 2] <- 0
       X_baseline <- Matrix::sparseMatrix(i = Matrix::summary(X_baseline)$i, j = Matrix::summary(X_baseline)$j,
@@ -316,23 +304,15 @@ estimateHaz <- function(id, treatment, eventObserved, time,
         temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
       }else if(is.temporal & timeEffect == "linear"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
-      }else if(timeEffect == "ns2"){
-        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 temporal_effect, temporal_effect)
-      }else if(timeEffect == "ns3"){
-        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 temporal_effect, temporal_effect, temporal_effect)
-      }else if(timeEffect == "ns4"){
-        temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
-      }else if(timeEffect == "ns5"){
+      }else if(timeEffect == "ns"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
                                  rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect,
                                  temporal_effect, temporal_effect, temporal_effect)
       }
       Haz0temp <- predict_pooled(coef=coef_H, X_baseline=X_baseline,
                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                 maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines)
+                                 maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines,
+                                 nsBase=nsBase)
     }
     ## clear workspace
     rm(list=c("X_baseline", "temporal_effect", "idx_train"))
