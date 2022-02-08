@@ -250,9 +250,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       nsBase <- NULL
     }else if(timeEffect == "ns"){
       temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                               rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                               temporal_effect, temporal_effect, temporal_effect, temporal_effect, temporal_effect)
-      nsBase <- splines::ns(c(1:maxTimeSplines), knots=quantile(rep(1:maxTimeSplines, times=indx_subset), probs=c(0.2, 0.4, 0.6, 0.8)))
+                               rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
+      nsBase <- splines::ns(c(1:maxTimeSplines), knots=quantile(rep(1:maxTimeSplines, times=indx_subset), probs=c(0.25, 0.5, 0.75)))
     }
 
 
@@ -277,8 +276,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
       }else if(timeEffect == "ns"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 temporal_effect, temporal_effect, temporal_effect, temporal_effect, temporal_effect)
+                                 rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
 
       Haz0temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
@@ -310,8 +308,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
       }else if(timeEffect == "ns"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 temporal_effect, temporal_effect, temporal_effect, temporal_effect, temporal_effect)
+                                 rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
       Haz0temp <- predict_pooled(coef=coef_H[, i], X_baseline=X_baseline,
                                  temporal_effect=temporal_effect, timeEffect=timeEffect,

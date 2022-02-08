@@ -62,7 +62,7 @@ estimateAIPW <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
 
     ## parameter
     if(estimand=="rmst"){
-      ind <- (dlong$t <= TimePoint -1)
+      ind <- (dlong$t <= (TimePoint -1))
     }else if(estimand=="risk"){
       ind <- (dlong$t <= TimePoint)
     }
@@ -91,19 +91,19 @@ estimateAIPW <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
     rm(list=c("H1", "H0"))
 
     if(estimand=="risk"){
-
       DW1 <- SurvProb1[which(dlong$t == TimePoint)]
       DW0 <- SurvProb0[which(dlong$t == TimePoint)]
-
     }else if(estimand=="rmst"){
-
       DW1 <- tapply(ind * SurvProb1, ID, sum)
       DW0 <- tapply(ind * SurvProb0, ID, sum)
-
     }
 
-    ## AIPW
-    aipw <- c(mean(DT0 + DW0), mean(DT1 + DW1))
+    if(estimand=="risk"){
+      aipw <- c(mean(DT0 + DW0), mean(DT1 + DW1))
+    }else if(estimand=="rmst"){
+      aipw <- 1+c(mean(DT0 + DW0), mean(DT1 + DW1))
+    }
+
     ## SE
     D <- DT1 - DT0 + DW1 - DW0
     sdn <- sqrt(var(D) / n)

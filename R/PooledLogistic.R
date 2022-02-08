@@ -57,9 +57,8 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     nsBase <- NULL
   }else if(timeEffect == "ns"){
     temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                             rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                             temporal_effect, temporal_effect, temporal_effect, temporal_effect, temporal_effect)
-    nsBase <- splines::ns(c(1:maxTime), knots=quantile(rep(1:maxTime, times=indx_subset), probs=c(0.2, 0.4, 0.6, 0.8)))
+                             rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
+    nsBase <- splines::ns(c(1:maxTime), knots=quantile(rep(1:maxTime, times=indx_subset), probs=c(0.25, 0.5, 0.75)))
   }
 
   ## initial value
@@ -93,11 +92,11 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   ## parameter
   Imop <- diag(dim(comp$fisher_info)[1])
   Imop[1, 1] <- 0
-  Imop[2, 2] <- 0
-  Imop[(dim(X_baseline)[2]+1):length(beta), ] <- 0
+  # Imop[2, 2] <- 0
+  # Imop[(dim(X_baseline)[2]+1):length(beta), ] <- 0
 
   ## initial (penalized) log-likelihood
-  logLikelihood <- comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2]]^2)
+  logLikelihood <- comp$logLik - lambda*sum(beta[2:length(beta)]^2)
 
   ## iterate until converge
   while((!converged) && iter <= maxiter){
@@ -115,7 +114,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                                nsBase = nsBase)
 
     ## initial (penalized) log-likelihood
-    logLikelihood_new <- comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2]]^2)
+    logLikelihood_new <- comp$logLik - lambda*sum(beta[2:length(beta)]^2)
 
     ## stopping rule
     iter <-  iter + 1
@@ -201,7 +200,7 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
     if(timeEffect == "linear" | is.null(timeEffect)){
       result_temporaly <- result_temporaly + computeSubsetMatVec(Y=temporal_effect, v=y, subsetSize=atRiskIndx, transposed=TRUE) * i
     }else if(timeEffect == "ns"){
-      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5))
+      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-4)/4))
       result_temporaly <- result_temporaly + computeSubsetMatVec(Y=temporal_effect, v=y, subsetSize=atRiskIndx, transposed=TRUE) * timeNS
     }
   }
@@ -253,7 +252,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
       temporalEffect <- computeSubsetMatVec(Y=temporal_effect, v=timeDepCoef, subsetSize=atRiskIndx, transposed=FALSE) * i
       temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
     }else if(timeEffect == "ns"){
-      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5))
+      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-4)/4))
       temporalEffect <- computeSubsetMatVec(Y=temporal_effect, v=(timeDepCoef*timeNS), subsetSize=atRiskIndx, transposed=FALSE)
       temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
     }
@@ -324,7 +323,7 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTim
     timeDepenLP <- c()
     for (i in 1:maxTime){
       timeDepenLP_temp <- computeSubsetMatVec(Y=temporal_effect,
-                                              v=(coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5))),
+                                              v=(coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-4)/4))),
                                               subsetSize=dim(X_baseline)[1], transpose=FALSE)
       timeDepenLP <- c(timeDepenLP, timeDepenLP_temp)
       rm(timeDepenLP_temp)

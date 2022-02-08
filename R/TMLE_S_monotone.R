@@ -34,7 +34,7 @@ estimateTMLEprob_monotone <- function(treatment, eventObserved, time, survHaz, c
   iter <- 1
 
   ## dlong
-  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1)
+  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1, type="survival")
   rownames(dlong) <- NULL
   dlong <- dlong[which(dlong$t <= maxTime), c("Lt", "It", "t")]
 
@@ -60,8 +60,8 @@ estimateTMLEprob_monotone <- function(treatment, eventObserved, time, survHaz, c
     for (TimePoint in 1:tau){
 
       ind <- (dlong$t <= TimePoint)
-      H1_temp <- as(matrix(- (ind * rep(SurvProb1[which(dlong$t == TimePoint)], each=max(dlong$t))), ncol = 1), "sparseMatrix")
-      H0_temp <- as(matrix(- (ind * rep(SurvProb0[which(dlong$t == TimePoint)], each=max(dlong$t))), ncol = 1), "sparseMatrix")
+      H1_temp <- as(matrix(- (ind * rep(SurvProb1[which(dlong$t == TimePoint)], each=maxTime)), ncol = 1), "sparseMatrix")
+      H0_temp <- as(matrix(- (ind * rep(SurvProb0[which(dlong$t == TimePoint)], each=maxTime)), ncol = 1), "sparseMatrix")
 
       H1 <- cbind(H1, H1_temp)
       H0 <- cbind(H0, H0_temp)
@@ -76,23 +76,30 @@ estimateTMLEprob_monotone <- function(treatment, eventObserved, time, survHaz, c
 
 
     ## update for survival hazard
-    # eps   <- coefSparse(outcome=dlong$Lt[which(dlong$It == 1)], offset=qlogis(SurvHaz_obs[which(dlong$It == 1)]), H=H,
-    #                    maxiter=40, threshold=1e-8, initial_coef=initial_coef, printIter=TRUE)
-
     if(iter == 1){
-      eps   <- coef(glm2::glm2(dlong$Lt[which(dlong$It == 1)] ~ 0 + offset(qlogis(SurvHaz_obs[which(dlong$It == 1)])) + as.matrix(H),
-                               family = binomial()))
+      eps   <- coefSparse(outcome=dlong$Lt[which(dlong$It == 1)], offset=qlogis(SurvHaz_obs[which(dlong$It == 1)]), H=H,
+                                              maxiter=40, threshold=1e-8, initial_coef=NULL, printIter=TRUE)
     }else{
-      eps   <- coef(glm2::glm2(dlong$Lt[which(dlong$It == 1)] ~ 0 + offset(qlogis(SurvHaz_obs[which(dlong$It == 1)])) + as.matrix(H),
-                             family = binomial(), start=eps))
+      eps   <- coefSparse(outcome=dlong$Lt[which(dlong$It == 1)], offset=qlogis(SurvHaz_obs[which(dlong$It == 1)]), H=H,
+                          maxiter=40, threshold=1e-8, initial_coef=eps, printIter=TRUE)
     }
+
+    # if(iter == 1){
+    #   eps   <- coef(glm2::glm2(dlong$Lt[which(dlong$It == 1)] ~ 0 + offset(qlogis(SurvHaz_obs[which(dlong$It == 1)])) + as.matrix(H),
+    #                            family = binomial()))
+    # }else{
+    #   eps   <- coef(glm2::glm2(dlong$Lt[which(dlong$It == 1)] ~ 0 + offset(qlogis(SurvHaz_obs[which(dlong$It == 1)])) + as.matrix(H),
+    #                          family = binomial(), start=eps))
+    # }
 
     ## NA as 0 for the new values
     eps[is.na(eps)] <- 0
 
     ## update values
-    SurvHaz1 <- plogis(qlogis(SurvHaz1) + (H1 %*% eps)[, 1])
-    SurvHaz0 <- plogis(qlogis(SurvHaz0) + (H0 %*% eps)[, 1])
+    H1
+    H0
+    SurvHaz1 <- plogis(qlogis(SurvHaz1) + computeSubsetSparseMatVec(X=H1, v=eps, subsetSize=dim(H1)[1], transposed=FALSE))
+    SurvHaz0 <- plogis(qlogis(SurvHaz0) + computeSubsetSparseMatVec(X=H0, v=eps, subsetSize=dim(H0)[1], transposed=FALSE))
     SurvHaz1 <- bound01(SurvHaz1)
     SurvHaz0 <- bound01(SurvHaz0)
     SurvHaz_obs  <- treatment[survHaz$ID] * SurvHaz1  + (1 - treatment[survHaz$ID]) * SurvHaz0
