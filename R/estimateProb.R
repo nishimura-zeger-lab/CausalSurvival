@@ -210,7 +210,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       ## model: ridge
       coef_Haz <- coef_ridge(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
                                 timeEffect=timeEffect, eventObserved=d_eventObserved, time=d_time,
-                                estimate_hazard=estimate_hazard, sigma=exp(seq(log(1), log(0.01), length.out = 30)),
+                                estimate_hazard=estimate_hazard, sigma=exp(seq(log(1), log(0.01), length.out = 20)),
                                 maxiter=40, threshold=1e-8, printIter=TRUE)
 
       rm(list=c("X_baseline", "temporal_effect"))
@@ -223,11 +223,14 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       ## parameter: maxTimeSplines for prediction if use ns(time, df=5)
       if(timeEffect == "ns" & estimate_hazard == "censoring"){
         maxTimeSplines <- max(d_time[d_eventObserved == 0])
+        indx_subset <- sapply(1:maxTimeSplines, function(x) sum((time > x)*eventObserved+(time >= x)*(1 - eventObserved)), USE.NAMES = FALSE)
       }else if(timeEffect == "ns" & estimate_hazard == "survival"){
         maxTimeSplines <- max(d_time[d_eventObserved == 1])
+        indx_subset <- sapply(1:maxTimeSplines, function(x) sum(time >= x), USE.NAMES = FALSE)
       }else{
         maxTimeSplines <- NULL
       }
+
 
     ## prepare dataset for prediction
     is.temporal <- TRUE
@@ -247,10 +250,11 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       nsBase <- NULL
     }else if(timeEffect == "ns"){
       temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                               rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect,
-                               temporal_effect, temporal_effect, temporal_effect)
-      nsBase <- splines::ns(c(1:maxTimeSplines), knots=quantile(rep(1:maxTimeSplines, each=indx_subset), probs=c(0.2, 0.4, 0.6, 0.8)))
+                               rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
+                               temporal_effect, temporal_effect, temporal_effect, temporal_effect, temporal_effect)
+      nsBase <- splines::ns(c(1:maxTimeSplines), knots=quantile(rep(1:maxTimeSplines, times=indx_subset), probs=c(0.2, 0.4, 0.6, 0.8)))
     }
+
 
     if(is.null(coef_H)){
       ## prediction with derived coefficients
@@ -273,8 +277,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
       }else if(timeEffect == "ns"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect,
-                                 temporal_effect, temporal_effect, temporal_effect)
+                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
+                                 temporal_effect, temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
 
       Haz0temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
@@ -306,8 +310,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
       }else if(timeEffect == "ns"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect,
-                                 temporal_effect, temporal_effect, temporal_effect)
+                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
+                                 temporal_effect, temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
       Haz0temp <- predict_pooled(coef=coef_H[, i], X_baseline=X_baseline,
                                  temporal_effect=temporal_effect, timeEffect=timeEffect,

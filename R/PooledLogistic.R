@@ -57,9 +57,9 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     nsBase <- NULL
   }else if(timeEffect == "ns"){
     temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                             rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect,
-                             temporal_effect, temporal_effect, temporal_effect)
-    nsBase <- splines::ns(c(1:maxTime), knots=quantile(rep(1:maxTime, each=indx_subset), probs=c(0.2, 0.4, 0.6, 0.8)))
+                             rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
+                             temporal_effect, temporal_effect, temporal_effect, temporal_effect, temporal_effect)
+    nsBase <- splines::ns(c(1:maxTime), knots=quantile(rep(1:maxTime, times=indx_subset), probs=c(0.2, 0.4, 0.6, 0.8)))
   }
 
   ## initial value
