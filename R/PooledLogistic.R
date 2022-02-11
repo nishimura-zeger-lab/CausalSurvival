@@ -8,7 +8,7 @@
 #'                        sparse matrix of class "dgTMatrix" or matrix.
 #'                        Rows are ordered into decreasing survival time
 #' @param timeEffect Functions of time in the discrete censoring hazards model.
-#'                   Options currently include "linear", "ns2", "ns3", "ns4", "ns5", NULL (if is.temporal = FALSE)
+#'                   Options currently include "linear", "ns", NULL (if is.temporal = FALSE)
 #' @param time Observed survival time. Ordered into decreasing observed survival time
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
@@ -18,10 +18,10 @@
 #' @param printIter TRUE/FALSE. Whether to print iterations or not
 #' @return A vector of coefficients in the order of: intercept, baseline covariates, time,
 #'                                                   interaction term between baseline covariates and time.
-#'         And the standard error of the estimated coefficients
 
 
-coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
+coef_pooled <- function(X_baseline, is.temporal, temporal_effect,
+                        timeEffect, evenKnot, penalizeTimeTreatment,
                         time, eventObserved, estimate_hazard, sigma,
                         maxiter, threshold, printIter, initial_coef){
 
@@ -58,7 +58,12 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   }else if(timeEffect == "ns"){
     temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
                              rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
-    nsBase <- splines::ns(c(1:maxTime), knots=quantile(rep(1:maxTime, times=indx_subset), probs=c(0.25, 0.5, 0.75)))
+    if(evenKnot){
+      nsBase <- splines::ns(c(1:maxTime), df=4)
+    }else{
+      nsBase <- splines::ns(c(1:maxTime), knots=quantile(rep(1:maxTime, times=indx_subset), probs=c(0.25, 0.5, 0.75)))
+      nsBase <- apply(nsBase, 2, function(x) x/sd(rep(x, times=indx_subset)))
+    }
   }
 
   ## initial value
@@ -92,8 +97,10 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   ## parameter
   Imop <- diag(dim(comp$fisher_info)[1])
   Imop[1, 1] <- 0
-  # Imop[2, 2] <- 0
-  # Imop[(dim(X_baseline)[2]+1):length(beta), ] <- 0
+  if(!penalizeTimeTreatment){
+  Imop[2, 2] <- 0
+  Imop[(dim(X_baseline)[2]+1):length(beta), ] <- 0
+  }
 
   ## initial (penalized) log-likelihood
   logLikelihood <- comp$logLik - lambda*sum(beta[2:length(beta)]^2)
@@ -361,7 +368,8 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTim
 #' @param printIter TRUE/FALSE. Whether to print iterations or not
 
 coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
-                      timeEffect, eventObserved, time,
+                      timeEffect, evenKnot, penalizeTimeTreatment,
+                      eventObserved, time,
                       estimate_hazard, sigma, maxiter, threshold, printIter){
 
   r_coef <- c()
@@ -376,7 +384,8 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
     try({
     ## coef's for each sigma
     coef_temp <- coef_pooled(X_baseline=X_baseline, is.temporal=is.temporal, temporal_effect=temporal_effect,
-                             timeEffect=timeEffect, eventObserved=eventObserved, time=time,
+                             timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=penalizeTimeTreatment,
+                             eventObserved=eventObserved, time=time,
                              estimate_hazard=estimate_hazard, sigma=sigma[i],
                              maxiter=maxiter, threshold=threshold, printIter=printIter, initial_coef=initial_coef)
 
