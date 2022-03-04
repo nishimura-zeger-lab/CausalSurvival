@@ -18,6 +18,7 @@ Imports:
     data.table,
     tidyverse,
     Matrix,
+    mgcv,
     magrittr,
     Rcpp
 Suggests:
