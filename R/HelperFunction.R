@@ -24,25 +24,18 @@ bound <- function(x, r = 1e-7){
 #' @return A long-format survival data (with coarsening if freqTime > 1)
 #'               with columns: t (time points), It, Jt, Rt, Lt (four indicator functions) and other covariates
 
-transformData <- function(dwide, freqTime, type){
+transformData <- function(dwide, timeIntMidPoint, type){
 
-  ## Coarsen data
-  if(freqTime > 1) dwide$time <- dwide$time %/% freqTime + 1
-
-  ## number of subjects
   n <- dim(dwide)[1]
+  maxtime <- length(timeIntMidPoint)
+  t <- rep(timeIntMidPoint, n)
 
   if(type == "survival"){
 
-  ## maximum follow-up time
-  maxtime <- max(dwide$time[dwide$eventObserved == 1])
-  ## time points for each subjects
-  t <- rep(1:maxtime, n)
-
   Lt <- rep(NA, n*maxtime)
-  It <- 1*(t == 1)
+  It <- 1*(t == timeIntMidPoint[1])
 
-  for(i in 1:maxtime){
+  for(i in timeIntMidPoint){
     Lt[t == i] <- dwide$eventObserved * (dwide$time == i)
     It[t == i] <- (dwide$time >= i)
   }
@@ -52,15 +45,10 @@ transformData <- function(dwide, freqTime, type){
 
   }else if(type == "censoring"){
 
-    ## maximum follow-up time
-    maxtime <- max(dwide$time[dwide$eventObserved == 0])
-    ## time points for each subjects
-    t <- rep(1:maxtime, n)
-
     Rt <- rep(NA, n*maxtime)
-    Jt <- 1*(t == 1)
+    Jt <- 1*(t == timeIntMidPoint[1])
 
-    for(i in 1:maxtime){
+    for(i in timeIntMidPoint){
       Rt[t == i] <- (1 - dwide$eventObserved) * (dwide$time == i)
       Jt[t == i] <- (dwide$time > i) * dwide$eventObserved + (dwide$time >= i) * (1 - dwide$eventObserved)
     }
