@@ -8,7 +8,8 @@
 
 estimateIPW <- function(treatment, eventObserved, time,
                         cenHaz, treatProb,
-                        tau, timeIntMidPoint, estimand, printTau){
+                        tau, timeIntMidPoint, estimand, printTau,
+                        timeIntLength){
 
   ## container
   estimand1_result <- estimand0_result <- SE_result <- rep(0, length=length(tau))
@@ -64,26 +65,17 @@ estimateIPW <- function(treatment, eventObserved, time,
 
   for (TimePoint in 1:length(tau)){
 
-    if(estimand=="rmst"){
-      if(TimePoint == 1){next}
-    }
-
     ## parameter
-    if(estimand=="rmst"){
-      ind <- (dlong$t <= tau[TimePoint -1])
-    }else if(estimand=="risk"){
-      ind <- (dlong$t <= tau[TimePoint])
-    }
+    ind <- (dlong$t <= tau[TimePoint])
 
     ## IPW
-
     if(estimand=="risk"){
       Z1ipw <- - ind * Z1weight
       Z0ipw <- - ind * Z0weight
     }else if(estimand=="rmst"){
       indTillTimePoint <- unlist(tapply(ind, ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      Z1ipw <- - indTillTimePoint * Z1weight
-      Z0ipw <- - indTillTimePoint * Z0weight
+      Z1ipw <- - indTillTimePoint * Z1weight * rep(timeIntLength, n)
+      Z0ipw <- - indTillTimePoint * Z0weight * rep(timeIntLength, n)
       rm(list=c("indTillTimePoint"))
     }
 
@@ -100,13 +92,17 @@ estimateIPW <- function(treatment, eventObserved, time,
 
     ## variance
     if(estimand=="risk"){
+
       H1 <- - (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1
       H0 <- - (ind * rep(SurvProb0[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH0
+
     }else if(estimand=="rmst"){
+
       cumProb1TillTimePoint <- unlist(tapply(ind * SurvProb1, ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      H1 <- - cumProb1TillTimePoint * weightH1
+      H1 <- as(matrix(- cumProb1TillTimePoint * weightH1 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
+
       cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      H0 <- - cumProb0TillTimePoint * weightH0
+      H0 <- as(matrix(- cumProb0TillTimePoint * weightH0 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
 
       rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint"))
     }
@@ -117,11 +113,15 @@ estimateIPW <- function(treatment, eventObserved, time,
     rm(list=c("H1", "H0"))
 
     if(estimand=="risk"){
+
       DW1 <- SurvProb1[which(dlong$t == tau[TimePoint])]
       DW0 <- SurvProb0[which(dlong$t == tau[TimePoint])]
+
     }else if(estimand=="rmst"){
+
       DW1 <- tapply(ind * SurvProb1, ID, sum)
       DW0 <- tapply(ind * SurvProb0, ID, sum)
+
     }
 
     D <- DT1 - DT0 + DW1 - DW0
