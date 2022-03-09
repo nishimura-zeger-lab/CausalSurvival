@@ -10,7 +10,8 @@
 
 estimateAIPW <- function(treatment, eventObserved, time,
                          survHaz, cenHaz, treatProb,
-                         tau, timeIntMidPoint, estimand, printTau){
+                         tau, timeIntMidPoint, estimand, printTau,
+                         timeIntLength){
 
 
   ## container
@@ -58,16 +59,8 @@ estimateAIPW <- function(treatment, eventObserved, time,
 
   for (TimePoint in 1:length(tau)){
 
-    if(estimand=="rmst"){
-      if(TimePoint == 1){next}
-    }
-
     ## parameter
-    if(estimand=="rmst"){
-      ind <- (dlong$t <= tau[TimePoint -1])
-    }else if(estimand=="risk"){
-      ind <- (dlong$t <= tau[TimePoint])
-    }
+    ind <- (dlong$t <= tau[TimePoint])
 
     ## solve estimating equation
     if(estimand=="risk"){
@@ -79,9 +72,10 @@ estimateAIPW <- function(treatment, eventObserved, time,
 
       ## solve estimating equation
       cumProb1TillTimePoint <- unlist(tapply(ind * SurvProb1, ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      H1 <- - cumProb1TillTimePoint * weightH1
+      H1 <- as(matrix(- cumProb1TillTimePoint * weightH1 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
+
       cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      H0 <- - cumProb0TillTimePoint * weightH0
+      H0 <- as(matrix(- cumProb0TillTimePoint * weightH0 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
 
       rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint"))
 
@@ -93,17 +87,25 @@ estimateAIPW <- function(treatment, eventObserved, time,
     rm(list=c("H1", "H0"))
 
     if(estimand=="risk"){
+
       DW1 <- SurvProb1[which(dlong$t == tau[TimePoint])]
       DW0 <- SurvProb0[which(dlong$t == tau[TimePoint])]
+
     }else if(estimand=="rmst"){
+
       DW1 <- tapply(ind * SurvProb1, ID, sum)
       DW0 <- tapply(ind * SurvProb0, ID, sum)
+
     }
 
     if(estimand=="risk"){
+
       aipw <- c(mean(DT0 + DW0), mean(DT1 + DW1))
+
     }else if(estimand=="rmst"){
+
       aipw <- 1+c(mean(DT0 + DW0), mean(DT1 + DW1))
+
     }
 
     ## SE
