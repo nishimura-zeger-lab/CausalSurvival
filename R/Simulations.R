@@ -1,7 +1,7 @@
 #' Get initial parameters for simulation
 #'
 
-estimateSimulationParams <- function(treatment, covariates, outcome, hazEstimate, hazMethod, seed){
+estimateSimulationParams <- function(treatment, covariates, outcome, nInt, hazEstimate, hazMethod, seed){
 
   ################
   ## parameters ##
@@ -35,22 +35,19 @@ estimateSimulationParams <- function(treatment, covariates, outcome, hazEstimate
   ## hazards from real data ##
   ############################
 
+  ## coarsen data
+  cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
+
   if(hazMethod == "twoStage"){
 
-    ## coarsen data
-    timeStrata <- floor(quantile(time[outcome == 1], probs = seq(0.02, 0.98, by=0.02)))
-    breaks <- unname(c(0, timeStrata, max(time)))
-    timeIntMidPoint <- breaks[-length(breaks)] + (diff(breaks)/2)
-    timeInt <- as.double(as.character(cut(time, breaks=breaks, labels=breaks[-length(breaks)] + (diff(breaks)/2))))
-
     # dlong
-    dlong <- transformData(dwide=data.frame(eventObserved=outcome, time=timeInt), timeIntMidPoint=timeIntMidPoint, type="survival")
+    dlong <- transformData(dwide=data.frame(eventObserved=outcome, time=cData$timeInt), timeIntMidPoint=cData$timeIntMidPoint, type="survival")
     rownames(dlong) <- NULL
     dlong <- dlong[, c("Lt", "It", "t")]
 
     ## offset
     fit <- mgcv::bam(Lt ~ s(t, bs="ps"), family = binomial, subset = It == 1, data = dlong, method="REML")
-    offset_t <- predict(fit, newdata = data.frame(t=timeIntMidPoint))
+    offset_t <- predict(fit, newdata = data.frame(t=cData$timeIntMidPoint))
     rm(list=c("dlong", "fit"))
 
     ## other parameters
@@ -65,8 +62,8 @@ estimateSimulationParams <- function(treatment, covariates, outcome, hazEstimate
 
   }
 
-  haz <- estimateHaz(id=rowId, treatment=treatment, eventObserved=outcome, time=timeInt,
-                        offset_t=offset_t, offset_X=FALSE, intercept=TRUE, breaks=breaks,
+  haz <- estimateHaz(id=rowId, treatment=treatment, eventObserved=outcome, time=cData$timeInt,
+                        offset_t=offset_t, offset_X=FALSE, intercept=TRUE, breaks=cData$breaks,
                         covariates=covariates, covIdHaz=cov_indx, crossFitNum=1, index_ls=NULL,
                         timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=FALSE,
                         interactWithTime=treatment, hazEstimate="ridge", weight=NULL,
