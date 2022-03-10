@@ -143,7 +143,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
 
 estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X, weight,
                            covariates, covIdHaz, sigma=exp(seq(log(1), log(0.01), length.out = 20)),
-                           crossFitNum=1, index_ls=NULL, breaks,
+                           crossFitNum=1, index_ls=NULL, breaks, nInt,
                            timeEffect, evenKnot, penalizeTimeTreatment,
                            interactWithTime, hazEstimate, intercept,
                            estimate_hazard, getHaz, coef_H, robust, threshold){
@@ -165,10 +165,11 @@ estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X, 
 
   ## coarsen data
   if(is.null(breaks)){
-    timeStrata <- floor(quantile(time[eventObserved == 1], probs = seq(0.02, 0.98, by=0.02)))
-    breaks <- unname(c(0, timeStrata, max(time)))
-    timeIntMidPoint <- breaks[-length(breaks)] + (diff(breaks)/2)
-    timeInt <- as.double(as.character(cut(time, breaks=breaks, labels=timeIntMidPoint)))
+    cData <- coarseData(time=time, outcome=eventObserved, nInt=nInt)
+    breaks <- cData$breaks
+    timeIntMidPoint <- cData$timeIntMidPoint
+    timeInt <- cData$timeInt
+    rm(list=c("cData"))
   }else{
     timeIntMidPoint <- breaks[-length(breaks)] + (diff(breaks)/2)
     timeInt <- time
