@@ -10,8 +10,8 @@
 
 estimateAIPW <- function(treatment, eventObserved, time,
                          survHaz, cenHaz, treatProb,
-                         tau, timeIntMidPoint, estimand, printTau,
-                         timeIntLength){
+                         tau, timeIntMidPoint, timeIntLength,
+                         estimand, printTau){
 
 
   ## container
