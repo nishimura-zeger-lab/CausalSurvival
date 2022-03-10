@@ -8,10 +8,7 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
                                      simOutcome, simTime, covId,
                                      nInt, hazEstimate, hazMethod, seed){
 
-  ################
   ## parameters ##
-  ################
-
   ## cov
   cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
   ## id
@@ -19,10 +16,8 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
 
   if(is.null(covId)){
 
-  #######################################
-  ## variable selection from real data ##
-  #######################################
 
+  ## variable selection from real data ##
   if(hazEstimate == "censoring"){
     d_outcome <- 1 - outcome
     sigma <- exp(seq(log(0.5), log(0.01), length.out = 20))
@@ -50,10 +45,8 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
 
   }
 
-  ############################
-  ## hazards from real data ##
-  ############################
 
+  ## hazards from real data ##
   ## coarsen data
   cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
   if(!is.null(simTime)){
@@ -93,10 +86,7 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
                      sigma=sigma, estimate_hazard=hazEstimate, getHaz=TRUE, coef_H=NULL,
                      robust=FALSE, threshold=1e-10)
 
-  ############
   ## output ##
-  ############
-
   return(list(haz=haz, cov_indx=cov_indx))
 
 }
@@ -169,6 +159,90 @@ counterFactuals <- function(time, outcome, survHaz, nInt){
   return(data.frame(S0=S0, S1=S1, rmst0=rmst0, rmst1=rmst1))
 
 }
+
+
+#' Algorithms for simulated data
+#' @param nInt number of time intervals for coarsening the data
+#' @param estimand "risk" or "rmst"
+#' @param algorithm "TMLE", "AIPW", "IPW", "cox" or "weightedCox"
+
+algorithmSim <- function(treatment, outcome, time,
+                         survHaz, cenHaz, treatProb,
+                         simOutcome, simTime, nInt,
+                         estimand, algorithm){
+
+  ## coarsen data parameters
+  cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
+
+  if(estimand == "risk"){
+    tau <- cData$timeIntMidPoint
+  }else if(estimand == "rmst"){
+    tau <- cData$timeIntMidPoint
+    tau <- tau[-c(1, length(tau))]
+  }
+
+  ## algorithm
+  if(algorithm == "TMLE"){
+
+    result <- estimateTMLE(treatment=treatment, eventObserved=outcome, time=time,
+                           survHaz=survHaz, cenHaz=cenHaz, treatProb=treatProb, tau=tau,
+                           timeIntMidPoint=cData$timeIntMidPoint, timeIntLength=cData$timeIntLength,
+                           estimand=estimand, printIter=TRUE, printTau=TRUE, tempCompare=FALSE)
+
+  }else if(algorithm == "AIPW"){
+
+    result <- estimateAIPW(treatment=treatment, eventObserved=outcome, time=time,
+                           survHaz=SurvHaz, cenHaz=CenHaz, treatProb=treatProb, tau=tau,
+                           timeIntMidPoint=cData$timeIntMidPoint, timeIntLength=cData$timeIntLength,
+                           estimand=estimand, printTau=TRUE)
+
+  }else if(algorithm == "IPW"){
+
+    result <- estimateIPW(treatment=treatment, eventObserved=outcome, time=time,
+                          cenHaz=CenHaz, treatProb=treatProb, tau=tau,
+                          timeIntMidPoint=cData$timeIntMidPoint, timeIntLength=cData$timeIntLength,
+                          estimand=estimand, printTau=TRUE)
+
+  }else if(algorithm == "cox"){
+
+    result <- strataCox(treatment=treatment, eventObserved=outcome,
+                        time=time, treatProb=treatProb, cenHaz=NULL,
+                        timeIntMidPoint=cData$timeIntMidPoint, timeIntLength=cData$timeIntLength, breaks=cData$breaks,
+                        nsim=10000, printSim=TRUE)
+
+  }else if(algorithm == "weightedCox"){
+
+    result <- strataCox(treatment=treatment, eventObserved=outcome, time=time,
+                        treatProb=treatProb, cenHaz=cenHaz,
+                        timeIntMidPoint=cData$timeIntMidPoint, timeIntLength=cData$timeIntLength, breaks=cData$breaks,
+                        nsim=10000, printSim=TRUE)
+
+  }
+
+  ## output
+  return(result)
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
