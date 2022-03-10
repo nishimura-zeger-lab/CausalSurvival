@@ -1,3 +1,10 @@
+######################################
+## method chosen for the simulation ##
+######################################
+
+nInt <- 50
+hazMethod <- "ns"
+
 
 ###############
 ## load data ##
@@ -27,7 +34,7 @@ n <- length(id)
 ###################################
 
 ## calculate propensity score (no cross-fit)
-treatProb <- estimateTreatProb(id=id, treatment=d_treatment, covariates=covariates, covIdTreatProb=NULL, 
+treatProb <- estimateTreatProb(id=id, treatment=d_treatment, covariates=covariates, covIdTreatProb=NULL,
                                treatProbEstimate="LASSO", maxCohortSizeForFitting=25000,
                                index_ls=NULL, crossFitNum=1)
 
@@ -38,38 +45,27 @@ treatProb <- estimateTreatProb(id=id, treatment=d_treatment, covariates=covariat
 ###################################################
 
 ## survival hazards and selected covariates
-survHaz_initial <- estimateSimulationParams(treatment=d_treatment, covariates=covariates, 
-                                            outcome=d_outcome, nInt=50, hazEstimate="survival", 
-                                            hazMethod="ns", seed=2019)
+survHaz_initial <- estimateSimulationParams(outcome=d_outcome, time=d_time, treatment=d_treatment, covariates=covariates,
+                                            simOutcome=NULL, simTime=NULL, cov_indx=NULL,
+                                            nInt=nInt, hazEstimate="survival", hazMethod=hazMethod, seed=2019)
 
 ## censoring hazards and selected covariates
-cenHaz_initial <- estimateSimulationParams(treatment=d_treatment, covariates=covariates, 
-                                            outcome=d_outcome, nInt=50, hazEstimate="censoring", 
-                                            hazMethod="ns", seed=2019)
+cenHaz_initial <- estimateSimulationParams(outcome=d_outcome, time=d_time, treatment=d_treatment, covariates=covariates,
+                                           simOutcome=NULL, simTime=NULL, cov_indx=NULL,
+                                           nInt=nInt, hazEstimate="censoring", hazMethod=hazMethod, seed=2019)
 
 
 ################
 ## simulation ##
 ################
 
-
-
-
-
+## counterfactuals
+Truth <- counterFactuals(time=d_time, outcome=d_outcome, survHaz=survHaz_initial$haz, nInt=nInt)
 
 ## simulation
-set.seed(2022)
-SimData <- simData(survHaz=SurvHaz, cenHaz=CenHaz, treatment=d_treatment, 
-                   maxTimeSurv=maxTimeSurv, maxTimeCen=maxTimeCen)
-
-## counterfactuals
-Truth <- counterFactuals(survHaz=SurvHaz, maxTime=maxTimeSurv)
-
-
-## save results
-
-
-
+set.seed(2019)
+SimData <- simData(time=d_time, outcome=d_outcome, treatment=d_treatment,
+                   survHaz=survHaz_initial$haz, cenHaz=cenHaz_initial$haz, nInt=nInt)
 
 
 ########################################################
@@ -77,6 +73,15 @@ Truth <- counterFactuals(survHaz=SurvHaz, maxTime=maxTimeSurv)
 ########################################################
 
 
+## survival hazards and selected covariates
+survHaz_initial <- estimateSimulationParams(outcome=d_outcome, time=d_time, treatment=d_treatment, covariates=covariates,
+                                            simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, covId=survHaz_initial$cov_indx,
+                                            nInt=nInt, hazEstimate="survival", hazMethod=hazMethod, seed=2019)
+
+## censoring hazards and selected covariates
+cenHaz_initial <- estimateSimulationParams(outcome=d_outcome, time=d_time, treatment=d_treatment, covariates=covariates,
+                                           simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, covId=cenHaz_initial$cov_indx,
+                                           nInt=nInt, hazEstimate="censoring", hazMethod=hazMethod, seed=2019)
 
 
 
