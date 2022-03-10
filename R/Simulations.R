@@ -4,7 +4,9 @@
 #' @param hazMethod "twoStage" or "ns"
 #' @param seed to set.seed()
 
-estimateSimulationParams <- function(treatment, covariates, outcome, nInt, hazEstimate, hazMethod, seed){
+estimateSimulationParams <- function(outcome, time, treatment, covariates,
+                                     simOutcome, simTime, covId,
+                                     nInt, hazEstimate, hazMethod, seed){
 
   ################
   ## parameters ##
@@ -14,6 +16,8 @@ estimateSimulationParams <- function(treatment, covariates, outcome, nInt, hazEs
   cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
   ## id
   rowId <- 1:length(outcome)
+
+  if(is.null(covId)){
 
   #######################################
   ## variable selection from real data ##
@@ -34,12 +38,28 @@ estimateSimulationParams <- function(treatment, covariates, outcome, nInt, hazEs
   cov_indx <- setdiff(which(cf != 0)-1, 0)
   rm(list=c("fit", "cf"))
 
+  }else{
+
+    if(hazEstimate == "censoring"){
+      sigma <- exp(seq(log(0.5), log(0.01), length.out = 20))
+    }else if(hazEstimate == "survival"){
+      sigma <- exp(seq(log(1), log(0.01), length.out = 20))
+    }
+    cov <- cov[, covId]
+    cov_indx <- covId
+
+  }
+
   ############################
   ## hazards from real data ##
   ############################
 
   ## coarsen data
   cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
+  if(!is.null(simTime)){
+    outcome <- simOutcome
+    cData$timeInt <- simTime
+  }
 
   if(hazMethod == "twoStage"){
 
@@ -66,12 +86,12 @@ estimateSimulationParams <- function(treatment, covariates, outcome, nInt, hazEs
   }
 
   haz <- estimateHaz(id=rowId, treatment=treatment, eventObserved=outcome, time=cData$timeInt,
-                        offset_t=offset_t, offset_X=FALSE, intercept=TRUE, breaks=cData$breaks,
-                        covariates=covariates, covIdHaz=cov_indx, crossFitNum=1, index_ls=NULL,
-                        timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=FALSE,
-                        interactWithTime=treatment, hazEstimate="ridge", weight=NULL,
-                        sigma=sigma, estimate_hazard=hazEstimate, getHaz=TRUE, coef_H=NULL,
-                        robust=FALSE, threshold=1e-10)
+                     offset_t=offset_t, offset_X=FALSE, intercept=TRUE, breaks=cData$breaks,
+                     covariates=covariates, covIdHaz=cov_indx, crossFitNum=1, index_ls=NULL,
+                     timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=FALSE,
+                     interactWithTime=treatment, hazEstimate="ridge", weight=NULL,
+                     sigma=sigma, estimate_hazard=hazEstimate, getHaz=TRUE, coef_H=NULL,
+                     robust=FALSE, threshold=1e-10)
 
   ############
   ## output ##
@@ -84,34 +104,36 @@ estimateSimulationParams <- function(treatment, covariates, outcome, nInt, hazEs
 
 
 #' Simulate time-to-event data with survival and censoring hazards
-#'
 #' @param survHaz Output from estimateHaz
 #' @param cenHaz Output from estimateHaz
-#' @param maxTimeSurv maximum time for event
-#' @param maxTimeCen maximum time for censoring
+#' @param nInt number of time intervals for coarsening the data
 #'
 
-simData <- function(survHaz, cenHaz, treatment, maxTime, timeIntMidPoint){
+simData <- function(time, outcome, treatment, survHaz, cenHaz, nInt){
 
   ## parameters
   n <- length(treatment)
 
+  ## coarsen data
+  cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
+
+  ## simulation
   survHaz_all <- survHaz$Haz1 * treatment[survHaz$ID] + survHaz$Haz0 * (1 - treatment[survHaz$ID])
   cenHaz_all <- cenHaz$Haz1 * treatment[cenHaz$ID] + cenHaz$Haz0 * (1 - treatment[cenHaz$ID])
 
   rS <- rbinom(length(survHaz_all), 1, survHaz_all)
   rG <- rbinom(length(cenHaz_all), 1, cenHaz_all)
 
-  tS <- tapply(rS, rep(1:n, each=maxTime), function(x){which(x == 1)[1]})
-  tG <- tapply(rG, rep(1:n, each=maxTime), function(x){which(x == 1)[1]})
-  tG <- ifelse(is.na(tG), maxTime, tG)
+  tS <- tapply(rS, rep(1:n, each=nInt), function(x){which(x == 1)[1]})
+  tG <- tapply(rG, rep(1:n, each=nInt), function(x){which(x == 1)[1]})
+  tG <- ifelse(is.na(tG), nInt, tG)
 
   ObservedTime <- apply(cbind(tS, tG), 1, function(x){min(x, na.rm = TRUE)})
   ObservedEvent <- 1*(tS<=tG)
   ObservedEvent <- ifelse(is.na(ObservedEvent), 0, ObservedEvent)
 
   ObservedEvent <- as.double(ObservedEvent)
-  ObservedTime <- as.double(as.character(factor(ObservedTime, labels = timeIntMidPoint)))
+  ObservedTime <- as.double(as.character(factor(ObservedTime, labels = cData$timeIntMidPoint)))
 
   return(list(ObservedEvent=ObservedEvent,
               ObservedTime=ObservedTime))
@@ -119,56 +141,30 @@ simData <- function(survHaz, cenHaz, treatment, maxTime, timeIntMidPoint){
 }
 
 
-simData2 <- function(survHaz, cenHaz, treatment, maxTime){
-
-  n <- length(treatment)
-
-  survHaz_all <- survHaz$Haz1 * treatment[survHaz$ID] + survHaz$Haz0 * (1 - treatment[survHaz$ID])
-  cenHaz_all <- cenHaz$Haz1 * treatment[cenHaz$ID] + cenHaz$Haz0 * (1 - treatment[cenHaz$ID])
-
-  S_all <- unlist(tapply(1-survHaz_all, survHaz$ID, cumprod, simplify = FALSE), use.names = FALSE)
-  G_all <- unlist(tapply(1-cenHaz_all, cenHaz$ID, cumprod, simplify = FALSE), use.names = FALSE)
-
-  RandS <- rep(runif(n), each=maxTime)
-  RandG <- rep(runif(n), each=maxTime)
-
-  Ts <- tapply((S_all>RandS), survHaz$ID, sum, simplify = TRUE)+1
-  Tg <- tapply((G_all>RandG), cenHaz$ID, sum, simplify = TRUE)+1
-  Ts <- ifelse(Ts == maxTimeSurv + 1, NA, Ts)
-
-  ObservedTime <- apply(cbind(Ts, Tg), 1, function(x){min(x, na.rm = TRUE)})
-  ObservedEvent <- 1*(Ts<Tg)
-  ObservedTime <- ifelse(ObservedTime == maxTimeCen + 1, maxTimeCen, ObservedTime)
-  ObservedEvent <- ifelse(is.na(ObservedEvent), 0, ObservedEvent)
-
-  ObservedEvent <- as.double(ObservedEvent)
-  ObservedTime <- as.double(ObservedTime)
-
-  return(list(ObservedEvent=ObservedEvent,
-              ObservedTime=ObservedTime))
-
-}
 
 #' Calculate counterfactuals from simulated data
-#'
-#'
+#' @param survHaz Output from estimateHaz
+#' @param nInt number of time intervals for coarsening the data
 
-counterFactuals <- function(survHaz, maxTime, timeIntLength){
+counterFactuals <- function(time, outcome, survHaz, nInt){
 
   ## paramters
-  n <- dim(survHaz)[1]/maxTime
+  n <- dim(survHaz)[1]/nInt
+
+  ## coarsen data
+  cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
 
   ## surv prob
-  Sm0 <- unlist(tapply(1-survHaz$Haz0, rep(1:n, each=maxTime), cumprod, simplify = FALSE), use.names = FALSE)
-  S0 <- tapply(Sm0, rep(1:maxTime, n), mean)
+  Sm0 <- unlist(tapply(1-survHaz$Haz0, rep(1:n, each=nInt), cumprod, simplify = FALSE), use.names = FALSE)
+  S0 <- tapply(Sm0, rep(1:nInt, n), mean)
   rm(list=c("Sm0"))
-  Sm1 <- unlist(tapply(1-survHaz$Haz1, rep(1:n, each=maxTime), cumprod, simplify = FALSE), use.names = FALSE)
-  S1 <- tapply(Sm1, rep(1:maxTime, n), mean)
+  Sm1 <- unlist(tapply(1-survHaz$Haz1, rep(1:n, each=nInt), cumprod, simplify = FALSE), use.names = FALSE)
+  S1 <- tapply(Sm1, rep(1:nInt, n), mean)
   rm(list=c("Sm1"))
 
   ## rmst
-  rmst0 <- cumsum(timeIntLength * S0)
-  rmst1 <- cumsum(timeIntLength * S1)
+  rmst0 <- cumsum(cData$timeIntLength * S0)
+  rmst1 <- cumsum(cData$timeIntLength * S1)
 
   return(data.frame(S0=S0, S1=S1, rmst0=rmst0, rmst1=rmst1))
 
