@@ -7,7 +7,7 @@
 strataCox <- function(treatment, eventObserved, time,
                       treatProb, cenHaz,
                       timeIntMidPoint, timeIntLength, breaks,
-                      nsim, printSim){
+                      nsim, printSim, hazMethod){
 
   ## create strata
   psStrata <- quantile(treatProb, probs=c(0.2, 0.4, 0.6, 0.8))
@@ -21,6 +21,8 @@ strataCox <- function(treatment, eventObserved, time,
   ID <- rep(1:n, each=maxTime)
   id <- rep(1:16, maxTime)
 
+  if(hazMethod == "twoStage"){
+
   ## create dlong
   dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time, stratumId=stratumId, treat=treatment), timeIntMidPoint=timeIntMidPoint, type="survival")
   rownames(dlong) <- NULL
@@ -29,6 +31,17 @@ strataCox <- function(treatment, eventObserved, time,
   fit <- mgcv::bam(Lt ~ s(t, bs="ps"), family = binomial, subset = It == 1, data = dlong, method="REML")
   offset_t <- predict(fit, newdata = data.frame(t=timeIntMidPoint))
 
+  ## other parameters
+  timeEffect <- "linear"
+  evenKnot <- NULL
+
+  }else if(hazMethod == "ns"){
+
+    offset_t <- NULL
+    timeEffect <- "ns"
+    evenKnot <- FALSE
+
+  }
 
   ## fit glm
   if(is.null(cenHaz)){
@@ -40,7 +53,7 @@ strataCox <- function(treatment, eventObserved, time,
     eps <- estimateHaz(id=1:length(treatment), treatment=treatment, eventObserved=eventObserved, time=time,
                 offset_t=offset_t, offset_X=FALSE, breaks=breaks, weight=NULL,
                 covariates=covariates, covIdHaz=NULL, crossFitNum=1, index_ls=NULL,
-                timeEffect="linear", evenKnot=NULL, penalizeTimeTreatment=NULL,
+                timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=NULL,
                 interactWithTime=as.matrix(interactWithTime), hazEstimate="glm", intercept=TRUE,
                 estimate_hazard="survival", getHaz=FALSE, coef_H=NULL, sigma=NULL,
                 robust=FALSE, threshold=1e-10)
@@ -68,7 +81,7 @@ strataCox <- function(treatment, eventObserved, time,
     eps <- estimateHaz(id=1:length(treatment), treatment=treatment, eventObserved=eventObserved, time=time,
                        offset_t=offset_t, offset_X=FALSE, breaks=breaks, weight=weight,
                        covariates=covariates, covIdHaz=NULL, crossFitNum=1, index_ls=NULL,
-                       timeEffect="linear", evenKnot=NULL, penalizeTimeTreatment=NULL,
+                       timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=NULL,
                        interactWithTime=as.matrix(interactWithTime), hazEstimate="glm", intercept=TRUE,
                        estimate_hazard="survival", getHaz=FALSE, coef_H=NULL, sigma=NULL,
                        robust=TRUE, threshold=1e-10)
