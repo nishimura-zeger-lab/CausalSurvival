@@ -23,6 +23,40 @@ covariates[which(covariates$j == 1662 & covariates$val == 1),]$i[90151] <- "1047
 covariates$i <- as.integer(covariates$i)
 cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
 
+
+# Vignette should not rely on the data set other people do not have access to.
+# Use the publicly available "Eunomia" data instead.
+
+library(CohortMethod)
+library(Eunomia)
+
+connectionDetails <- getEunomiaConnectionDetails()
+Eunomia::createCohorts(connectionDetails)
+
+cohortMethodData <- getDbCohortMethodData(connectionDetails = connectionDetails,
+                                          cdmDatabaseSchema = "main",
+                                          targetId = 1,
+                                          comparatorId = 2,
+                                          outcomeIds = 3,
+                                          exposureDatabaseSchema = "main",
+                                          outcomeDatabaseSchema = "main",
+                                          exposureTable = "cohort",
+                                          outcomeTable = "cohort",
+                                          covariateSettings = createDefaultCovariateSettings())
+
+population <- CohortMethod::createStudyPopulation(cohortMethodData = cohortMethodData,
+                                                  outcomeId = 3,
+                                                  riskWindowEnd = 99999)
+
+covariateData <- filterAndTidyCovariatesForPs(cohortMethodData, population)
+covariates <- covariateData$covariates
+row_id <- covariates %>% pull(.data$rowId)
+covariate_id <- covariates %>% pull(.data$covariateId)
+val <- covariates  %>% pull(.data$covariateValue)
+treatment <- population$treatment
+event_time <- population$survivalTime
+# It seems like the Eunomia data assumes no censoring, so we have to simulate censoring time.
+
 ## parameters
 rowId <- 1:length(d_outcome)
 n <- length(id)
