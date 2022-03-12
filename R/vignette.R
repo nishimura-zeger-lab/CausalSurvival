@@ -23,6 +23,40 @@ covariates[which(covariates$j == 1662 & covariates$val == 1),]$i[90151] <- "1047
 covariates$i <- as.integer(covariates$i)
 cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
 
+
+# Vignette should not rely on the data set other people do not have access to.
+# Use the publicly available "Eunomia" data instead.
+
+library(CohortMethod)
+library(Eunomia)
+
+connectionDetails <- getEunomiaConnectionDetails()
+Eunomia::createCohorts(connectionDetails)
+
+cohortMethodData <- getDbCohortMethodData(connectionDetails = connectionDetails,
+                                          cdmDatabaseSchema = "main",
+                                          targetId = 1,
+                                          comparatorId = 2,
+                                          outcomeIds = 3,
+                                          exposureDatabaseSchema = "main",
+                                          outcomeDatabaseSchema = "main",
+                                          exposureTable = "cohort",
+                                          outcomeTable = "cohort",
+                                          covariateSettings = createDefaultCovariateSettings())
+
+population <- CohortMethod::createStudyPopulation(cohortMethodData = cohortMethodData,
+                                                  outcomeId = 3,
+                                                  riskWindowEnd = 99999)
+
+covariateData <- filterAndTidyCovariatesForPs(cohortMethodData, population)
+covariates <- covariateData$covariates
+row_id <- covariates %>% pull(.data$rowId)
+covariate_id <- covariates %>% pull(.data$covariateId)
+val <- covariates  %>% pull(.data$covariateValue)
+treatment <- population$treatment
+event_time <- population$survivalTime
+# It seems like the Eunomia data assumes no censoring, so we have to simulate censoring time.
+
 ## parameters
 rowId <- 1:length(d_outcome)
 n <- length(id)
@@ -89,19 +123,16 @@ cenHaz_sim <- estimateSimulationParams(outcome=d_outcome, time=d_time, treatment
 ## estimate S(1)-S(0) ##
 ########################
 
-## tmle_S
 tmle_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
                      survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
                      simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
                      estimand="risk", algorithm="TMLE")
 
-## aipw_S
 aipw_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
                      survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
                      simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
                      estimand="risk", algorithm="AIPW")
 
-## ipw_S
 ipw_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
                       survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
                       simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
@@ -113,7 +144,6 @@ ipw_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
                       simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
                       estimand="risk", algorithm="cox")
 
-## weightedCox_S
 weightedCox_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
                               survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
                               simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
@@ -123,19 +153,16 @@ weightedCox_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_t
 ## estimate RMST(1)-RMST(0) ##
 ##############################
 
-## tmle_rmst
 tmle_rmst <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
                        survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
                        simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
                        estimand="rmst", algorithm="TMLE")
 
-## aipw_rmst
 aipw_rmst <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
                        survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
                        simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
                        estimand="rmst", algorithm="AIPW")
 
-## ipw_rmst
 ipw_rmst <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
                       survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
                       simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
@@ -147,7 +174,6 @@ ipw_rmst <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
                       simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
                       estimand="rmst", algorithm="cox")
 
-## weightedCox_rmst
 weightedCox_rmst <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
                               survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
                               simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
