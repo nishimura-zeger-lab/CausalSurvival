@@ -9,9 +9,7 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
                                      nInt, hazEstimate, hazMethod, seed){
 
   ## parameters ##
-  ## cov
   cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
-  ## id
   rowId <- 1:length(outcome)
 
   if(is.null(covId)){
@@ -47,7 +45,6 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
 
 
   ## hazards from real data ##
-  ## coarsen data
   cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
   if(!is.null(simTime)){
     outcome <- simOutcome
@@ -56,7 +53,6 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
 
   if(hazMethod == "twoStage"){
 
-    # dlong
     dlong <- transformData(dwide=data.frame(eventObserved=outcome, time=cData$timeInt), timeIntMidPoint=cData$timeIntMidPoint, type="survival")
     rownames(dlong) <- NULL
     dlong <- dlong[, c("Lt", "It", "t")]
@@ -86,7 +82,6 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
                      sigma=sigma, estimate_hazard=hazEstimate, getHaz=TRUE, coef_H=NULL,
                      robust=FALSE, threshold=1e-10)
 
-  ## output ##
   return(list(haz=haz, cov_indx=cov_indx))
 
 }
@@ -141,7 +136,6 @@ counterFactuals <- function(time, outcome, survHaz, nInt){
   ## paramters
   n <- dim(survHaz)[1]/nInt
 
-  ## coarsen data
   cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
 
   ## surv prob
@@ -152,7 +146,6 @@ counterFactuals <- function(time, outcome, survHaz, nInt){
   S1 <- tapply(Sm1, rep(1:nInt, n), mean)
   rm(list=c("Sm1"))
 
-  ## rmst
   rmst0 <- cumsum(cData$timeIntLength * S0)
   rmst1 <- cumsum(cData$timeIntLength * S1)
 
@@ -219,7 +212,6 @@ algorithmSim <- function(treatment, outcome, time,
 
   }
 
-  ## output
   return(result)
 
 }
