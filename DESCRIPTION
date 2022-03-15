@@ -20,13 +20,15 @@ Imports:
     Matrix,
     mgcv,
     magrittr,
-    Rcpp
+    Rcpp, 
+    Cyclops
 Suggests:
     usethis, 
     testthat, 
     Eunomia,
     CohortMethod,
-    FeatureExtraction
+    FeatureExtraction, 
+    glmnet
 LinkingTo: 
     RcppEigen,
     Rcpp
