@@ -89,6 +89,8 @@ crossFit <- function(eventObserved, id, crossFitNum){
   return(index_ls)
 }
 
+
+
 #' Coarsen data to non-uniform time intervals
 #' @param nInt number of time intervals for coarsening the data
 #'
@@ -114,15 +116,16 @@ filterAndTidyCovariatesForPs <- function(cohortMethodData,
                                          population,
                                          excludeCovariateIds = c(),
                                          includeCovariateIds = c()) {
+
   covariates <- cohortMethodData$covariates %>%
-    filter(.data$rowId %in% local(population$rowId))
+    dplyr::filter(.data$rowId %in% local(population$rowId))
   if (length(includeCovariateIds) != 0) {
     covariates <- covariates %>%
-      filter(.data$covariateId %in% includeCovariateIds)
+    dplyr::filter(.data$covariateId %in% includeCovariateIds)
   }
   if (length(excludeCovariateIds) != 0) {
     covariates <- covariates %>%
-      filter(!.data$covariateId %in% excludeCovariateIds)
+    dplyr::filter(!.data$covariateId %in% excludeCovariateIds)
   }
   filteredCovariateData <- Andromeda::andromeda(covariates = covariates,
                                                 covariateRef = cohortMethodData$covariateRef,
@@ -133,7 +136,7 @@ filterAndTidyCovariatesForPs <- function(cohortMethodData,
   class(filteredCovariateData) <- "CovariateData"
 
   covariateData <- FeatureExtraction::tidyCovariateData(filteredCovariateData)
-  close(filteredCovariateData)
+  # close(filteredCovariateData)
   return(covariateData)
 }
 
