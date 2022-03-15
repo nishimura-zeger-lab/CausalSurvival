@@ -108,8 +108,34 @@ coarseData <- function(time, outcome, nInt){
 
 }
 
+## For simulation data
 
+filterAndTidyCovariatesForPs <- function(cohortMethodData,
+                                         population,
+                                         excludeCovariateIds = c(),
+                                         includeCovariateIds = c()) {
+  covariates <- cohortMethodData$covariates %>%
+    filter(.data$rowId %in% local(population$rowId))
+  if (length(includeCovariateIds) != 0) {
+    covariates <- covariates %>%
+      filter(.data$covariateId %in% includeCovariateIds)
+  }
+  if (length(excludeCovariateIds) != 0) {
+    covariates <- covariates %>%
+      filter(!.data$covariateId %in% excludeCovariateIds)
+  }
+  filteredCovariateData <- Andromeda::andromeda(covariates = covariates,
+                                                covariateRef = cohortMethodData$covariateRef,
+                                                analysisRef = cohortMethodData$analysisRef)
+  metaData <- attr(cohortMethodData, "metaData")
+  metaData$populationSize <- nrow(population)
+  attr(filteredCovariateData, "metaData") <- metaData
+  class(filteredCovariateData) <- "CovariateData"
 
+  covariateData <- FeatureExtraction::tidyCovariateData(filteredCovariateData)
+  close(filteredCovariateData)
+  return(covariateData)
+}
 
 
 

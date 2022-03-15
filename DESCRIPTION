@@ -20,7 +20,10 @@ Imports:
     Matrix,
     mgcv,
     magrittr,
-    Rcpp
+    Rcpp,
+    Eunomia,
+    CohortMethod,
+    FeatureExtraction
 Suggests:
     usethis, 
     testthat
