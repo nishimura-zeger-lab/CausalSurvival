@@ -20,13 +20,13 @@ Imports:
     Matrix,
     mgcv,
     magrittr,
-    Rcpp,
+    Rcpp
+Suggests:
+    usethis, 
+    testthat, 
     Eunomia,
     CohortMethod,
     FeatureExtraction
-Suggests:
-    usethis, 
-    testthat
 LinkingTo: 
     RcppEigen,
     Rcpp
