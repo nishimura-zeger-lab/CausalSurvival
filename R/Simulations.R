@@ -6,7 +6,7 @@
 
 estimateSimulationParams <- function(outcome, time, treatment, covariates,
                                      simOutcome=NULL, simTime=NULL, covId=NULL,
-                                     nInt=NULL, hazEstimate, hazMethod, seed){
+                                     nInt=NULL, hazEstimate, hazMethod, seed=0){
 
   ## parameters
   cov <- Matrix::sparseMatrix(i = covariates$rowId, j = covariates$covariateId, x = covariates$covariateValue, repr = "T")
@@ -93,18 +93,17 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
 #' @param nInt number of time intervals for coarsening the data
 #'
 
-simData <- function(time, outcome, treatment, survHaz, cenHaz, nInt){
+simData <- function(treatment, survHaz, cenHaz, coarsenedTime, seed){
 
   ## parameters
   n <- length(treatment)
-
-  ## coarsen data
-  cData <- coarsenData(time=time, outcome=outcome, nInt=nInt)
+  nInt <- length(coarsenedTime$timeIntMidPoint)
 
   ## simulation
   survHaz_all <- survHaz$Haz1 * treatment[survHaz$ID] + survHaz$Haz0 * (1 - treatment[survHaz$ID])
   cenHaz_all <- cenHaz$Haz1 * treatment[cenHaz$ID] + cenHaz$Haz0 * (1 - treatment[cenHaz$ID])
 
+  set.seed(seed)
   rS <- rbinom(length(survHaz_all), 1, survHaz_all)
   rG <- rbinom(length(cenHaz_all), 1, cenHaz_all)
 

@@ -92,6 +92,31 @@ Truth_RMST <- calculateRMST(coarsenedTime=estimatedSurvHazard$coarsenedData, sur
 
 ## Simulation 
 
+```{r}
+SimData <- simData(treatment=treatment, survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz,
+                   coarsenedTime=estimatedSurvHazard$coarsenedData, seed=2019)
+```
+
+## Survival and censoring hazards from simulated data
+
+```{r}
+## survival hazards and selected covariates
+estimatedSurvHazard_sim <- estimateSimulationParams(outcome=outcome, time=time, treatment=treatment, covariates=covariates,
+                                                    simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, 
+                                                    covId=estimatedSurvHazard$cov_indx,
+                                                    hazEstimate="survival", hazMethod=hazMethod)
+
+## censoring hazards and selected covariates
+estimatedCenHazard_sim <- estimateSimulationParams(outcome=outcome, time=time, treatment=treatment, covariates=covariates,
+                                                   simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, 
+                                                   covId=estimatedCenHazard$cov_indx,
+                                                   hazEstimate="censoring", hazMethod=hazMethod)
+```
+
+## Algorithm
+
+
+## Result
 
 
 
