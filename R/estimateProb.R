@@ -22,7 +22,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
   outcomes <- data.frame(rowId = id, y = treatment)
   ## covariates
   if (!is.null(covIdTreatProb)){
-    covariates <- covariates[which(covariates$j %in% covIdTreatProb), ]
+    covariates <- covariates[which(covariates$covariateId %in% covIdTreatProb), ]
   }
 
   for (i in crossFitNum){
@@ -38,7 +38,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
 
     ## prepare training set into appropriate format
     outcomes_train <- outcomes[which(outcomes$rowId %in% idx_train), ]
-    covariates_train <- covariates[which(covariates$i %in% idx_train), ]
+    covariates_train <- covariates[which(covariates$rowId %in% idx_train), ]
     ## downsize
     set.seed(0)
     targetRowIds <- outcomes_train$rowId[which(outcomes_train$y == 1)]
@@ -47,11 +47,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
     comparatorRowIds <- sample(comparatorRowIds, size=min(maxCohortSizeForFitting, sum(outcomes_train$y == 0)), replace = FALSE)
 
     outcomes_train_sub <- outcomes_train[which(outcomes_train$rowId %in% c(targetRowIds, comparatorRowIds)), ]
-    covariates_train_sub <- covariates_train[which(covariates_train$i %in% c(targetRowIds, comparatorRowIds)), ]
-
-    colnames(covariates_train_sub) <- c("rowId", "covariateId", "covariateValue")
-    colnames(covariates_train) <- c("rowId", "covariateId", "covariateValue")
-
+    covariates_train_sub <- covariates_train[which(covariates_train$rowId %in% c(targetRowIds, comparatorRowIds)), ]
 
     # parameters
     floatingPoint <- getOption("floatingPoint")
@@ -89,12 +85,10 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
 
     ## testing set
     outcomes_test <- outcomes[which(outcomes$rowId %in% idx_test), ]
-    covariates_test <- covariates[which(covariates$i %in% idx_test), ]
+    covariates_test <- covariates[which(covariates$rowId %in% idx_test), ]
 
     outcomes_test <- data.table::setDT(outcomes_test)
     covariates_test <- data.table::setDT(covariates_test)
-    colnames(covariates_test) <- c("rowId", "covariateId", "covariateValue")
-
 
 
     ## predict on testing set
@@ -158,7 +152,7 @@ estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X, 
   }
 
   ## covariates to sparse matrix form, and delete unwanted covariates
-  cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
+  cov <- Matrix::sparseMatrix(i = covariates$rowId, j = covariates$covariateId, x = covariates$covariateValue, repr = "T")
   if (!is.null(covIdHaz)){
     cov <- cov[, covIdHaz]
   }
