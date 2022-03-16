@@ -14,6 +14,10 @@ library(tidyverse)
 devtools::load_all("/Users/shiyaoxu/Documents/Research/CausalSurvival")
 ```
 
+```{r}
+hazMethod <- "ns"
+```
+
 ## Load data
 
 Use synthetic `Eunomia` dataset to illustrate how to perform the simulation study. 
@@ -44,6 +48,8 @@ row_id <- covariates %>% dplyr::pull(.data$rowId)
 covariate_id <- covariates %>% dplyr::pull(.data$covariateId)
 val <- covariates %>% dplyr::pull(.data$covariateValue)
 covariates <- data.frame(rowId=row_id, covariateId=covariate_id, covariateValue=val)
+covariates <- covariates[-which(covariates$covariateId %in% c(1118084410, 1118084412, 1118084413, 1124300410, 1124300412, 1124300413)), ]
+covariates$covariateId <- as.numeric(factor(covariates$covariateId))
 
 treatment <- population$treatment
 event_time <- population$survivalTime
@@ -51,24 +57,36 @@ id <- 1:length(treatment)
 rm(list=c("row_id", "covariate_id", "val", "covariateData", "cohortMethodData", "connectionDetails", "population"))
 ```
 
-Simulate censoring time seperately for each treatment group. 
+Simulate censoring time separately for each treatment group. 
 
 ```{r}
 censoring_time
+outcome
+time
 ```
 
 
 ## Initial parameters
-### PS calculation from real data
 
+### PS calculation from real data
 ```{r}
 treatProb <- estimateTreatProb(id=id, treatment=treatment, covariates=covariates, covIdTreatProb=NULL)
 ```
 
 ### Survival and censoring hazards from real data
+Default is `covId=NULL`, which perform variable selection before estimating survival and censoring hazards. If the researchers have the covariates in mind for simulating hazards, specify in `covId`. 
 
 ```{r}
-estimatedSurvHazard
+estimatedSurvHazard <- estimateSimulationParams(outcome=outcome, time=time, treatment=treatment, covariates=covariates, 
+                                                covId=NULL, hazEstimate="survival", hazMethod=hazMethod, seed=2019)
+estimatedCenHazard <- estimateSimulationParams(outcome=outcome, time=time, treatment=treatment, covariates=covariates,
+                                               covId=NULL, hazEstimate="censoring", hazMethod=hazMethod, seed=2019)
+```
+
+### Counterfactual survival curve and RMST
+```{r}
+Truth_S <- calculateSurvCurve(coarsenedTime=estimatedSurvHazard$coarsenedData, survHaz=estimatedSurvHazard$haz)
+Truth_RMST <- calculateRMST(coarsenedTime=estimatedSurvHazard$coarsenedData, survCurve=Truth_S)
 ```
 
 
