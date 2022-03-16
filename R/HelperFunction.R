@@ -95,7 +95,7 @@ crossFit <- function(eventObserved, id, crossFitNum){
 #' @param nInt number of time intervals for coarsening the data
 #'
 
-coarseData <- function(time, outcome, nInt){
+coarsenData <- function(time, outcome, nInt){
 
   probSeq <- seq(0, 1, length.out=nInt+1)[-c(1, nInt+1)]
   timeStrata <- floor(quantile(time[outcome == 1], probs = probSeq))
