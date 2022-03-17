@@ -48,7 +48,7 @@ strataCox <- function(treatment, eventObserved, time,
 
     interactWithTime <- as(as.matrix(model.matrix(~ as.factor(stratumId), data.frame(stratumId=stratumId))[, -1]), "sparseMatrix")
     covariates <- Matrix::summary(interactWithTime)
-    colnames(covariates) <- c("i", "j", "val")
+    colnames(covariates) <- c("rowId", "covariateId", "covariateValue")
 
     eps <- estimateHaz(id=1:length(treatment), treatment=treatment, eventObserved=eventObserved, time=time,
                        offset_t=offset_t, offset_X=FALSE, breaks=breaks, weight=NULL,
@@ -76,7 +76,7 @@ strataCox <- function(treatment, eventObserved, time,
 
     interactWithTime <- as(as.matrix(model.matrix(~ as.factor(stratumId), data.frame(stratumId=stratumId))[, -1]), "sparseMatrix")
     covariates <- Matrix::summary(interactWithTime)
-    colnames(covariates) <- c("i", "j", "val")
+    colnames(covariates) <- c("rowId", "covariateId", "covariateValue")
 
     eps <- estimateHaz(id=1:length(treatment), treatment=treatment, eventObserved=eventObserved, time=time,
                        offset_t=offset_t, offset_X=FALSE, breaks=breaks, weight=weight,
