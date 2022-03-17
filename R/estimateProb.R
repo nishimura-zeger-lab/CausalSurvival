@@ -124,7 +124,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
 #' @param index_ls Index for cross-fitting
 #'                 Default is no cross-fitting, index_ls = NULL
 #' @param timeEffect Functions of time in the discrete hazards model.
-#'                   Options currently include "linear", "ns2", "ns3", "ns4", "ns5"
+#'                   Options currently include "linear", "ns"
 #' @param interactWithTime Data frame that include variables that interact with time in the hazards model
 #' @param hazEstimate Model for estimating censoring hazards. Options currently include "glm", "ridge".
 #'                    If hazEstimate = NULL, then must provide coef_Haz to have prediction of hazards
@@ -133,12 +133,12 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
 #' @param maxTimePredict Maximum time for prediction
 #' @return A data frame with columns: ID, Haz1, Haz0
 
-estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X, weight,
+estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X=FALSE, weight=NULL,
                            covariates, covIdHaz, sigma=exp(seq(log(1), log(0.01), length.out = 20)),
-                           crossFitNum=1, index_ls=NULL, breaks, nInt,
+                           crossFitNum=1, index_ls=NULL, breaks, nInt=NULL,
                            timeEffect, evenKnot, penalizeTimeTreatment,
-                           interactWithTime, hazEstimate, intercept,
-                           estimate_hazard, getHaz, coef_H, robust, threshold){
+                           interactWithTime, hazEstimate, intercept=TRUE,
+                           estimate_hazard, getHaz, coef_H, robust=FALSE, threshold=1e-8){
 
   ## container
   if(getHaz){
@@ -157,7 +157,8 @@ estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X, 
 
   ## coarsen data
   if(is.null(breaks)){
-    cData <- coarseData(time=time, outcome=eventObserved, nInt=50)
+    if(is.null(nInt)){nInt <- min(50, floor((sum(outcome)/10)))}
+    cData <- coarsenData(time=time, outcome=eventObserved, nInt=nInt)
     breaks <- cData$breaks
     timeIntMidPoint <- cData$timeIntMidPoint
     timeInt <- cData$timeInt
