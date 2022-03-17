@@ -86,7 +86,7 @@ estimatedCenHazard <- estimateSimulationParams(outcome=outcome, time=time, treat
 ### Counterfactual survival curve and RMST
 ```{r}
 Truth_S <- calculateSurvCurve(coarsenedTime=estimatedSurvHazard$coarsenedData, survHaz=estimatedSurvHazard$haz)
-Truth_RMST <- calculateRMST(coarsenedTime=estimatedSurvHazard$coarsenedData, survCurve=Truth_S)
+Truth_rmst <- calculateRMST(coarsenedTime=estimatedSurvHazard$coarsenedData, survCurve=Truth_S)
 ```
 
 
@@ -115,6 +115,69 @@ estimatedCenHazard_sim <- estimateSimulationParams(outcome=outcome, time=time, t
 
 ## Algorithm
 
+### risk difference
+```{r}
+tmle_S <- estimateCounterfactSurvival(treatment=treatment, outcome=outcome, time=time,
+                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                      coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                      estimand="risk", algorithm="TMLE")
+
+aipw_S <- estimateCounterfactSurvival(treatment=treatment, outcome=outcome, time=time,
+                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                      coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                      estimand="risk", algorithm="AIPW")
+
+ipw_S <- estimateCounterfactSurvival(treatment=treatment, outcome=outcome, time=time,
+                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                      coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                      estimand="risk", algorithm="IPW")
+
+cox_S <- estimateCounterfactSurvival(treatment=treatment, outcome=outcome, time=time,
+                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                      coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                      estimand="risk", algorithm="cox")
+
+weightedCox_S <- estimateCounterfactSurvival(treatment=treatment, outcome=outcome, time=time,
+                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                      coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                      estimand="risk", algorithm="weightedCox")
+
+```
+
+
+### difference in RMST
+```{r}
+tmle_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=outcome, time=time,
+                                         survHaz=estimatedSurvHazard_sim$haz, 
+                                         cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                         coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                         estimand="rmst", algorithm="TMLE")
+
+aipw_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=outcome, time=time,
+                                         survHaz=estimatedSurvHazard_sim$haz, 
+                                         cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                         coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                         estimand="rmst", algorithm="AIPW")
+
+ipw_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=outcome, time=time,
+                                        survHaz=estimatedSurvHazard_sim$haz, 
+                                        cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                        coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                        estimand="rmst", algorithm="IPW")
+
+cox_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=outcome, time=time,
+                                        survHaz=estimatedSurvHazard_sim$haz, 
+                                        cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                        coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                        estimand="rmst", algorithm="cox")
+
+weightedCox_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=outcome, time=time,
+                                                survHaz=estimatedSurvHazard_sim$haz, 
+                                                cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                                coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                                estimand="rmst", algorithm="weightedCox")
+
+```
 
 ## Result
 
