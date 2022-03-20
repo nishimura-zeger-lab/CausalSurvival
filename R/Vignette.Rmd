@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(glmnet)
-devtools::load_all("/Users/shiyaoxu/Documents/Research/CausalSurvival")
+library(CausalSurvival)
 ```
 
 ```{r}
