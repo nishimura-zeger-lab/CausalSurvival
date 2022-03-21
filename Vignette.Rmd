@@ -79,9 +79,9 @@ Default is `covId=NULL`, which perform variable selection before estimating surv
 
 ```{r}
 estimatedSurvHazard <- estimateSimulationParams(outcome=outcome, time=time, treatment=treatment, covariates=covariates, 
-                                                covId=1:max(covariates$covariateId), hazEstimate="survival", hazMethod=hazMethod, seed=2010)
+                                                covId=NULL, hazEstimate="survival", hazMethod=hazMethod, seed=2010)
 estimatedCenHazard <- estimateSimulationParams(outcome=outcome, time=time, treatment=treatment, covariates=covariates,
-                                               covId=1:max(covariates$covariateId), hazEstimate="censoring", hazMethod=hazMethod, seed=2019)
+                                               covId=NULL, hazEstimate="censoring", hazMethod=hazMethod, seed=2019)
 ```
 
 ### Counterfactual survival curve and RMST
