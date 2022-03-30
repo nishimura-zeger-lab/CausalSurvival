@@ -4,7 +4,7 @@
 #' @param nInt number of time intervals for coarsening the data
 #'
 
-simData <- function(treatment, survHaz, cenHaz, coarsenedTime, seed){
+simulateData <- function(treatment, survHaz, cenHaz, coarsenedTime, seed){
 
   n <- length(treatment)
   nInt <- length(coarsenedTime$timeIntMidPoint)
