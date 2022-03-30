@@ -133,23 +133,14 @@ estimatedCenHazard <- estimateHazards(coarsenedData=coarsenedData, outcome=outco
 
 ## Simulation studies
 
-### Counterfactual survival curve and RMST
-
-Derive counterfactual survival curve from the estimated survival hazard. And transform to RMST. 
-
-```{r}
-Truth_S <- calculateSurvCurve(coarsenedTime=coarsenedData, survHaz=estimatedSurvHazard$haz)
-Truth_rmst <- calculateRMST(coarsenedTime=coarsenedData, survCurve=Truth_S)
-```
-
 
 ### Simulation 
 
 Simulate one set of data with the estimated survival and censoring hazard. 
 
 ```{r}
-SimData <- simData(treatment=treatment, survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz,
-                   coarsenedTime=coarsenedData, seed=2019)
+simData <- simulateData(treatment=treatment, survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz,
+                        coarsenedTime=coarsenedData, seed=2019)
 ```
 
 ### Survival and censoring hazards from simulated data
@@ -157,15 +148,15 @@ SimData <- simData(treatment=treatment, survHaz=estimatedSurvHazard$haz, cenHaz=
 ```{r}
 ## replace timeInt with simulated data
 coarsenedData_sim <- coarsenedData
-coarsenedData_sim$timeInt <- SimData$ObservedTime
+coarsenedData_sim$timeInt <- simData$ObservedTime
 
 ## survival hazards and selected covariates
-estimatedSurvHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outcome=SimData$ObservedEvent, 
+estimatedSurvHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outcome=simData$ObservedEvent, 
                                            treatment=treatment, covariates=covariates, 
                                            covId=survCov_indx,
                                            hazEstimate="survival", hazMethod=hazMethod)
 ## censoring hazards and selected covariates
-estimatedCenHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outcome=SimData$ObservedEvent, 
+estimatedCenHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outcome=simData$ObservedEvent, 
                                           treatment=treatment, covariates=covariates, 
                                           covId=cenCov_indx,
                                           hazEstimate="censoring", hazMethod=hazMethod)
@@ -176,30 +167,39 @@ estimatedCenHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outco
 ### Algorithm 
 
 ```{r}
-tmle <- computeEstimator(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+tmle <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
                          initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
                          coarseningParam=coarsenedData, method="TMLE")
 
-aipw <- computeEstimator(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+aipw <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
                          initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
                          coarseningParam=coarsenedData, method="AIPW")
 
-ipw <- computeEstimator(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+ipw <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
                         initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
                         coarseningParam=coarsenedData, method="IPW")
 
-cox <- computeEstimator(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+cox <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
                         survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
                         treatProb=treatProb, coarseningParam=estimatedSurvHazard$coarsenedData, 
                         method="cox", hazMethod=hazMethod)
 
-weightedCox <- computeEstimator(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+weightedCox <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
                                 survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
                                 coarseningParam=estimatedSurvHazard$coarsenedData, 
                                 method="weightedCox", hazMethod=hazMethod)
 
 ```
 
+
+### Counterfactual survival curve and RMST
+
+Derive counterfactual survival curve from the estimated survival hazard. And transform to RMST. 
+
+```{r}
+Truth_S <- calculateSurvCurve(coarsenedTime=coarsenedData, survHaz=estimatedSurvHazard$haz)
+Truth_rmst <- calculateRMST(coarsenedTime=coarsenedData, survCurve=Truth_S)
+```
 
 ### Result
 
