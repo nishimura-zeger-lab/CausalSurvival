@@ -1,4 +1,4 @@
-#' Estimate (cross-fitted) TMLE of survival probability / rmst at time tau
+#' Estimate TMLE of survival probability / rmst at time tau
 #'
 #' @param survHaz Data frame with two columns: Haz1, Haz0
 #'                Estimated survival hazards for each person at each time points if receive treatment 1 (SurvHaz1) and if receive treatment 0 (SurvHaz0)
@@ -6,18 +6,17 @@
 #'               Estimated censoring hazards for each person at each time points if receive treatment 1 (CenHaz1) and if receive treatment 0 (CenHaz0)
 #' @param treatProb Estimated probability for treatment for each person if receive treatment 1
 #' @param tau Time of interest. Can be a vector (multiple time of interest)
-#' @param estimand "risk", "rmst"
+#' @param estimand "risk", "rmst", "both"
 #' @return A data frame with three columns: estimand1, estimand0, SE
 
 estimateTMLE <- function(treatment, eventObserved, time,
                          survHaz, cenHaz, treatProb, tau,
                          timeIntMidPoint, timeIntLength,
-                         estimand, printIter, printTau,
-                         tempCompare){
+                         estimand, printIter, printTau){
 
   ## container
   estimand1_result <- estimand0_result <- SE_result <- rep(0, length=length(tau))
-  if(tempCompare){
+  if(estimand == "both"){
     Dac <- 0
     SE_transform_result <- rep(0, length=length(tau))
   }
@@ -69,7 +68,7 @@ estimateTMLE <- function(treatment, eventObserved, time,
       weightH1[which(weightH1 >= quantile(weightH1, probs = 0.95))] <- quantile(weightH1, probs = 0.95)
       weightH0[which(weightH0 >= quantile(weightH0, probs = 0.95))] <- quantile(weightH0, probs = 0.95)
 
-      if(estimand=="risk"){
+      if(estimand %in% c("risk", "both")){
 
       ## clever covariate for updating survival hazards
       H1 <- as(matrix(- (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
@@ -77,7 +76,7 @@ estimateTMLE <- function(treatment, eventObserved, time,
 
       rm(list=c("weightH1", "weightH0"))
 
-      }else if(estimand=="rmst"){
+      }else if(estimand == "rmst"){
 
       cumProb1TillTimePoint <- unlist(tapply(ind * SurvProb1, survHaz$ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
       H1 <- as(matrix(- cumProb1TillTimePoint * weightH1 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
@@ -140,7 +139,7 @@ estimateTMLE <- function(treatment, eventObserved, time,
     weightH0[which(weightH0 >= quantile(weightH0, probs = 0.95))] <- quantile(weightH0, probs = 0.95)
 
 
-    if(estimand=="risk"){
+    if(estimand %in% c("risk", "both")){
 
       ## clever covariate for updating survival hazards
       H1 <- as(matrix(- (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
@@ -148,7 +147,7 @@ estimateTMLE <- function(treatment, eventObserved, time,
 
       rm(list=c("weightH1", "weightH0"))
 
-    }else if(estimand=="rmst"){
+    }else if(estimand == "rmst"){
 
       cumProb1TillTimePoint <- unlist(tapply(ind * SurvProb1, survHaz$ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
       H1 <- as(matrix(- cumProb1TillTimePoint * weightH1 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
@@ -164,12 +163,12 @@ estimateTMLE <- function(treatment, eventObserved, time,
 
     rm(list=c("H1", "H0"))
 
-    if(estimand=="risk"){
+    if(estimand %in% c("risk", "both")){
 
       DW1 <- SurvProb1[which(dlong$t == tau[TimePoint])]
       DW0 <- SurvProb0[which(dlong$t == tau[TimePoint])]
 
-    }else if(estimand=="rmst"){
+    }else if(estimand == "rmst"){
 
       DW1 <- tapply(ind * SurvProb1 * rep(timeIntLength, n), survHaz$ID, sum)
       DW0 <- tapply(ind * SurvProb0 * rep(timeIntLength, n), survHaz$ID, sum)
@@ -185,7 +184,7 @@ estimateTMLE <- function(treatment, eventObserved, time,
     ## standard error of estimand1-estimand0
     D <- DT + DW1 - DW0
     sdn <- sqrt(var(D) / n)
-    if(tempCompare){
+    if(estimand == "both"){
       Dac <- Dac + D * timeIntLength[TimePoint]
       SE_transform_result[TimePoint] <- sqrt(var(Dac) / n)
     }
@@ -199,13 +198,15 @@ estimateTMLE <- function(treatment, eventObserved, time,
 
     rm(list=c("estimand1", "estimand0", "sdn"))
 
-    if(printTau){print(paste("Time point", TimePoint, "finished"))}
+    if(printTau & (TimePoint == floor(length(tau)/2))){print("Halfway finished")}
 
   }
 
   ## result
-  if(tempCompare){
-    out <- data.frame(estimand1=estimand1_result, estimand0=estimand0_result, SE=SE_result, SE_transform=SE_transform_result)
+  if(estimand == "both"){
+    out <- data.frame(S1=estimand1_result, S0=estimand0_result,
+                      rmst1=cumsum(estimand1_result), rmst0=cumsum(estimand0_result),
+                      SE_S=SE_result, SE_rmst=SE_transform_result)
   }else{
     out <- data.frame(estimand1=estimand1_result, estimand0=estimand0_result, SE=SE_result)
   }

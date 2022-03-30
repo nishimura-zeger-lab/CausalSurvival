@@ -1,4 +1,4 @@
-#' Estimate (cross-fitted) Augmented IPW of survival probability / rmst at time tau
+#' Estimate Augmented IPW of survival probability / rmst at time tau
 #'
 #' @param survHaz Data frame with two columns: Haz1, Haz0
 #'                Estimated survival hazards for each person at each time points if receive treatment 1 (Haz1) and if receive treatment 0 (Haz0)
@@ -11,11 +11,15 @@
 estimateAIPW <- function(treatment, eventObserved, time,
                          survHaz, cenHaz, treatProb,
                          tau, timeIntMidPoint, timeIntLength,
-                         estimand, printTau){
+                         estimand="both", printTau){
 
 
   ## container
   estimand1_result <- estimand0_result <- SE_result <- rep(0, length=length(tau))
+  if(estimand == "both"){
+    Dac <- 0
+    SE_transform_result <- rep(0, length=length(tau))
+  }
 
   ## parameter
   n <- length(unique(survHaz$ID))
@@ -63,7 +67,7 @@ estimateAIPW <- function(treatment, eventObserved, time,
     ind <- (dlong$t <= tau[TimePoint])
 
     ## solve estimating equation
-    if(estimand=="risk"){
+    if(estimand %in% c("risk", "both")){
 
     H1 <- as(matrix( - (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
     H0 <- as(matrix( - (ind * rep(SurvProb0[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH0, ncol = 1), "sparseMatrix")
@@ -86,7 +90,7 @@ estimateAIPW <- function(treatment, eventObserved, time,
 
     rm(list=c("H1", "H0"))
 
-    if(estimand=="risk"){
+    if(estimand %in% c("risk", "both")){
 
       DW1 <- SurvProb1[which(dlong$t == tau[TimePoint])]
       DW0 <- SurvProb0[which(dlong$t == tau[TimePoint])]
@@ -98,7 +102,7 @@ estimateAIPW <- function(treatment, eventObserved, time,
 
     }
 
-    if(estimand=="risk"){
+    if(estimand %in% c("risk", "both")){
 
       aipw <- c(mean(DT0 + DW0), mean(DT1 + DW1))
 
@@ -111,6 +115,10 @@ estimateAIPW <- function(treatment, eventObserved, time,
     ## SE
     D <- DT1 - DT0 + DW1 - DW0
     sdn <- sqrt(var(D) / n)
+    if(estimand == "both"){
+      Dac <- Dac + D * timeIntLength[TimePoint]
+      SE_transform_result[TimePoint] <- sqrt(var(Dac) / n)
+    }
 
     rm(list=c("D", "DW1", "DW0", "DT1", "DT0"))
 
@@ -119,13 +127,19 @@ estimateAIPW <- function(treatment, eventObserved, time,
     estimand0_result[TimePoint] <- aipw[1]
     SE_result[TimePoint] <- sdn
 
-    if(printTau){print(paste("Time point", TimePoint, "finished"))}
+    if(printTau & (TimePoint == floor(length(tau)/2))){print("Halfway finished")}
 
   }
 
   ## result
-  out <- data.frame(estimand1=estimand1_result, estimand0=estimand0_result, SE=SE_result)
-  return(out)
+  if(estimand == "both"){
+    out <- data.frame(S1=estimand1_result, S0=estimand0_result,
+                      rmst1=cumsum(estimand1_result), rmst0=cumsum(estimand0_result),
+                      SE_S=SE_result, SE_rmst=SE_transform_result)
+  }else{
+    out <- data.frame(estimand1=estimand1_result, estimand0=estimand0_result, SE=SE_result)
+  }
+    return(out)
 }
 
 
