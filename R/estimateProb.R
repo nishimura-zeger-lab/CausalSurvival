@@ -136,7 +136,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
 estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X=FALSE, weight=NULL,
                            covariates, covIdHaz, sigma=exp(seq(log(1), log(0.01), length.out = 20)),
                            crossFitNum=1, index_ls=NULL, breaks, nInt=NULL,
-                           timeEffect, evenKnot, penalizeTimeTreatment,
+                           timeEffect, evenKnot, penalizeTimeTreatment=NULL,
                            interactWithTime, hazEstimate, intercept=TRUE,
                            estimate_hazard, getHaz, coef_H, robust=FALSE, threshold=1e-8){
 
@@ -223,7 +223,7 @@ estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X=F
       coef_Haz <- coef_pooled(X_baseline=X_baseline, temporal_effect=temporal_effect, time=d_time, eventObserved=d_eventObserved,
                               timeIntMidPoint=timeIntMidPoint, offset_t=offset_used_t, offset_X=d_offset_used_X, weight=weight,
                               timeEffect=timeEffect, is.temporal=TRUE, evenKnot=evenKnot, penalizeTimeTreatment=penalizeTimeTreatment,
-                              intercept=intercept, estimate_hazard=estimate_hazard, sigma=NULL, maxiter=40, threshold=threshold, printIter=TRUE,
+                              intercept=intercept, estimate_hazard=estimate_hazard, sigma=NULL, maxiter=40, threshold=threshold, printIter=FALSE,
                               initial_coef=NULL, robust=robust)
 
       rm(list=c("X_baseline", "temporal_effect"))
@@ -235,7 +235,7 @@ estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X=F
                              timeIntMidPoint=timeIntMidPoint, offset_t=offset_used_t, offset_X=d_offset_used_X, weight=weight,
                              timeEffect=timeEffect, is.temporal=TRUE, evenKnot=evenKnot, penalizeTimeTreatment=penalizeTimeTreatment,
                              intercept=intercept, estimate_hazard=estimate_hazard, sigma=sigma,
-                             maxiter=40, threshold=threshold, printIter=TRUE)
+                             maxiter=40, threshold=threshold, printIter=FALSE)
 
       rm(list=c("X_baseline", "temporal_effect"))
 
@@ -387,6 +387,60 @@ estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X=F
   }
 }
 
+
+
+#' Get estimated hazards
+#' @param nInt number of time intervals for coarsening the data
+#' @param hazEstimate "survival" or "censoring"
+#' @param hazMethod "twoStage" or "ns"
+#' @param seed to set.seed()
+
+estimateHazards <- function(coarsenedData, outcome, treatment, covariates, covId, nInt=NULL, hazEstimate, hazMethod){
+
+  ## parameters
+  cov <- Matrix::sparseMatrix(i = covariates$rowId, j = covariates$covariateId, x = covariates$covariateValue, repr = "T")
+  rowId <- 1:length(treatment)
+
+  ## directly choose covariates
+  if(hazEstimate == "censoring"){
+    sigma <- exp(seq(log(0.5), log(0.01), length.out = 20))
+  }else if(hazEstimate == "survival"){
+    sigma <- exp(seq(log(1), log(0.01), length.out = 20))
+  }
+  cov <- cov[, covId]
+
+  if(hazMethod == "twoStage"){
+
+    ## long-format data
+    dlong <- transformData(dwide=data.frame(eventObserved=outcome, time=coarsenedData$timeInt), timeIntMidPoint=coarsenedData$timeIntMidPoint, type="survival")
+    rownames(dlong) <- NULL
+    dlong <- dlong[, c("Lt", "It", "t")]
+
+    ## offset
+    fit <- mgcv::bam(Lt ~ s(t, bs="ps"), family = binomial, subset = It == 1, data = dlong, method="REML")
+    offset_t <- predict(fit, newdata = data.frame(t=coarsenedData$timeIntMidPoint))
+    rm(list=c("dlong", "fit"))
+
+    timeEffect <- "linear"
+    evenKnot <- NULL
+
+  }else if(hazMethod == "ns"){
+
+    offset_t <- NULL
+    timeEffect <- "ns"
+    evenKnot <- FALSE
+
+  }
+
+  haz <- estimateHaz(id=rowId, treatment=treatment, eventObserved=outcome, time=coarsenedData$timeInt,
+                     offset_t=offset_t, breaks=coarsenedData$breaks, covariates=covariates, covIdHaz=covId,
+                     timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=FALSE,
+                     interactWithTime=treatment, hazEstimate="ridge",
+                     sigma=sigma, estimate_hazard=hazEstimate, getHaz=TRUE, coef_H=NULL)
+
+  return(list(haz=haz))
+
+}
 
 
 
