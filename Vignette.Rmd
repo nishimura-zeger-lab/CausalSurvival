@@ -149,6 +149,8 @@ weightedCox <- CausalSurvival::computeEstimator(treatment=treatment, outcome=out
 
 ### Result
 
+#### Survival curve and risk difference
+
 ```{r}
 par(mfrow=c(1,2))
 plot(coarsenedData$breaks, c(1, ipw$S1), main="S(1)", xlab="Time (90 days)", ylab="Survival probability", type="l", ylim=c(0.3, 1), lwd=1, col=367)
@@ -179,6 +181,22 @@ lines(coarsenedData$breaks[-1], cox$SE_risk_diff, col=547, type = "p", pch = 20)
 lines(coarsenedData$breaks[-1], weightedCox$SE_risk_diff, col="green4", type = "p", pch = 20)
 ```
 
+#### Difference in RMST
+
+```{r}
+par(mfrow=c(1,2))
+plot(coarsenedData$breaks, c(0, ipw$rmst_diff), main="Difference in RMST", xlab="Time (days)", ylab="Difference in RMST", type = "b", pch = 20, ylim=c(-0.2, 0.1), lwd=1, col=367)
+lines(coarsenedData$breaks, c(0, aipw$rmst_diff), col=562, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, tmle$rmst_diff), col=413, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, cox$rmst_diff), col=547, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, weightedCox$rmst_diff), col="green4", type = "b", pch = 20)
+legend("bottomleft", c("IPW", "Augmented IPW", "TMLE", "Stratified cox", "Weighted stratified cox"),col=c(367, 562, 413, 547, "green4"), box.lty=0, lwd=c(1, 1, 1, 1, 1), cex=0.6)
+plot(coarsenedData$breaks[-1], ipw$SE_rmst_diff, main="SD of difference in RMST", xlab="Time (days)", ylab="Standard deviation", type = "p", pch = 20, ylim=c(0, 0.09), col=367)
+lines(coarsenedData$breaks[-1], aipw$SE_rmst_diff, col=562, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], tmle$SE_rmst_diff, col=413, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], cox$SE_rmst_diff, col=547, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], weightedCox$SE_rmst_diff, col="green4", type = "p", pch = 20)
+```
 
 ## Simulation studies
 
@@ -255,6 +273,8 @@ Truth_rmst <- CausalSurvival::calculateRMST(coarsenedTime=coarsenedData, survCur
 
 ### Result
 
+#### Survival curves and risk difference
+
 ```{r}
 par(mfrow=c(1,2))
 plot(coarsenedData$breaks, c(1, Truth_S$S1), main="S(1)", xlab="Time (90 days)", ylab="Survival probability", type="l", ylim=c(0.3, 1), lwd=2, col=24)
@@ -288,7 +308,22 @@ lines(coarsenedData$breaks[-1], cox_sim$SE_risk_diff, col=547, type = "p", pch =
 lines(coarsenedData$breaks[-1], weightedCox_sim$SE_risk_diff, col="green4", type = "p", pch = 20)
 ```
 
+#### Difference in RMST
 
+```{r}
+par(mfrow=c(1,2))
+plot(coarsenedData$breaks, c(0, ipw_sim$rmst_diff), main="Difference in RMST", xlab="Time (days)", ylab="Difference in RMST", type = "b", pch = 20, ylim=c(-0.2, 0.1), lwd=1, col=367)
+lines(coarsenedData$breaks, c(0, aipw_sim$rmst_diff), col=562, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, tmle_sim$rmst_diff), col=413, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, cox_sim$rmst_diff), col=547, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, weightedCox_sim$rmst_diff), col="green4", type = "b", pch = 20)
+legend("bottomleft", c("IPW", "Augmented IPW", "TMLE", "Stratified cox", "Weighted stratified cox"),col=c(367, 562, 413, 547, "green4"), box.lty=0, lwd=c(1, 1, 1, 1, 1), cex=0.6)
+plot(coarsenedData$breaks[-1], ipw_sim$SE_rmst_diff, main="SD of difference in RMST", xlab="Time (days)", ylab="Standard deviation", type = "p", pch = 20, ylim=c(0, 0.09), col=367)
+lines(coarsenedData$breaks[-1], aipw_sim$SE_rmst_diff, col=562, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], tmle_sim$SE_rmst_diff, col=413, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], cox_sim$SE_rmst_diff, col=547, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], weightedCox_sim$SE_rmst_diff, col="green4", type = "p", pch = 20)
+```
 
 
 
