@@ -7,10 +7,13 @@
 pooled_design_matvec(
   X_baseline,
   temporal_effect,
+  weight,
   timeEffect,
   Y,
+  timeIntMidPoint,
   indx_subset,
-  maxTime
+  maxTime,
+  nsBase
 )
 }
 \arguments{

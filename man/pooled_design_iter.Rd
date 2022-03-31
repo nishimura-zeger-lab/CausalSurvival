@@ -7,11 +7,17 @@
 pooled_design_iter(
   X_baseline,
   temporal_effect,
+  weight,
+  offset_t,
+  offset_X,
   Y,
   timeEffect,
+  timeIntMidPoint,
   beta,
   indx_subset,
-  maxTime
+  maxTime,
+  nsBase,
+  robust
 )
 }
 \arguments{

@@ -4,10 +4,12 @@
 \alias{transformData}
 \title{Transform survival data from wide-format to long-format}
 \usage{
-transformData(dwide, freqTime)
+transformData(dwide, timeIntMidPoint, type)
 }
 \arguments{
 \item{dwide}{Wide-format survival data with columns: time (observed time), eventObserved (Observed event), id}
+
+\item{type}{"survival" or "censoring"}
 
 \item{freqTime}{Coarsen observed time to XXX days intervals}
 }

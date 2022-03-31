@@ -4,7 +4,7 @@
 \alias{outcomeY}
 \title{Output outcome Y in the long-format, include outcome with all individuals at each time point}
 \usage{
-outcomeY(time, eventObserved, estimate_hazard, maxTime)
+outcomeY(time, eventObserved, estimate_hazard, timeIntMidPoint, maxTime)
 }
 \arguments{
 \item{time}{Observed survival time. Ordered into decreasing observed survival time}
