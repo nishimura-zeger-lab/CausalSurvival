@@ -2,7 +2,7 @@
 #' @param survHaz Output from estimateHaz
 #' @param cenHaz Output from estimateHaz
 #' @param nInt number of time intervals for coarsening the data
-#'
+#' @export
 
 simulateData <- function(treatment, survHaz, cenHaz, coarsenedTime, seed){
 
@@ -37,8 +37,7 @@ simulateData <- function(treatment, survHaz, cenHaz, coarsenedTime, seed){
 #' Calculate counterfactuals from simulated data
 #' @param coarsenedTime Output from coarsenData
 #' @param survHaz Output from estimateHaz
-#' @param survCurve Output from calculateSurvCurve
-#'
+#' @export
 
 calculateSurvCurve <- function(coarsenedTime, survHaz){
 
@@ -55,6 +54,11 @@ calculateSurvCurve <- function(coarsenedTime, survHaz){
   return(data.frame(S0=S0, S1=S1))
 
 }
+
+#' Calculate counterfactuals from simulated data
+#' @param coarsenedTime Output from coarsenData
+#' @param survCurve Output from calculateSurvCurve
+#' @export
 
 calculateRMST <- function(coarsenedTime, survCurve){
 

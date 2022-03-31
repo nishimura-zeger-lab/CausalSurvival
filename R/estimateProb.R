@@ -11,6 +11,7 @@
 #' @param crossFitNum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
 #'                    If crossFitNum = 1, then no cross-fitting (default)
 #' @return A data frame with columns: id, TreatProb
+#' @export
 
 estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
                               treatProbEstimate="LASSO", maxCohortSizeForFitting=25000,
@@ -394,6 +395,7 @@ estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X=F
 #' @param hazEstimate "survival" or "censoring"
 #' @param hazMethod "twoStage" or "ns"
 #' @param seed to set.seed()
+#' @export
 
 estimateHazards <- function(coarsenedData, outcome, treatment, covariates, covId, nInt=NULL, hazEstimate, hazMethod){
 
