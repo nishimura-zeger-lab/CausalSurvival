@@ -10,9 +10,13 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+devtools::install_github("zeger-nishimura-lab/CausalSurvival", auth_token = "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")
+```
+
+```{r}
 library(tidyverse)
 library(glmnet)
-devtools::load_all("/Users/shiyaoxu/Documents/Research/CausalSurvival")
+library(CausalSurvival)
 ```
 
 ```{r}
