@@ -57,20 +57,11 @@ covariates <- covariates[-which(covariates$covariateId %in% c(1118084410, 111808
 covariates$covariateId <- as.numeric(factor(covariates$covariateId))
 
 treatment <- population$treatment
-event_time <- population$survivalTime
+outcome <- population$outcomeCount
+time <- population$survivalTime
 id <- 1:length(treatment)
 rm(list=c("row_id", "covariate_id", "val", "covariateData", "cohortMethodData", "connectionDetails", "population"))
 ```
-
-Simulate censoring time separately for each treatment group. 
-
-```{r}
-censoring_time <- 6 + simCenTime(treatment=treatment, covariates=covariates, 
-                                 lambda1=0.000003, nu1=1.5, lambda0=0.000003, nu0=1.5, seed=2019)
-outcome <- 1*(event_time <= censoring_time)
-time <- apply(cbind(event_time, censoring_time), 1, min)
-```
-
 
 
 ## Compute on real data
