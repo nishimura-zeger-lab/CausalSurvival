@@ -17,47 +17,41 @@ bound <- function(x, r = 1e-7){
 
 #' Transform survival data from wide-format to long-format
 #'
-#' @param dwide Wide-format survival data with columns: time (observed time), eventObserved (Observed event), id
-#' @param freqTime Coarsen observed time to XXX days intervals
+#' @param time
+#' @param eventObserved Indicator of outcome-of-interest
+#' @param timeIntMidPoint Midpoints of time intervals
 #' @param type "survival" or "censoring"
 #'
 #' @return A long-format survival data (with coarsening if freqTime > 1)
-#'               with columns: t (time points), It, Jt, Rt, Lt (four indicator functions) and other covariates
+#'               with columns: rowId, stratumId (subject id), time and y
+#'
 
-transformData <- function(dwide, timeIntMidPoint, type){
+transformData <- function(time, eventObserved, timeIntMidPoint, type){
 
-  n <- dim(dwide)[1]
-  maxtime <- length(timeIntMidPoint)
+  n <- length(time)
+  maxTime <- length(timeIntMidPoint)
   t <- rep(timeIntMidPoint, n)
+  longOut <- rep(NA, n*maxtime)
+  valid <- 1*(t == timeIntMidPoint[1])
+  stratumId <- as.numeric(gl(n, maxTime))
 
   if(type == "survival"){
-
-  Lt <- rep(NA, n*maxtime)
-  It <- 1*(t == timeIntMidPoint[1])
-
   for(i in timeIntMidPoint){
-    Lt[t == i] <- dwide$eventObserved * (dwide$time == i)
-    It[t == i] <- (dwide$time >= i)
-  }
-
-  ## Long-format dataset
-  dlong <- data.frame(dwide[as.numeric(gl(n, maxtime)), ], t = t, It, Lt)
-
-  }else if(type == "censoring"){
-
-    Rt <- rep(NA, n*maxtime)
-    Jt <- 1*(t == timeIntMidPoint[1])
-
-    for(i in timeIntMidPoint){
-      Rt[t == i] <- (1 - dwide$eventObserved) * (dwide$time == i)
-      Jt[t == i] <- (dwide$time > i) * dwide$eventObserved + (dwide$time >= i) * (1 - dwide$eventObserved)
+    longOut[t == i] <- eventObserved * (time == i)
+    valid[t == i] <- (time >= i)
     }
-
-    ## Long-format dataset
-    dlong <- data.frame(dwide[as.numeric(gl(n, maxtime)), ], t = t, Rt, Jt)
-
+  }else if(type == "censoring"){
+    for(i in timeIntMidPoint){
+      longOut[t == i] <- (1 - eventObserved) * (time == i)
+      valid[t == i] <- (time > i) * eventObserved + (time >= i) * (1 - eventObserved)
+    }
   }
 
+  longOut <- longOut[valid]
+  t <- t[valid]
+  stratumId <- stratumId[valid]
+
+  dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut)
   return(dlong)
 
 }
