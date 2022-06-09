@@ -31,7 +31,7 @@ transformData <- function(time, eventObserved, timeIntMidPoint, type){
   n <- length(time)
   maxTime <- length(timeIntMidPoint)
   t <- rep(timeIntMidPoint, n)
-  longOut <- rep(NA, n*maxtime)
+  longOut <- rep(NA, n*maxTime)
   valid <- 1*(t == timeIntMidPoint[1])
   stratumId <- as.numeric(gl(n, maxTime))
 
