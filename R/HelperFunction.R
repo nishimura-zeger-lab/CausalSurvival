@@ -47,9 +47,9 @@ transformData <- function(time, eventObserved, timeIntMidPoint, type){
     }
   }
 
-  longOut <- longOut[valid]
-  t <- t[valid]
-  stratumId <- stratumId[valid]
+  longOut <- longOut[which(valid==1)]
+  t <- t[which(valid==1)]
+  stratumId <- stratumId[which(valid==1)]
 
   dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut)
   return(dlong)
