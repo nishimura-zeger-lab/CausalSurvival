@@ -9,14 +9,14 @@ coef_lm <- function(dlong, timeIntMidPoint, n, printIter){
     maxTime <- length(timeIntMidPoint)
 
     ## dlong
-    dlong <- dlong[order(dlong$time, 1-dlong$eventObserved, decreasing = TRUE), ]
+    dlong <- dlong[order(dlong$time, 1-dlong$y, decreasing = TRUE), ]
 
     ## subset index for each time point
-    indx_subset <- sapply(timeIntMidPoint, function(x){sum(dlong$time[dlong$t == timeIntMidPoint[1]] >= x)}, USE.NAMES = FALSE)
+    indx_subset <- sapply(timeIntMidPoint, function(x){sum(dlong$obsTime[dlong$time == timeIntMidPoint[1]] >= x)}, USE.NAMES = FALSE)
 
     X_baseline <- cbind(rep(1, n), as(matrix(0, nrow = n, ncol = maxTime-1), "sparseMatrix"),
                         as(matrix(0, nrow = n, ncol = maxTime-1), "sparseMatrix"),
-                        dlong$treat[dlong$t == timeIntMidPoint[1]])
+                        dlong$treat[dlong$time == timeIntMidPoint[1]])
 
     ## matrix
     Xy <- rep(0, length=dim(X_baseline)[2])
@@ -26,23 +26,23 @@ coef_lm <- function(dlong, timeIntMidPoint, n, printIter){
 
       if(i == 2){
         X_baseline <- cbind(rep(1, n), rep(1, n), as(matrix(0, nrow = n, ncol = maxTime-2), "sparseMatrix"),
-                            dlong$treat[dlong$t == timeIntMidPoint[1]],
+                            dlong$treat[dlong$time == timeIntMidPoint[1]],
                             as(matrix(0, nrow = n, ncol = maxTime-2), "sparseMatrix"),
-                            dlong$treat[dlong$t == timeIntMidPoint[1]])
+                            dlong$treat[dlong$time == timeIntMidPoint[1]])
       }else if(i > 2){
         X_baseline <- cbind(rep(1, n), as(matrix(0, nrow = n, ncol = i-2), "sparseMatrix"),
                             rep(1, n), as(matrix(0, nrow = n, ncol = maxTime-i), "sparseMatrix"),
                             as(matrix(0, nrow = n, ncol = i-2), "sparseMatrix"),
-                            dlong$treat[dlong$t == timeIntMidPoint[1]],
+                            dlong$treat[dlong$time == timeIntMidPoint[1]],
                             as(matrix(0, nrow = n, ncol = maxTime-i), "sparseMatrix"),
-                            dlong$treat[dlong$t == timeIntMidPoint[1]])
+                            dlong$treat[dlong$time == timeIntMidPoint[1]])
       }
 
       X_baseline <- Matrix::sparseMatrix(i = Matrix::summary(X_baseline)$i, j = Matrix::summary(X_baseline)$j,
                                          x = Matrix::summary(X_baseline)$x, repr = "R")
 
       ## Xy
-      Xy_temp <- computeSubsetSparseMatVec(X=X_baseline, v=dlong$Lt[which(dlong$t == timeIntMidPoint[i])],
+      Xy_temp <- computeSubsetSparseMatVec(X=X_baseline, v=dlong$y[which(dlong$time == timeIntMidPoint[i])],
                                            subsetSize=indx_subset[i], transposed=TRUE)
       Xy <- Xy + Xy_temp
       ## XX
