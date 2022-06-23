@@ -22,14 +22,16 @@ strataCox <- function(treatment, eventObserved, time,
   id <- rep(1:16, maxTime)
 
   ## create dlong
-  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time, stratumId=stratumId, treat=treatment), timeIntMidPoint=timeIntMidPoint, type="survival")
+  dlong <- transformData(time=time, eventObserved=eventObserved,
+                         dwide=data.frame(stratumId=stratumId, treat=treatment),
+                         timeIntMidPoint=timeIntMidPoint, type="survival")
   rownames(dlong) <- NULL
 
   if(hazMethod == "twoStage"){
 
   ## mgcv
-  fit <- mgcv::bam(Lt ~ s(t, bs="ps"), family = binomial, subset = It == 1, data = dlong, method="REML")
-  offset_t <- predict(fit, newdata = data.frame(t=timeIntMidPoint))
+  fit <- mgcv::bam(y ~ s(time, bs="ps"), family = binomial, data = dlong, method="REML")
+  offset_t <- predict(fit, newdata = data.frame(time=timeIntMidPoint))
 
   ## other parameters
   timeEffect <- "linear"
@@ -107,11 +109,11 @@ strataCox <- function(treatment, eventObserved, time,
 
       designM <- expand.grid(treat=1, stratumId2=c(0, 1), stratumId3=c(0, 1), stratumId4=c(0, 1), stratumId5=c(0, 1), t=1:length(timeIntMidPoint))
       designM <- cbind(designM[, -6], nsBase[designM$t, ])
-      designM <- cbind(designM, designM[, 2:5] * designM[, 6])
-      designM <- cbind(designM, designM[, 2:5] * designM[, 7])
-      designM <- cbind(designM, designM[, 2:5] * designM[, 8])
-      designM <- cbind(designM, designM[, 2:5] * designM[, 9])
-      designM <- cbind(designM, designM[, 2:5] * designM[, 10])
+      designM <- cbind(designM, designM[, 2:5] * nsBase[designM$t, 1])
+      designM <- cbind(designM, designM[, 2:5] * nsBase[designM$t, 2])
+      designM <- cbind(designM, designM[, 2:5] * nsBase[designM$t, 3])
+      designM <- cbind(designM, designM[, 2:5] * nsBase[designM$t, 4])
+      designM <- cbind(designM, designM[, 2:5] * nsBase[designM$t, 5])
       haz1 <- plogis((as.matrix(designM) %*% eps$coef_fit[-1, 1])[, 1] + eps$coef_fit[1, 1])
       designM$treat <- 0
       haz0 <- plogis((as.matrix(designM) %*% eps$coef_fit[-1, 1])[, 1] + eps$coef_fit[1, 1])

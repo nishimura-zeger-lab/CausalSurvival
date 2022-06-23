@@ -52,15 +52,15 @@ transformData <- function(time, eventObserved, dwide=NULL, timeIntMidPoint, type
     t <- t[which(valid==1)]
     stratumId <- stratumId[which(valid==1)]
     if(is.null(dwide)){
-      dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut, valid=valid)
-    }else{
-      dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut, valid=valid, dwide[stratumId, ])
-    }
-  }else{
-    if(is.null(dwide)){
       dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut)
     }else{
       dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut, dwide[stratumId, ])
+    }
+  }else{
+    if(is.null(dwide)){
+      dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut, valid=valid)
+    }else{
+      dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut, valid=valid, dwide[stratumId, ])
     }
   }
 

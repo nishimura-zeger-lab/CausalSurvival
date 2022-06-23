@@ -59,12 +59,9 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
     cyclopsData <- Cyclops::convertToCyclopsData(outcomes_train_sub, covariates_train_sub, modelType = "lr", quiet = TRUE, floatingPoint = floatingPoint)
 
 
-    # prior
     prior = Cyclops::createPrior("laplace", exclude = c(0), useCrossValidation = TRUE)
     control = Cyclops::createControl(noiseLevel = "silent", cvType = "auto", seed = 1, tolerance = 2e-07, cvRepetitions = 10, startingVariance = 0.01)
 
-
-    ## model: LASSO
     cyclopsFit <- Cyclops::fitCyclopsModel(cyclopsData, prior = prior, control = control)
 
 
