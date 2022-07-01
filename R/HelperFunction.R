@@ -108,11 +108,12 @@ coarsenData <- function(time, outcome, nInt=NULL){
   probSeq <- seq(0, 1, length.out=nInt+1)[-c(1, nInt+1)]
   timeStrata <- floor(quantile(time[outcome == 1], probs = probSeq))
 
-  breaks <- unname(c(0, timeStrata, max(time)))
+  breaks <- unname(c(0, timeStrata, max(time[outcome == 1])))
   timeIntMidPoint <- breaks[-length(breaks)] + (diff(breaks)/2)
   timeIntLength <- diff(breaks)
 
   timeInt <- as.double(as.character(cut(time, breaks=breaks, labels=timeIntMidPoint)))
+  timeInt[is.na(timeInt)] <- (max(time[outcome == 1]) + max(time))/2
 
   return(list(breaks=breaks, timeIntMidPoint=timeIntMidPoint, timeIntLength=timeIntLength, timeInt=timeInt))
 
