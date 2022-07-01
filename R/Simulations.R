@@ -18,14 +18,14 @@ simulateData <- function(treatment, survHaz, cenHaz, coarsenedTime, seed){
 
   tS <- tapply(rS, rep(1:n, each=nInt), function(x){which(x == 1)[1]})
   tG <- tapply(rG, rep(1:n, each=nInt), function(x){which(x == 1)[1]})
-  tG <- ifelse(is.na(tG), nInt, tG)
+  tG <- ifelse(is.na(tG), nInt+1, tG)
 
   ObservedTime <- apply(cbind(tS, tG), 1, function(x){min(x, na.rm = TRUE)})
   ObservedEvent <- 1*(tS<=tG)
   ObservedEvent <- ifelse(is.na(ObservedEvent), 0, ObservedEvent)
 
   ObservedEvent <- as.double(ObservedEvent)
-  ObservedTime <- as.double(as.character(factor(ObservedTime, labels = coarsenedTime$timeIntMidPoint)))
+  ObservedTime <- as.double(as.character(factor(ObservedTime, labels = c(coarsenedTime$timeIntMidPoint, max(coarsenedTime$timeInt)))))
 
   return(list(ObservedEvent=ObservedEvent,
               ObservedTime=ObservedTime))
