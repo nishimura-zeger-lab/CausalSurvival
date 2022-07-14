@@ -36,7 +36,7 @@ estimateAIPW <- function(treatment, eventObserved, time,
   rm(list=c("SurvProb1List", "SurvProb0List"))
 
   ## Observed estimated survival hazards
-  SurvHaz_obs <- treatProb[ID] * survHaz$Haz1 + (1-treatProb[ID]) * survHaz$Haz0
+  SurvHaz_obs  <- treatment[survHaz$ID] * survHaz$Haz1  + (1 - treatment[survHaz$ID]) * survHaz$Haz0
   rm(list=c("survHaz"))
 
   ## calculate censoring probability
