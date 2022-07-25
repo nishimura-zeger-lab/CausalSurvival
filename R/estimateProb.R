@@ -132,7 +132,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
 #' @return A data frame with columns: ID, Haz1, Haz0
 
 estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X=FALSE, weight=NULL,
-                           covariates, covIdHaz, sigma=exp(seq(log(1), log(0.01), length.out = 20)),
+                           covariates, covIdHaz=NULL, sigma=exp(seq(log(1), log(0.01), length.out = 20)),
                            crossFitNum=1, index_ls=NULL, breaks, nInt=NULL,
                            timeEffect, evenKnot, penalizeTimeTreatment=NULL,
                            interactWithTime, hazEstimate, intercept=TRUE,
@@ -394,10 +394,9 @@ estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X=F
 #' @param seed to set.seed()
 #' @export
 
-estimateHazards <- function(coarsenedData, outcome, treatment, covariates, covId, nInt=NULL, hazEstimate, hazMethod){
+estimateHazards <- function(coarsenedData, outcome, treatment, covariates, covId=NULL, nInt=NULL, hazEstimate, hazMethod){
 
   ## parameters
-  cov <- Matrix::sparseMatrix(i = covariates$rowId, j = covariates$covariateId, x = covariates$covariateValue, repr = "T")
   rowId <- 1:length(treatment)
 
   ## directly choose covariates
@@ -406,7 +405,6 @@ estimateHazards <- function(coarsenedData, outcome, treatment, covariates, covId
   }else if(hazEstimate == "survival"){
     sigma <- exp(seq(log(1), log(0.01), length.out = 20))
   }
-  cov <- cov[, covId]
 
   if(hazMethod == "twoStage"){
 
