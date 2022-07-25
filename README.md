@@ -10,25 +10,56 @@ remotes::install_github("nishimura-zeger-lab/CausalSurvival")
 
 ## Estimation methods
 
-This section shows how to run the algorithms. First, we need to estimate the nuisance parameters (propensity score, survival and censoring hazards) with LASSO logistic regression. 
+This section shows how to run the algorithms with the breast cancer dataset in the `survival` package. 
+
+### Load dataset
+
+To run the algorithms, we need to organize data into several data frames: id, treatment, outcome, time and covariates. We then further coarsen survival data into time intervals with each interval containing 10 events. 
+
+```r
+library(survival)
+library(tidyr)
+library(dplyr)
+library(CausalSurvival)
+
+data(cancer, package="survival")
+
+id <- 1:dim(gbsg)[1]
+treatment <- gbsg$hormon
+outcome <- gbsg$status
+time <- gbsg$rfstime
+
+gbsg$size <- (gbsg$size-mean(gbsg$size))/sd(gbsg$size)
+gbsg$pgr <- (gbsg$pgr-mean(gbsg$pgr))/sd(gbsg$pgr)
+gbsg$er <- (gbsg$er-mean(gbsg$er))/sd(gbsg$er)
+gbsg$grade <- ifelse(gbsg$grade == 1, 1, 0)
+gbsg$nodes <- ifelse(gbsg$nodes == 1, 1, 0)
+covariates <- gbsg %>% mutate(rowId = id) %>% 
+                          gather(covariateId, covariateValue, -c(hormon, status, rfstime, rowId)) %>% 
+                          select(-c(hormon, status, rfstime))
+covariates$covariateId <- as.numeric(as.character(factor(covariates$covariateId, labels=1:8)))
+
+coarsenedData <- coarsenData(time=time, outcome=outcome)
+
+```
 
 ### Estimate nuisance parameters
+
+First, estimate the nuisance parameters (propensity score, survival and censoring hazards) with LASSO logistic regression. 
 
 ```r
 
 ## propensity score
-ps <- estimateTreatProb(id=id, treatment=treatment, covariates=covariates)
+estimatedPS <- estimateTreatProb(id=id, treatment=treatment, covariates=covariates)
 
 ## survival hazards
 estimatedSurvHazard <- estimateHazards(coarsenedData=coarsenedData, outcome=outcome, 
                                        treatment=treatment, covariates=covariates, 
-                                       covId=survCov_indx,
                                        hazEstimate="survival", hazMethod="ns")
                                        
 ## censoring hazards
 estimatedCenHazard <- estimateHazards(coarsenedData=coarsenedData, outcome=outcome, 
                                       treatment=treatment, covariates=covariates, 
-                                      covId=cenCov_indx,
                                       hazEstimate="censoring", hazMethod="ns")
                                       
 ```
