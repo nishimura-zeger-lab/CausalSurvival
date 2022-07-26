@@ -103,7 +103,7 @@ crossFit <- function(eventObserved, id, crossFitNum){
 
 coarsenData <- function(time, outcome, nInt=NULL){
 
-  if(is.null(nInt)){nInt <- min(50, floor((sum(outcome)/10)))}
+  if(is.null(nInt)){nInt <- min(50, round(floor((sum(outcome)/10)), digits = -1))}
 
   probSeq <- seq(0, 1, length.out=nInt+1)[-c(1, nInt+1)]
   timeStrata <- floor(quantile(time[outcome == 1], probs = probSeq))
