@@ -45,7 +45,7 @@ coarsenedData <- coarsenData(time=time, outcome=outcome)
 
 ### Estimate nuisance parameters
 
-First, estimate the nuisance parameters (propensity score, survival and censoring hazards) with LASSO logistic regression. 
+First, estimate the nuisance parameters (propensity score, survival and censoring hazards) with ridge logistic regression. 
 
 ```r
 
