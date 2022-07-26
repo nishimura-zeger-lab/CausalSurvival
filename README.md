@@ -110,7 +110,7 @@ aipw <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedDat
 
 ```
 
-More information on using estimation methods with a simulated dataset can be found in Vignette. 
+More information on using estimation methods with a simulated dataset to perform a simulation study and output the two types of causal estimands of interest specified in the protocol can be found in Vignette. 
 
 ## References
 
