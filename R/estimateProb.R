@@ -102,7 +102,11 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
   ## result
   out <- data.frame(id=ID, TreatProb=TreatProb)
   out <- out[order(out$id), ]
-  return(out)
+  if (crossFitNum == 1) {
+    return(list(out = out, indx = setdiff(which(cyclopsFit$estimation$estimate != 0)-1, 0)))
+  }else{
+    return(out)
+  }
 }
 
 
