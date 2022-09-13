@@ -96,7 +96,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
     TreatProb <- c(TreatProb, TreatProbTemp)
 
     ## clear workspace
-    rm(list=c("idx_test", "TreatProbTemp", "outcomes_test", "covariates_test", "cyclopsFit"))
+    rm(list=c("idx_test", "TreatProbTemp", "outcomes_test", "covariates_test"))
   }
 
   ## result
