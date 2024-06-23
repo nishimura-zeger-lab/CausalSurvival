@@ -56,7 +56,7 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
   ## number of subjects
   n <- length(unique(ID))
   ## time points
-  m <- as.numeric(dlong$m)
+  m <- as.numeric(dlong$t)
   ## max follow-up time
   K <- max(m)
 
@@ -88,8 +88,8 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
     H <- A * H1 + (1-A) * H0
 
     ## update for survival hazard
-    eps   <- coef(glm2::glm2(Lm ~ 0 + offset(qlogis(h)) + H,
-                       family = binomial(), subset = Im == 1, data = dlong))
+    eps   <- coef(glm2::glm2(Lt ~ 0 + offset(qlogis(h)) + H,
+                       family = binomial(), subset = It == 1, data = dlong))
 
     ## NA as 0 for the new values
     eps[is.na(eps)] <- 0
@@ -121,9 +121,9 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
   H1 <- - (ind * St1)[, tau] / bound(Sm1 * gA1[ID] * Gm1)
   H0 <- - (ind * St0)[, tau] / bound(Sm0 * gA0[ID] * Gm0)
 
-  DT <- with(dlong, tapply(Im * (A * H1 - (1 - A) * H0) * (Lm - h), id, sum))
-  DW1 <- with(dlong, St1[m == 1, tau])
-  DW0 <- with(dlong, St0[m == 1, tau])
+  DT <- with(dlong, tapply(Im * (A * H1 - (1 - A) * H0) * (Lm - h), ID, sum))
+  DW1 <- with(dlong, St1[t == 1, tau])
+  DW0 <- with(dlong, St0[t == 1, tau])
   theta1 <- mean(DW1)
   theta0 <- mean(DW0)
   theta <- theta1 - theta0
