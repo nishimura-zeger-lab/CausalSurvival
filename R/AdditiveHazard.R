@@ -29,14 +29,16 @@ estimateAdditiveHazard <- function(eventTime, censorTime, treatment, pscore,
   strata$stratumId <- as.factor(strata$stratumId)
 
   ## model
-  if(timeVariedTreatmentEffect == FALSE & timeVariedPscoreEffect == FALSE & pscoreAdjustment == 'stratification'){
-    fit <- timereg::aalen(formula = Surv(time, y) ~ const(treatment)+const(stratumId), data=strata, n.sim=1000)
-  }else if(timeVariedTreatmentEffect == FALSE & timeVariedPscoreEffect == TRUE & pscoreAdjustment == 'stratification'){
-    fit <- timereg::aalen(formula = Surv(time, y) ~ const(treatment)+stratumId, data=strata, n.sim=1000)
-  }else if(timeVariedTreatmentEffect == TRUE & timeVariedPscoreEffect == TRUE & pscoreAdjustment == 'stratification'){
-    fit <- timereg::aalen(formula = Surv(time, y) ~ treatment+stratumId, data=strata, n.sim=1000)
-  }else if(timeVariedTreatmentEffect == TRUE & timeVariedPscoreEffect == FALSE & pscoreAdjustment == 'stratification'){
-    fit <- timereg::aalen(formula = Surv(time, y) ~ treatment+const(stratumId), data=strata, n.sim=1000)
+  specifyTimeDependence <- function(covariateName, timeVaried) {
+    return(ifelse(timeVaried, covariateName, sprintf("const(%s)", covariateName)))
+  }
+  if (pscoreAdjustment == 'stratification') {
+    formula <- as.formula(paste(
+      "Surv(time, y) ~",
+      specifyTimeDependence("treatment", timeVariedTreatmentEffect),
+      specifyTimeDependence('stratumId', timeVariedPscoreEffect)
+    ))
+    fit <- timereg::aalen(formula, data = strata, n.sim = 1000)
   }else if(timeVariedTreatmentEffect == FALSE & timeVariedPscoreEffect == FALSE & pscoreAdjustment == 'spline'){
     fit <- timereg::aalen(formula = Surv(time, y) ~ const(treatment)+const(splines::ns(stratumId, df = adjustmentSpec$splineDf)), data=strata, n.sim=1000)
   }else if(timeVariedTreatmentEffect == FALSE & timeVariedPscoreEffect == TRUE & pscoreAdjustment == 'spline'){
