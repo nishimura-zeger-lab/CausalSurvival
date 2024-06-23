@@ -25,7 +25,7 @@ estimateAdditiveHazard <- function(eventTime, censorTime, treatment, pscore,
 
   ## dataset
   data <- data.frame(
-    time = time, censored = censored,
+    time = time, eventObserved = !censored,
     treatment = as.factor(treatment),
     stratumId = as.factor(strata$stratumId)
   )
@@ -36,19 +36,19 @@ estimateAdditiveHazard <- function(eventTime, censorTime, treatment, pscore,
   }
   if (pscoreAdjustment == 'stratification') {
     formula <- as.formula(paste(
-      "Surv(time, censored) ~",
+      "Surv(time, eventObserved) ~",
       specifyTimeDependence("treatment", timeVariedTreatmentEffect),
       specifyTimeDependence('stratumId', timeVariedPscoreEffect)
     ))
     fit <- timereg::aalen(formula, data = data, n.sim = 1000)
   }else if(timeVariedTreatmentEffect == FALSE & timeVariedPscoreEffect == FALSE & pscoreAdjustment == 'spline'){
-    fit <- timereg::aalen(formula = Surv(time, censored) ~ const(treatment)+const(splines::ns(stratumId, df = adjustmentSpec$splineDf)), data=data, n.sim=1000)
+    fit <- timereg::aalen(formula = Surv(time, eventObserved) ~ const(treatment)+const(splines::ns(stratumId, df = adjustmentSpec$splineDf)), data=data, n.sim=1000)
   }else if(timeVariedTreatmentEffect == FALSE & timeVariedPscoreEffect == TRUE & pscoreAdjustment == 'spline'){
-    fit <- timereg::aalen(formula = Surv(time, censored) ~ const(treatment)+splines::ns(stratumId, df = adjustmentSpec$splineDf), data=data, n.sim=1000)
+    fit <- timereg::aalen(formula = Surv(time, eventObserved) ~ const(treatment)+splines::ns(stratumId, df = adjustmentSpec$splineDf), data=data, n.sim=1000)
   }else if(timeVariedTreatmentEffect == TRUE & timeVariedPscoreEffect == TRUE & pscoreAdjustment == 'spline'){
-    fit <- timereg::aalen(formula = Surv(time, censored) ~ treatment+splines::ns(stratumId, df = adjustmentSpec$splineDf), data=data, n.sim=1000)
+    fit <- timereg::aalen(formula = Surv(time, eventObserved) ~ treatment+splines::ns(stratumId, df = adjustmentSpec$splineDf), data=data, n.sim=1000)
   }else if(timeVariedTreatmentEffect == TRUE & timeVariedPscoreEffect == FALSE & pscoreAdjustment == 'spline'){
-    fit <- timereg::aalen(formula = Surv(time, censored) ~ treatment+const(splines::ns(stratumId, df = adjustmentSpec$splineDf)), data=data, n.sim=1000)
+    fit <- timereg::aalen(formula = Surv(time, eventObserved) ~ treatment+const(splines::ns(stratumId, df = adjustmentSpec$splineDf)), data=data, n.sim=1000)
   }
 
   # Return average treatment effect
