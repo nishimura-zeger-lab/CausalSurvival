@@ -30,26 +30,27 @@ estimateAdditiveHazard <- function(eventTime, censorTime, treatment, pscore,
     stratumId = as.factor(strata$stratumId)
   )
 
-  ## model
+  ## helper function: determine if the effect is time-varying or time-constant
   specifyTimeDependence <- function(covariateName, timeVaried) {
     return(ifelse(timeVaried, covariateName, sprintf("const(%s)", covariateName)))
   }
+
+  ## formula for model
   if (pscoreAdjustment == 'stratification') {
     formula <- as.formula(paste(
       "Surv(time, eventObserved) ~",
-      specifyTimeDependence("treatment", timeVariedTreatmentEffect),
+      specifyTimeDependence("treatment", timeVariedTreatmentEffect),"+",
       specifyTimeDependence('stratumId', timeVariedPscoreEffect)
     ))
-    fit <- timereg::aalen(formula, data = data, n.sim = 1000)
-  }else if(timeVariedTreatmentEffect == FALSE & timeVariedPscoreEffect == FALSE & pscoreAdjustment == 'spline'){
-    fit <- timereg::aalen(formula = Surv(time, eventObserved) ~ const(treatment)+const(splines::ns(stratumId, df = adjustmentSpec$splineDf)), data=data, n.sim=1000)
-  }else if(timeVariedTreatmentEffect == FALSE & timeVariedPscoreEffect == TRUE & pscoreAdjustment == 'spline'){
-    fit <- timereg::aalen(formula = Surv(time, eventObserved) ~ const(treatment)+splines::ns(stratumId, df = adjustmentSpec$splineDf), data=data, n.sim=1000)
-  }else if(timeVariedTreatmentEffect == TRUE & timeVariedPscoreEffect == TRUE & pscoreAdjustment == 'spline'){
-    fit <- timereg::aalen(formula = Surv(time, eventObserved) ~ treatment+splines::ns(stratumId, df = adjustmentSpec$splineDf), data=data, n.sim=1000)
-  }else if(timeVariedTreatmentEffect == TRUE & timeVariedPscoreEffect == FALSE & pscoreAdjustment == 'spline'){
-    fit <- timereg::aalen(formula = Surv(time, eventObserved) ~ treatment+const(splines::ns(stratumId, df = adjustmentSpec$splineDf)), data=data, n.sim=1000)
+  }else if(pscoreAdjustment == 'spline'){
+    formula <- as.formula(paste(
+      "Surv(time, eventObserved) ~",
+      specifyTimeDependence("treatment", timeVariedTreatmentEffect), "+",
+      specifyTimeDependence('splines::ns(stratumId, df = adjustmentSpec$splineDf)', timeVariedPscoreEffect)
+    ))
   }
+  ## model
+  fit <- timereg::aalen(formula, data = data, n.sim = 1000)
 
   # Return average treatment effect
   if(timeVariedTreatmentEffect == FALSE){
