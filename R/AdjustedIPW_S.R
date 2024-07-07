@@ -1,0 +1,199 @@
+#' Estimate adjusted IPW of survival probability
+#'
+#' @param covariants Design matrix in triplet format (row index, col index, and value)
+#' @param J For cross-fitting: random partition of subjects into J prediction sets of approximately the same size.
+#' @param gR.estimate Model for estimating nuisance parameter: censoring hazards. Options currently include glm
+#' @param gA.estimate Model for estimating nuisance parameter: treatment probability. Options currently include LASSO
+#' @param maxCohortSizeForFitting If the target or comparator cohort are larger than this number, they
+#'                                 will be downsampled before fitting the propensity model. The model
+#'                                 will be used to compute propensity scores for all subjects. The
+#'                                 purpose of the sampling is to gain speed.
+#' @param tau Time of interest
+#' @export
+
+estimateAdjIPWprob <- function(eventTime, censorTime, treatment, covariates, covariates.names,
+                             J=5, gR.estimate="glm",
+                             gA.estimate="LASSO", maxCohortSizeForFitting=250000,
+                             #                           includeCovariatesInHestimate="",includeCovariatesIngRestimate="", includeCovariatesIngAestimate="all",
+                             freq.time=90, tau){
+
+  ## Indicator for event
+  eventObserved <- ifelse(is.na(eventTime), 0, 1)
+  ## Observed time
+  censored <- is.na(eventTime)
+  time <- eventTime
+  time[censored] <- censorTime[censored]
+  ## subject id
+  id <- 1:length(time)
+
+
+
+  ## Wide-form dataset
+  dwide <- data.frame(id=id, time=time, eventObserved=eventObserved, treatment=treatment)
+
+
+
+  ## Temporary: add covariates to dlong for estimating h and gR
+  cov_name <- c("gender = FEMALE", "CHADS2", "Subgroup: Elderly (age >=65)", "condition_era group during day -30 through 0 days relative to index: Acute disease of cardiovascular system")
+  index_cov <- which(covariates.names %in% cov_name)
+  cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
+  cov_new <- cov[, index_cov]
+  dwide <- cbind(dwide, as.matrix(cov_new))
+  colnames(dwide)[5:8] <- c("age65", "cardiovascular", "female", "CHADS2")
+
+
+  ## transform data into long format
+  dlong <- transformData(dwide=dwide, freq.time=freq.time)
+
+
+
+  ## Estimate nuisance parameter: h
+  fith  <- lm(Lt ~ as.factor(t) * as.factor(treatment), subset = It == 1, data = dlong)
+  h1 <- bound01(predict(fith, newdata = mutate(dlong, treatment = 1), type = 'response'))
+  h0 <- bound01(predict(fith, newdata = mutate(dlong, treatment = 0), type = 'response'))
+  ## Estimate nuisance parameter: gR
+  fitR <- glm(Rt ~ treatment * (t + age65 + cardiovascular + female + CHADS2),
+              data = dlong, subset = Jt == 1, family = binomial())
+  gR1 <- bound01(predict(fitR, newdata = mutate(dlong, treatment = 1), type = 'response'))
+  gR0 <- bound01(predict(fitR, newdata = mutate(dlong, treatment = 0), type = 'response'))
+  d <- data.frame(id=dlong$id, t=dlong$t, h1=h1, h=h0, gR1=gR1, gR0=gR0)
+  ## Estimate nuisance parameter: gA
+  dGA <- estimateNuisanceGA2(id=id, treatment=treatment, covariates=covariates, gA.estimate="LASSO", maxCohortSizeForFitting=maxCohortSizeForFitting)
+
+
+  ## into the same order
+  dlong <- dlong[order(dlong$id, dlong$t), ]
+  d <- d[order(d$id, d$t), ]
+  dGA <- dGA[order(dGA$id), ]
+
+
+  ## adjusted IPW
+  h1 <- d$h1
+  h0 <- d$h0
+  gR1 <- d$gR1
+  gR0 <- d$gR0
+  gA1 <- dGA$gA1
+  ID <- dlong$id
+  A <- dlong$treatment
+
+  ## number of subjects
+  n <- length(unique(ID))
+  ## time points
+  m <- as.numeric(dlong$t)
+  ## max follow-up time
+  K <- max(m)
+
+
+  gA0 <- 1 - gA1
+  h  <- A*h1 + (1-A)*h0
+  gR <- A * gR1 + (1 - A) * gR0
+
+
+  ind <- outer(m, 1:K, "<=")
+
+
+  S1 <- tapply(1 - h1, ID, cumprod, simplify = FALSE)
+  S0 <- tapply(1 - h0, ID, cumprod, simplify = FALSE)
+
+  G1 <- tapply(1 - gR1, ID, cumprod, simplify = FALSE)
+  G0 <- tapply(1 - gR0, ID, cumprod, simplify = FALSE)
+
+  St1 <- do.call('rbind', S1[ID])
+  St0 <- do.call('rbind', S0[ID])
+
+  Sm1 <- unlist(S1)
+  Sm0 <- unlist(S0)
+  Gm1 <- unlist(G1)
+  Gm0 <- unlist(G0)
+
+
+  Z1ipw <- -ind[, tau] / bound(gA1[ID] * Gm1)
+  Z0ipw <- -ind[, tau] / bound(gA0[ID] * Gm0)
+  DT1ipw <- with(dlong, tapply(Im * A*Z1ipw * Lm, ID, sum))
+  DT0ipw <- with(dlong, tapply(Im * (1-A)*Z0ipw * Lm , ID, sum))
+  adipw  <- 1 + c(mean(DT0ipw), mean(DT1ipw))
+
+  H1 <- - (ind * St1)[, tau] / bound(Sm1 * gA1[ID] * Gm1)
+  H0 <- - (ind * St0)[, tau] / bound(Sm0 * gA0[ID] * Gm0)
+
+  DT1 <- with(dlong, tapply(Im * A * H1 * (Lm - h), ID, sum))
+  DT0 <- with(dlong, tapply(Im * (1 - A) * H0 * (Lm - h), ID, sum))
+
+  DW1 <- with(dlong, St1[t == 1, tau])
+  DW0 <- with(dlong, St0[t == 1, tau])
+
+  D <- DT1 - DT0 + DW1 - DW0
+  sdn <- sqrt(var(D) / n)
+
+  ## result
+  out <- list(S1=adipw[2], S0=adipw[1], std.error.diff=sdn)
+  return(out)
+}
+
+
+#' Estimate nuisance parameter: treatment probability
+#'
+#' @param gA.estimate Model for estimating nuisance parameter: treatment probability
+#' @param maxCohortSizeForFitting
+#' @export
+
+estimateNuisanceGA2 <- function(id, treatment, covariates, gA.estimate="LASSO", maxCohortSizeForFitting){
+
+  ## outcomes
+  outcomes <- data.frame(rowId = id, y = treatment)
+
+
+  ## downsize
+  set.seed(0)
+  targetRowIds <- outcomes$rowId[which(outcomes$y == 1)]
+  targetRowIds <- sample(targetRowIds, size=min(maxCohortSizeForFitting, sum(outcomes$y == 1)), replace = FALSE)
+  comparatorRowIds <- outcomes$rowId[which(outcomes$y == 0)]
+  comparatorRowIds <- sample(comparatorRowIds, size=min(maxCohortSizeForFitting, sum(outcomes$y == 0)), replace = FALSE)
+
+  outcomes_sub <- outcomes[which(outcomes$rowId %in% c(targetRowIds, comparatorRowIds)), ]
+  covariates_sub <- covariates[which(covariates$i %in% c(targetRowIds, comparatorRowIds)), ]
+
+  colnames(covariates_sub) <- c("rowId", "covariateId", "covariateValue")
+  colnames(covariates) <- c("rowId", "covariateId", "covariateValue")
+
+
+  # parameters
+  floatingPoint <- getOption("floatingPoint")
+  if (is.null(floatingPoint)) {
+    floatingPoint <- 64
+  }
+  # convert to data structure
+  cyclopsData <- Cyclops::convertToCyclopsData(outcomes_sub, covariates_sub, modelType = "lr", quiet = TRUE, floatingPoint = floatingPoint)
+
+
+  # prior
+  prior = createPrior("laplace", exclude = c(0), useCrossValidation = TRUE)
+  control = createControl(noiseLevel = "silent", cvType = "auto", seed = 1, tolerance = 2e-07, cvRepetitions = 10, startingVariance = 0.01)
+
+
+  ## model: LASSO
+  cyclopsFit <- Cyclops::fitCyclopsModel(cyclopsData, prior = prior, control = control)
+
+
+
+  ## adjust intercept to full-training dataset
+  y.bar <- mean(outcomes_sub$y)
+  y.odds <- y.bar/(1 - y.bar)
+  y.bar.new <- mean(outcomes$y)
+  y.odds.new <- y.bar.new/(1 - y.bar.new)
+  delta <- log(y.odds) - log(y.odds.new)
+  cfs <- Cyclops::coef(cyclopsFit)
+  cfs[1] <- cfs[1] - delta
+  cyclopsFit$estimation$estimate[1] <- cfs[1]
+
+
+  ## predict on testing set
+  gA1 <- Cyclops::predict(cyclopsFit, newOutcomes = outcomes, newCovariates = covariates)
+
+
+  ## result
+  out <- data.frame(id=id, gA1=gA1)
+  return(out)
+}
+
+
