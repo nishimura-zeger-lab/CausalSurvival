@@ -36,8 +36,19 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
   dwide <- data.frame(id=id, time=time, eventObserved=eventObserved, treatment=treatment)
 
 
+
+  ## Temporary: add covariates to dlong for estimating h and gR
+  cov_name <- c("gender = FEMALE", "CHADS2", "Subgroup: Elderly (age >=65)", "condition_era group during day -30 through 0 days relative to index: Acute disease of cardiovascular system")
+  index_cov <- which(covariates.names %in% cov_name)
+  cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
+  cov_new <- cov[, index_cov]
+  dwide <- cbind(dwide, as.matrix(cov_new))
+  colnames(dwide)[5:8] <- c("age65", "cardiovascular", "female", "CHADS2")
+
+
   ## transform data into long format
   dlong <- transformData(dwide=dwide, freq.time=freq.time)
+
 
 
   ## Estimate cross-fitted nuisance parameter
@@ -125,13 +136,17 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
 
   H1 <- - (ind * St1)[, tau] / bound(Sm1 * gA1[ID] * Gm1)
   H0 <- - (ind * St0)[, tau] / bound(Sm0 * gA0[ID] * Gm0)
-
   DT <- with(dlong, tapply(Im * (A * H1 - (1 - A) * H0) * (Lm - h), ID, sum))
+
   DW1 <- with(dlong, St1[t == 1, tau])
   DW0 <- with(dlong, St0[t == 1, tau])
+  ## S1
   theta1 <- mean(DW1)
+  ## S0
   theta0 <- mean(DW0)
+  ## d_S
   theta <- theta1 - theta0
+  ## standard error of d_S
   D <- DT + DW1 - DW0 - theta
   sdn <- sqrt(var(D) / n)
 
@@ -152,7 +167,7 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
 estimateNuisanceH <- function(dlong, J, h.estimate="glm"){
 
   ## container
-  ID <- t <- h1 <- h0 <- c()
+  ID <- Time <- h1 <- h0 <- c()
 
 
   for (i in 1:J){
@@ -166,6 +181,8 @@ estimateNuisanceH <- function(dlong, J, h.estimate="glm"){
     ## Survival hazard: glm
     fitL <- glm(Lt ~ treatment * (t + age65 + cardiovascular + female + CHADS2),
                 data = d_train, subset = It == 1, family = binomial())
+
+
     ## predict
     h1temp <- bound01(predict(fitL, newdata = mutate(d_test, treatment = 1), type = 'response'))
     h0temp <- bound01(predict(fitL, newdata = mutate(d_test, treatment = 0), type = 'response'))
@@ -173,12 +190,12 @@ estimateNuisanceH <- function(dlong, J, h.estimate="glm"){
 
     ## store
     ID <- c(ID, idx_test)
-    T <- c(T, d_test$t)
+    Time <- c(Time, d_test$t)
     h1 <- c(h1, h1temp)
     h0 <- c(h0, h0temp)
   }
     ## result
-    out <- data.frame(id=ID, t=T, h1=h1, h0=h0)
+    out <- data.frame(id=ID, t=Time, h1=h1, h0=h0)
     return(out)
 }
 
@@ -193,7 +210,7 @@ estimateNuisanceH <- function(dlong, J, h.estimate="glm"){
 estimateNuisanceGR <- function(dlong, J, gR.estimate="glm"){
 
   ## container
-  ID <- T <- gR1 <- gR0 <- c()
+  ID <- Time <- gR1 <- gR0 <- c()
 
 
   for (i in 1:J){
@@ -204,11 +221,11 @@ estimateNuisanceGR <- function(dlong, J, gR.estimate="glm"){
     d_train <- subset(dlong, id %in% idx_train)
 
 
-    ## formula for glm
-    # formula <- as.formula(paste("Rt~treatment*(t+", covariates.names))
     ## model: glm
     fitR <- glm(Rt ~ treatment * (t + age65 + cardiovascular + female + CHADS2),
                 data = d_train, subset = Jt == 1, family = binomial())
+
+
     ## predict
     gR1temp <- bound01(predict(fitR, newdata = mutate(d_test, treatment = 1), type = 'response'))
     gR0temp <- bound01(predict(fitR, newdata = mutate(d_test, treatment = 0), type = 'response'))
@@ -216,12 +233,12 @@ estimateNuisanceGR <- function(dlong, J, gR.estimate="glm"){
 
     ## store
     ID <- c(ID, idx_test)
-    T <- c(T, d_test$t)
+    Time <- c(Time, d_test$t)
     gR1 <- c(gR1, gR1temp)
     gR0 <- c(gR0, gR0temp)
   }
     ## result
-    out <- data.frame(id=ID, t=T, gR1=gR1, gR0=gR0)
+    out <- data.frame(id=ID, t=Time, gR1=gR1, gR0=gR0)
     return(out)
 }
 
