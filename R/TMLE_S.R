@@ -264,8 +264,6 @@ estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO"
   ID <- gA1 <- c()
   ## outcomes
   outcomes <- data.frame(rowId = id, y = treatment)
-  ## covariates to sparse matrix
-  cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
 
 
   for (i in 1:J){
@@ -316,7 +314,7 @@ estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO"
     y.bar.new <- mean(outcomes_train$y)
     y.odds.new <- y.bar.new/(1 - y.bar.new)
     delta <- log(y.odds) - log(y.odds.new)
-    cfs <- coef(cyclopsFit)
+    cfs <- Cyclops::coef(cyclopsFit)
     cfs[1] <- cfs[1] - delta
     cyclopsFit$estimation$estimate[1] <- cfs[1]
 
