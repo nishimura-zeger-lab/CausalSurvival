@@ -71,7 +71,6 @@ estimateAIPWprob <- function(eventTime, censorTime, treatment, covariates, covar
   ## Update h
   h1 <- d$h1
   h0 <- d$h0
-  h  <- A*h1 + (1-A)*h0
   gR1 <- d$gR1
   gR0 <- d$gR0
   gA1 <- dGA$gA1
@@ -125,7 +124,7 @@ estimateAIPWprob <- function(eventTime, censorTime, treatment, covariates, covar
   sdn <- sqrt(var(D) / n)
 
   ## result
-  out <- list(AIPW1=aipw[2], AIPW0=aipw[1], std.error.diff=sdn)
+  out <- list(S1=aipw[2], S0=aipw[1], std.error.diff=sdn)
   return(out)
 }
 
