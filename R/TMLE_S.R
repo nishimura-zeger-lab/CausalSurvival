@@ -76,6 +76,9 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
   ID <- dlong$id
   A <- dlong$treatment
 
+  ## clear workspace
+  rm(list=c("dGA"))
+
   ## number of subjects
   n <- length(unique(ID))
   ## time points
@@ -83,7 +86,7 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
   ## max follow-up time
   K <- max(m)
 
-  ind <- outer(m, 1:K, "<=")
+  ind <- (m <= tau)
 
   crit <- TRUE
   iter <- 1
@@ -96,18 +99,18 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
     G1 <- tapply(1 - gR1, ID, cumprod, simplify = FALSE)
     G0 <- tapply(1 - gR0, ID, cumprod, simplify = FALSE)
 
-    St1 <- do.call("rbind", S1[ID])
-    St0 <- do.call("rbind", S0[ID])
+    Sm1 <- unlist(S1, use.names = FALSE)
+    Sm0 <- unlist(S0, use.names = FALSE)
 
-    Sm1 <- unlist(S1)
-    Sm0 <- unlist(S0)
+    Gm1 <- unlist(G1, use.names = FALSE)
+    Gm0 <- unlist(G0, use.names = FALSE)
 
-    Gm1 <- unlist(G1)
-    Gm0 <- unlist(G0)
+    ## clear workspace
+    rm(list=c("S1", "S0", "G1", "G0"))
 
     ## clever covariate for survival hazard
-    H1 <- - (ind * St1)[, tau] / bound(Sm1 * gA1[ID] * Gm1)
-    H0 <- - (ind * St0)[, tau] / bound(Sm0 * gA0[ID] * Gm0)
+    H1 <- - (ind * Sm1) / bound(Sm1 * gA1[ID] * Gm1)
+    H0 <- - (ind * Sm0) / bound(Sm0 * gA0[ID] * Gm0)
     H <- A * H1 + (1-A) * H0
 
     ## update for survival hazard
@@ -133,20 +136,18 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
   G1 <- tapply(1 - gR1, ID, cumprod, simplify = FALSE)
   G0 <- tapply(1 - gR0, ID, cumprod, simplify = FALSE)
 
-  St1 <- do.call('rbind', S1[ID])
-  St0 <- do.call('rbind', S0[ID])
+  Sm1 <- unlist(S1, use.names = FALSE)
+  Sm0 <- unlist(S0, use.names = FALSE)
 
-  Sm1 <- unlist(S1)
-  Sm0 <- unlist(S0)
-  Gm1 <- unlist(G1)
-  Gm0 <- unlist(G0)
+  Gm1 <- unlist(G1, use.names = FALSE)
+  Gm0 <- unlist(G0, use.names = FALSE)
 
-  H1 <- - (ind * St1)[, tau] / bound(Sm1 * gA1[ID] * Gm1)
-  H0 <- - (ind * St0)[, tau] / bound(Sm0 * gA0[ID] * Gm0)
-  DT <- with(dlong, tapply(Im * (A * H1 - (1 - A) * H0) * (Lm - h), ID, sum))
+  H1 <- - (ind * Sm1) / bound(Sm1 * gA1[ID] * Gm1)
+  H0 <- - (ind * Sm0) / bound(Sm0 * gA0[ID] * Gm0)
+  DT <- with(dlong, tapply(It * (A * H1 - (1 - A) * H0) * (Lt - h), ID, sum))
 
-  DW1 <- with(dlong, St1[t == 1, tau])
-  DW0 <- with(dlong, St0[t == 1, tau])
+  DW1 <- Sm1[which(m == tau)]
+  DW0 <- Sm0[which(m == tau)]
   ## S1
   theta1 <- mean(DW1)
   ## S0
