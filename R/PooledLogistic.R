@@ -21,15 +21,15 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, eventObserved, tim
   X_baseline_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), X_baseline_reorder)
   temporal_effect_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), temporal_effect_reorder)
   ## subset index for each time point
-  K <- max(time)
-  indx_subset <- sapply(1:K, function(x) sum(time>=x), USE.NAMES = FALSE)
+  K <- max(time_reorder)
+  indx_subset <- sapply(1:K, function(x) sum(time_reorder>=x), USE.NAMES = FALSE)
   ## container
   result_X <- rep(0, length=dim(temporal_effect_reorder)[2])
   result_temporal <- rep(0, length=dim(X_baseline_reorder)[2])
   ## loop over each time point
   for (i in 1:K){
     result_X <- result_X + t(X_baseline_reorder[indx_subset[i], ])%*%time_reorder[indx_subset[i]]
-    result_temporal <- result_temporal + i*t(result_temporal[indx_subset[i], ])%*%time_reorder[indx_subset[i]]
+    result_temporal <- result_temporal + i*t(result_temporal[indx_subset[i], ])%*%time_reorder[indx_subset[i]] ## could add functions to i
   }
   ## result
   return(list(vec_X=result_X, vec_temporal=result_temporal))
@@ -45,3 +45,12 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, eventObserved, tim
 pooled_design_information <- function(temporal_effect, X_baseline, weight, eventObserved, time){
 
 }
+
+
+
+
+
+
+
+
+
