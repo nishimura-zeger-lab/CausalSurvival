@@ -7,8 +7,9 @@
 #' @param eventObserved Binary outcome variable
 #' @param time Observed time
 #' @param id Subject id
+#' @param estimate_hazard "survival" or "censoring"
 #' @export result A vector
-pooled_design <- function(X_baseline, temporal_effect, beta, eventObserved, time, id){
+pooled_design <- function(X_baseline, temporal_effect, beta, eventObserved, time, id, estimate_hazard){
 
   ## index for decreasing survival time
   indx <- order(time, decreasing = TRUE)
@@ -25,7 +26,11 @@ pooled_design <- function(X_baseline, temporal_effect, beta, eventObserved, time
 
   ## subset index for each time point
   K <- max(time_reorder)
-  indx_subset <- sapply(1:K, function(x) sum(time_reorder>=x), USE.NAMES = FALSE)
+  if (estimate_hazard == "survival"){
+    indx_subset <- sapply(1:K, function(x) sum(time_reorder>=x), USE.NAMES = FALSE)
+  }else if(estimate_hazard == "censoring"){
+    indx_subset <- sapply(1:K, function(x) sum((time_reorder>x)*eventObserved_reorder+(time_reorder>=x)*(1-eventObserved_reorder)), USE.NAMES = FALSE)
+  }
 
   ## container
   result_Xy <- rep(0, length=dim(X_baseline_reorder)[2])
