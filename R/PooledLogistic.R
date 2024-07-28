@@ -41,7 +41,7 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
   ## initial value
   crit <- TRUE
   iter <- 1
-  beta <- rep(1, length=dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2])
+  beta <- rep(0, length=dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2])
 
   ## calculate X^T y
   design_matvec_Xy <- pooled_design_matvec(X_baseline_reorder=X_baseline_reorder,
@@ -63,7 +63,7 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
 
     ## stopping rule
     iter <-  iter + 1
-    crit <- max(abs(beta_new-beta)/abs(beta)) > 1e-5
+    crit <- max(abs(beta_new-beta)/abs(beta)) > 0.005
 
     ## update value
     beta <- beta_new
