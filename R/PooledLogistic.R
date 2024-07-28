@@ -30,22 +30,20 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
   K <- max(time_reorder)
   if (estimate_hazard == "survival"){
     indx_subset <- sapply(1:K, function(x) sum(time_reorder>=x), USE.NAMES = FALSE)
-    ## create outcome variable
-    y <- eventObserved_reorder * (time_reorder == i)
   }else if(estimate_hazard == "censoring"){
     indx_subset <- sapply(1:K, function(x) sum((time_reorder>x)*eventObserved_reorder+(time_reorder>=x)*(1-eventObserved_reorder)), USE.NAMES = FALSE)
-    ## create outcome variable
-    y <- (1 - eventObserved_reorder) * (time_reorder == i)
   }
 
   ## initial value
   crit <- TRUE
   iter <- 1
-  beta <- rep(0, length=dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2])
+  beta <- rep(1, length=dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2])
 
   ## calculate X^T y
   design_matvec_Xy <- pooled_design_matvec(X_baseline_reorder=X_baseline_reorder,
                                            temporal_effect_reorder=temporal_effect_reorder,
+                                           eventObserved_reorder=eventObserved_reorder,
+                                           time_reorder=time_reorder, estimate_hazard=estimate_hazard,
                                            y=y, indx_subset=indx_subset)
 
   ## iterate until converge
@@ -57,7 +55,7 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
                                y=y, beta=beta, indx_subset=indx_subset)
 
     ## beta_new
-    beta_new <- solve(design_information) %*% (comp$design_information %*% beta + design_matvec_Xy - comp$design_matvec_Xmu)
+    beta_new <- solve(comp$design_information) %*% (comp$design_information %*% beta + design_matvec_Xy - comp$design_matvec_Xmu)
 
     ## stopping rule
     iter <-  iter + 1
@@ -89,7 +87,7 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
 #' @param y Outcome variable in the pooled logistic regression
 #' @param indx_subset Subset index for each time point
 #' @export result
-pooled_design_matvec <- function(X_baseline_reorder, temporal_effect_reorder, y, indx_subset){
+pooled_design_matvec <- function(X_baseline_reorder, temporal_effect_reorder, eventObserved_reorder, time_reorder, estimate_hazard, indx_subset){
 
   ## container
   result_Xy <- rep(0, length=dim(X_baseline_reorder)[2])
@@ -97,12 +95,18 @@ pooled_design_matvec <- function(X_baseline_reorder, temporal_effect_reorder, y,
 
   ## loop over each time point
   for (i in 1:K){
+  ## create outcome variable
+    if (estimate_hazard == "survival"){
+      y <- eventObserved_reorder * (time_reorder == i)
+    }else if(estimate_hazard == "censoring"){
+      y <- (1 - eventObserved_reorder) * (time_reorder == i)
+    }
   ## X^T y
-  result_Xy <- result_Xy + t(X_baseline_reorder[indx_subset[i], ])%*%y[indx_subset[i]]
-  result_temporaly <- result_temporaly + i*t(temporal_effect_reorder[indx_subset[i], ])%*%y[indx_subset[i]] ## could add functions to i
+  result_Xy <- result_Xy + t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%y[1:indx_subset[i]]
+  result_temporaly <- result_temporaly + i*t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])%*%y[1:indx_subset[i]] ## could add functions to i
   }
   ## result
-  return(c(result_Xy, result_temporaly))
+  return(c(result_Xy[, 1], result_temporaly[, 1]))
 }
 
 
@@ -126,29 +130,27 @@ pooled_design_iter <- function(X_baseline_reorder, temporal_effect_reorder, y, b
   ## container
   result_info <- matrix(0, nrow=(dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2]),
                         ncol=(dim(temporal_effect_reorder)[2]+dim(X_baseline_reorder)[2]))
-  result_mu <- c()
   result_Xmu <- rep(0, length=dim(X_baseline_reorder)[2])
   result_temporalmu <- rep(0, length=dim(temporal_effect_reorder)[2])
 
   ## loop over each time point
   for (i in 1:K){
     ## mu
-    temp_mu <- 1/(1+exp(-X_baseline_reorder[indx_subset[i], ]%*%beta[1:dim(X_baseline_reorder)[2]]-i*temporal_effect_reorder[indx_subset[i], ]%*%beta[(dim(X_baseline_reorder)[2]+1):length(beta)]))
-    result_mu <- c(result_mu, temp_mu)
+    temp_mu <- 1/(1+exp(-X_baseline_reorder[1:indx_subset[i], , drop=FALSE]%*%beta[1:dim(X_baseline_reorder)[2]]-i*temporal_effect_reorder[1:indx_subset[i], , drop=FALSE]%*%beta[(dim(X_baseline_reorder)[2]+1):length(beta)]))
     ## X^T mu
-    result_Xmu <- result_Xmu + t(X_baseline_reorder[indx_subset[i], ])%*%temp_mu
-    result_temporalmu <- result_temporalmu + i*t(temporal_effect_reorder[indx_subset[i], ])%*%temp_mu
+    result_Xmu <- result_Xmu + t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%temp_mu[, 1]
+    result_temporalmu <- result_temporalmu + i*t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])%*%temp_mu[, 1]
     ## X^T diag(D) X
-    temp_X <- t(X_baseline_reorder[indx_subset[i], ])%*%diag(temp_mu)%*%X_baseline_reorder[indx_subset[i], ]
-    temp_temporal <- (i^2)*t(temporal_effect_reorder[indx_subset[i], ])%*%diag(temp_mu)%*%temporal_effect_reorder[indx_subset[i], ]
-    temp_Xtemporal <- i*t(X_baseline_reorder[indx_subset[i], ])%*%diag(temp_mu)%*%temporal_effect_reorder[indx_subset[i], ]
+    temp_X <- t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%((temp_mu[, 1])*X_baseline_reorder[1:indx_subset[i], , drop=FALSE])
+    temp_temporal <- (i^2)*t(temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])%*%((temp_mu[, 1])*temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])
+    temp_Xtemporal <- i*t(X_baseline_reorder[1:indx_subset[i], , drop=FALSE])%*%((temp_mu[, 1])*temporal_effect_reorder[1:indx_subset[i], , drop=FALSE])
     result_info <- result_info + cbind(rbind(temp_X, t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
 
     ## clear workspace
     rm(list=c("temp_mu", "temp_X", "temp_temporal", "temp_Xtemporal"))
   }
   ## result
-  return(list(design_matvec_Xmu=c(result_Xmu, result_temporalmu),
+  return(list(design_matvec_Xmu=c(result_Xmu[, 1], result_temporalmu[, 1]),
               design_information=result_info))
 }
 
