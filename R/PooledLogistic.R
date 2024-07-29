@@ -163,6 +163,25 @@ pooled_design_iter <- function(X_baseline_reorder, temporal_effect_reorder, beta
 
 
 
+#' Prediction for pooled logistic regression
+#' @export result probability, in the order of: t1(id1, id2....), t2(id1, id2....),.....
+
+predict_pooled <- function(coef, X_baseline, temporal_effect, K){
+
+  ## Add intercept term to X_baseline and temporal_effect
+  X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
+  temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
+
+  ## predict
+  LP1 <- X_baseline%*%coef[1:dim(X_baseline)[2]]
+  LP2 <- temporal_effect%*%coef[(dim(X_baseline)[2]+1):length(coef)]
+  LP <- rep(LP1, K)+rep(1:K, each=dim(X_baseline)[1])*rep(LP2, K)
+  p <- exp(LP)/(1+exp(LP))
+
+  ## result
+  return(p)
+}
+
 
 
 
