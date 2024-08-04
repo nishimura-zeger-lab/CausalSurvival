@@ -18,7 +18,9 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
   eventObserved_reorder <- eventObserved[indx]
   time_reorder <- time[indx]
   X_baseline_reorder <- X_baseline[indx, ]
-  if(is.null(dim(temporal_effect))){
+  if(is.null(temporal_effect)){
+    temporal_effect_reorder <- NULL
+  }else if(is.null(dim(temporal_effect))){
     temporal_effect_reorder <- temporal_effect[indx]
   }else{
     temporal_effect_reorder <- temporal_effect[indx, ]
@@ -28,7 +30,11 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
 
   ## Add intercept term to X_baseline_reorder and temporal_effect_reorder
   X_baseline_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), X_baseline_reorder)
-  temporal_effect_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), temporal_effect_reorder)
+  if(is.null(temporal_effect_reorder)){
+    temporal_effect_reorder <- cbind(rep(0, dim(X_baseline_reorder)[1]), temporal_effect_reorder)
+  }else{
+    temporal_effect_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), temporal_effect_reorder)
+  }
 
   ## subset index for each time point
   K <- max(time_reorder)
@@ -63,7 +69,7 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
 
     ## stopping rule
     iter <-  iter + 1
-    crit <- max(abs(beta_new-beta)/abs(beta)) > 0.005
+    crit <- max(abs(beta_new-beta)/abs(beta)) > 1e-5
 
     ## update value
     beta <- beta_new
