@@ -4,12 +4,13 @@
 #'                  sparse matrix of class "dgTMatrix"
 #' @param temporal_effect Baseline variables that will interact with time in regression,
 #'                        sparse matrix of class "dgTMatrix" or matrix
+#' @param is.temporal Whether there is temporal effect
 #' @param eventObserved Binary outcome variable
 #' @param time Observed time
 #' @param id Subject id
 #' @param estimate_hazard "survival" or "censoring"
 #' @export
-coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, estimate_hazard, maxiter, threshold){
+coef_pooled <- function(X_baseline, temporal_effect, is.temporal, eventObserved, time, id, estimate_hazard, maxiter, threshold){
 
   ## index for decreasing survival time
   indx <- order(time, decreasing = TRUE)
@@ -30,9 +31,9 @@ coef_pooled <- function(X_baseline, temporal_effect, eventObserved, time, id, es
 
   ## Add intercept term to X_baseline_reorder and temporal_effect_reorder
   X_baseline_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), X_baseline_reorder)
-  if(is.null(temporal_effect_reorder)){
+  if(is.null(temporal_effect_reorder) & is.temporal==FALSE){
     temporal_effect_reorder <- cbind(rep(0, dim(X_baseline_reorder)[1]), temporal_effect_reorder)
-  }else{
+  }else if(is.temporal==TRUE){
     temporal_effect_reorder <- cbind(rep(1, dim(X_baseline_reorder)[1]), temporal_effect_reorder)
   }
 
