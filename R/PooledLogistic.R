@@ -196,7 +196,6 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, is.temporal, maxTi
   LP <- rep(LP1, maxTime) + rep(1:maxTime, each = dim(X_baseline)[1]) * rep(LP2, maxTime)
   p <- exp(LP) / (1 + exp(LP))
 
-  ## result
   return(p)
 }
 
