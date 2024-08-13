@@ -193,10 +193,10 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, is.temporal, maxTi
   ## predict
   LP1 <- X_baseline %*% coef[1:dim(X_baseline)[2]]
   LP2 <- temporal_effect %*% coef[(dim(X_baseline)[2] + 1):length(coef)]
-  LP <- rep(LP1, maxTime) + rep(1:maxTime, each = dim(X_baseline)[1]) * rep(LP2, maxTime)
-  p <- exp(LP) / (1 + exp(LP))
+  logitProb <- rep(LP1, maxTime) + rep(1:maxTime, each = dim(X_baseline)[1]) * rep(LP2, maxTime)
+  predictedProb <- exp(logitProb) / (1 + exp(logitProb))
 
-  return(p)
+  return(predictedProb)
 }
 
 
