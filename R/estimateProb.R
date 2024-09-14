@@ -1,19 +1,23 @@
-#' Estimate cross-fitted nuisance parameter: treatment probability
+#' Estimate cross-fitted treatment probability
 #'
-#' @param J For cross-fitting
-#' @param gA.estimate Model for estimating nuisance parameter: treatment probability
-#' @param maxCohortSizeForFitting
-#' @export
+#' @param crossFitnum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
+#' @param TreatProb.estimate Model for estimating nuisance parameter: treatment probability. Options currently include logistic LASSO
+#' @param maxCohortSizeForFitting If the target or comparator cohort are larger than this number, they
+#'                                 will be downsampled before fitting the propensity model. The model
+#'                                 will be used to compute propensity scores for all subjects. The
+#'                                 purpose of the sampling is to gain speed.
+#' @param index_ls Index for cross-fitting
+#' @return A data frame with columns: id, TreatProb
 
-estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO", maxCohortSizeForFitting){
+estimateTreatProb <- function(crossFitnum, id, treatment, covariates, TreatProb.estimate, maxCohortSizeForFitting, index_ls){
 
   ## container
-  ID <- gA1 <- c()
+  ID <- TreatProb <- c()
   ## outcomes
   outcomes <- data.frame(rowId = id, y = treatment)
 
 
-  for (i in 1:J){
+  for (i in 1:crossFitnum){
     ## training and testing sets
     idx_test <- index_ls[[i]]
     idx_train <- setdiff(id, idx_test)
@@ -46,8 +50,8 @@ estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO"
 
 
     # prior
-    prior = createPrior("laplace", exclude = c(0), useCrossValidation = TRUE)
-    control = createControl(noiseLevel = "silent", cvType = "auto", seed = 1, tolerance = 2e-07, cvRepetitions = 10, startingVariance = 0.01)
+    prior = Cyclops::createPrior("laplace", exclude = c(0), useCrossValidation = TRUE)
+    control = Cyclops::createControl(noiseLevel = "silent", cvType = "auto", seed = 1, tolerance = 2e-07, cvRepetitions = 10, startingVariance = 0.01)
 
 
     ## model: LASSO
@@ -65,6 +69,9 @@ estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO"
     cfs[1] <- cfs[1] - delta
     cyclopsFit$estimation$estimate[1] <- cfs[1]
 
+    ## clear workspace
+    rm(list=c("outcomes_train", "outcomes_train_sub", "covariates_train", "covariates_train_sub"))
+
 
 
     ## testing set
@@ -77,28 +84,31 @@ estimateNuisanceGA <- function(J, id, treatment, covariates, gA.estimate="LASSO"
 
 
     ## predict on testing set
-    gAtemp <- Cyclops::predict(cyclopsFit, newOutcomes = outcomes_test, newCovariates = covariates_test)
+    TreatProbTemp <- Cyclops::predict(cyclopsFit, newOutcomes = outcomes_test, newCovariates = covariates_test)
 
 
     ## store
     ID <- c(ID, idx_test[order(idx_test)])
-    gA1 <- c(gA1, gAtemp)
+    TreatProb <- c(TreatProb, TreatProbTemp)
+
+    ## clear workspace
+    rm(list=c("idx_test", "TreatProbTemp", "outcomes_test", "covariates_test", "cyclopsFit"))
   }
 
   ## result
-  out <- data.frame(id=ID, gA1=gA1)
+  out <- data.frame(id=ID, TreatProb=TreatProb)
   return(out)
 }
 
 
 
-#' Estimate nuisance parameter: treatment probability
+#' Estimate treatment probability (no cross-fitting)
 #'
-#' @param gA.estimate Model for estimating nuisance parameter: treatment probability
+#' @param TreatProb.estimate Model for estimating nuisance parameter: treatment probability. Options currently include logistic LASSO
 #' @param maxCohortSizeForFitting
 #' @export
 
-estimateNuisanceGA2 <- function(id, treatment, covariates, gA.estimate="LASSO", maxCohortSizeForFitting){
+estimateTreatProb2 <- function(id, treatment, covariates, TreatProb.estimate, maxCohortSizeForFitting){
 
   ## outcomes
   outcomes <- data.frame(rowId = id, y = treatment)
@@ -159,7 +169,7 @@ estimateNuisanceGA2 <- function(id, treatment, covariates, gA.estimate="LASSO", 
 
 
 
-#' Estimate cross-fitted nuisance parameter: censoring hazards
+#' Estimate cross-fitted discrete censoring hazards
 #'
 #' @param dlong Long-format survival data from function transformData(dwide, freq.time)
 #' @param J For cross-fitting
@@ -202,7 +212,7 @@ estimateNuisanceGR <- function(dlong, J, gR.estimate="glm"){
 }
 
 
-#' Estimate cross-fitted nuisance parameter survival hazards
+#' Estimate cross-fitted discrete survival hazards
 #'
 #' @param dlong Long-format survival data from function transformData(dwide, freq.time)
 #' @param J For cross-fitting
