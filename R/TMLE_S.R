@@ -1,21 +1,21 @@
-#' Estimate cross-fitted TMLE of survival probability
+#' Estimate cross-fitted TMLE of survival probability at time tau
 #'
-#' @param covariants Design matrix in triplet format (row index, col index, and value)
-#' @param J For cross-fitting: random partition of subjects into J prediction sets of approximately the same size.
-#' @param h.estimate Model for estimating nuisance parameter: survival hazards. Options currently include glm
-#' @param gR.estimate Model for estimating nuisance parameter: censoring hazards. Options currently include glm
-#' @param gA.estimate Model for estimating nuisance parameter: treatment probability. Options currently include LASSO
+#' @param covariates Design matrix in triplet format (row index, col index, and value)
+#' @param crossFit For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
+#' @param SurvHaz.estimate Model for estimating nuisance parameter: survival hazards. Options currently include logistic LASSO
+#' @param CenHaz.estimate Model for estimating nuisance parameter: censoring hazards. Options currently include logistic LASSO
+#' @param TreatProb.estimate Model for estimating nuisance parameter: treatment probability. Options currently include logistic LASSO
 #' @param maxCohortSizeForFitting If the target or comparator cohort are larger than this number, they
 #'                                 will be downsampled before fitting the propensity model. The model
 #'                                 will be used to compute propensity scores for all subjects. The
 #'                                 purpose of the sampling is to gain speed.
+#' @param freq.time Coarsen observed time to XXX days intervals
 #' @param tau Time of interest
-#' @export
+#' @return A list S1: S(1, tau); S0: S(0, tau); std.error.diff: standard error of S1-S0
 
 estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covariates.names,
-                             J=5, h.estimate="glm", gR.estimate="glm",
-                             gA.estimate="LASSO", maxCohortSizeForFitting=250000,
-#                           includeCovariatesInHestimate="",includeCovariatesIngRestimate="", includeCovariatesIngAestimate="all",
+                             crossFit=5, SurvHaz.estimate="LASSO", CenHaz.estimate="LASSO",
+                             TreatProb.estimate="LASSO", maxCohortSizeForFitting=250000,
                              freq.time=90, tau){
 
   ## Indicator for event
@@ -91,22 +91,25 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
   crit <- TRUE
   iter <- 1
 
+  G1 <- tapply(1 - gR1, ID, cumprod, simplify = FALSE)
+  G0 <- tapply(1 - gR0, ID, cumprod, simplify = FALSE)
+
+  Gm1 <- unlist(G1, use.names = FALSE)
+  Gm0 <- unlist(G0, use.names = FALSE)
+
+  ## clear workspace
+  rm(list=c("G1", "G0"))
+
   while(crit && iter <= 20){
 
     S1 <- tapply(1 - h1, ID, cumprod, simplify = FALSE)
     S0 <- tapply(1 - h0, ID, cumprod, simplify = FALSE)
 
-    G1 <- tapply(1 - gR1, ID, cumprod, simplify = FALSE)
-    G0 <- tapply(1 - gR0, ID, cumprod, simplify = FALSE)
-
     Sm1 <- unlist(S1, use.names = FALSE)
     Sm0 <- unlist(S0, use.names = FALSE)
 
-    Gm1 <- unlist(G1, use.names = FALSE)
-    Gm0 <- unlist(G0, use.names = FALSE)
-
     ## clear workspace
-    rm(list=c("S1", "S0", "G1", "G0"))
+    rm(list=c("S1", "S0"))
 
     ## clever covariate for survival hazard
     H1 <- - (ind * Sm1) / bound(Sm1 * gA1[ID] * Gm1)
