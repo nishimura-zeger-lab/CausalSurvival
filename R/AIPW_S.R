@@ -104,14 +104,14 @@ estimateAIPWprob <- function(eventTime, censorTime, treatment, covariates, covar
     aipw <- c(mean(DT0 + DW0), mean(DT1 + DW1))
 
     D <- DT1 - DT0 + DW1 - DW0
-    sdn <- sqrt(var(D) / n)
+    sdn <- sqrt(var(D) / length(id))
 
     ## store
     SurvProb1_result[TimePoint] <- aipw[2]
     SurvProb0_result[TimePoint] <- aipw[1]
     std.error.diff[TimePoint] <- sdn
 
-    rm(list=c("DW1", "DW0", "DT1", "DT0", "H1", "H0", "ind"))
+    rm(list=c("D", "DW1", "DW0", "DT1", "DT0", "H1", "H0", "ind"))
 
   }
 
