@@ -1,21 +1,26 @@
 #' Estimate cross-fitted Augmented IPW of RMST
 #'
-#' @param covariants Design matrix in triplet format (row index, col index, and value)
-#' @param J For cross-fitting: random partition of subjects into J prediction sets of approximately the same size.
-#' @param h.estimate Model for estimating nuisance parameter: survival hazards. Options currently include glm
-#' @param gR.estimate Model for estimating nuisance parameter: censoring hazards. Options currently include glm
-#' @param gA.estimate Model for estimating nuisance parameter: treatment probability. Options currently include LASSO
+#' @param covariates Design matrix in triplet format (row index, col index, and value)
+#' @param covariates.names Corresponding covariates name in ''covariates''
+#' @param crossFitnum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
+#' @param SurvHaz.estimate Model for estimating survival hazards. Options currently include logistic LASSO, glm
+#' @param CenHaz.estimate Model for estimating censoring hazards. Options currently include logistic LASSO, glm
+#' @param TreatProb.estimate Model for estimating treatment probability. Options currently include logistic LASSO
 #' @param maxCohortSizeForFitting If the target or comparator cohort are larger than this number, they
 #'                                 will be downsampled before fitting the propensity model. The model
 #'                                 will be used to compute propensity scores for all subjects. The
 #'                                 purpose of the sampling is to gain speed.
-#' @param tau Time of interest
-#' @export
+#' @param covID.SurvHaz Covariates id to include in modeling discrete survival hazards. If NULL, then include all covariates in the model
+#' @param covID.CenHaz Covariates id to include in modeling discrete censoring hazards. If NULL, then include all covariates in the model
+#' @param covID.TreatProb Covariates id to include in modeling treatment probability. If NULL, then include all covariates in the model
+#' @param freq.time Coarsen observed time to XXX days intervals
+#' @param tau Time of interest. Can be a vector (multiple time of interest)
+#' @export A list SurvRMST1: RMST(1, tau); SurvRMST0: RMST(0, tau); std.error.diff: standard error of SurvRMST1-SurvRMST0
 
-estimateTMLErmst <- function(eventTime, censorTime, treatment, covariates, covariates.names,
-                             J=5, h.estimate="glm", gR.estimate="glm",
-                             gA.estimate="LASSO", maxCohortSizeForFitting=250000,
-                             #                           includeCovariatesInHestimate="",includeCovariatesIngRestimate="", includeCovariatesIngAestimate="all",
+estimateAIPWrmst <- function(eventTime, censorTime, treatment, covariates, covariates.names,
+                             crossFitnum=5, SurvHaz.estimate="LASSO", CenHaz.estimate="LASSO",
+                             TreatProb.estimate="LASSO", maxCohortSizeForFitting=250000,
+                             covID.SurvHaz=NULL, covID.CenHaz=NULL, covID.TreatProb=NULL,
                              freq.time=90, tau){
 
 
@@ -30,21 +35,13 @@ estimateTMLErmst <- function(eventTime, censorTime, treatment, covariates, covar
 
 
   ## Get index for cross-fitting
-  index_ls <- crossFit(eventObserved=eventObserved, id=id, J=J)
+  index_ls <- crossFit(eventObserved=eventObserved, id=id, crossFitnum=crossFitnum)
+
 
 
   ## Wide-form dataset
   dwide <- data.frame(id=id, time=time, eventObserved=eventObserved, treatment=treatment)
 
-
-
-  ## Temporary: add covariates to dlong for estimating h and gR
-  cov_name <- c("gender = FEMALE", "CHADS2", "Subgroup: Elderly (age >=65)", "condition_era group during day -30 through 0 days relative to index: Acute disease of cardiovascular system")
-  index_cov <- which(covariates.names %in% cov_name)
-  cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
-  cov_new <- cov[, index_cov]
-  dwide <- cbind(dwide, as.matrix(cov_new))
-  colnames(dwide)[5:8] <- c("age65", "cardiovascular", "female", "CHADS2")
 
 
   ## transform data into long format
@@ -53,69 +50,81 @@ estimateTMLErmst <- function(eventTime, censorTime, treatment, covariates, covar
 
 
   ## Estimate cross-fitted nuisance parameter
-  dH <- estimateNuisanceH(dlong, J=J, h.estimate="glm")
-  dGR <- estimateNuisanceGR(dlong, J=J, gR.estimate="glm")
-  dGA <- estimateNuisanceGA(J=J, id=id, treatment=treatment, covariates=covariates, gA.estimate="LASSO", maxCohortSizeForFitting=maxCohortSizeForFitting)
-  d <- cbind(dH, dGR)
+  SurvHaz <- estimateSurvHaz(dlong=dlong, covariates=covariates, covID.SurvHaz=covID.SurvHaz, crossFitnum=crossFitnum, SurvHaz.estimate=SurvHaz.estimate)
+  CenHaz <- estimateCenHaz(dlong=dlong, covariates=covariates, covID.CenHaz=covID.CenHaz, crossFitnum=crossFitnum, index_ls=index_ls, CenHaz.estimate=CenHaz.estimate)
+  TreatProb <- estimateTreatProb(id=id, treatment=treatment,
+                                 covariates=covariates, covID.TreatProb=covID.TreatProb,
+                                 TreatProb.estimate=TreatProb.estimate,
+                                 maxCohortSizeForFitting=maxCohortSizeForFitting,
+                                 index_ls=index_ls, crossFitnum=crossFitnum)
 
 
-
-  ## Update h
-  h1 <- d$h1
-  h0 <- d$h0
-  gR1 <- d$gR1
-  gR0 <- d$gR0
-  gA1 <- dGA$gA1
-  ID <- dlong$id
-  A <- dlong$treatment
-
-  gA0 <- 1 - gA1
-  h  <- A * h1 + (1-A) * h0
-  gR <- A * gR1 + (1 - A) * gR0
-
-  ## number of subjects
-  n <- length(unique(ID))
-  ## time points
-  m <- as.numeric(dlong$t)
-  ## max follow-up time
-  K <- max(m)
-
-  ind <- outer(m, 1:K, "<=")
+  ## into the same order
+  SurvHaz <- SurvHaz[order(SurvHaz$ID), ]
+  CenHaz <- CenHaz[order(CenHaz$ID), ]
+  TreatProb <- TreatProb[order(TreatProb$id), ]
 
 
-  S1 <- tapply(1 - h1, ID, cumprod, simplify = FALSE)
-  S0 <- tapply(1 - h0, ID, cumprod, simplify = FALSE)
-
-  G1 <- tapply(1 - gR1, ID, cumprod, simplify = FALSE)
-  G0 <- tapply(1 - gR0, ID, cumprod, simplify = FALSE)
-
-  St1 <- do.call("rbind", S1[ID])
-  St0 <- do.call("rbind", S0[ID])
-
-  Sm1 <- unlist(S1)
-  Sm0 <- unlist(S0)
-
-  Gm1 <- unlist(G1)
-  Gm0 <- unlist(G0)
+  ## container
+  SurvRMST1_result <- SurvRMST0_result <- std.error.diff <- rep(0, length=length(tau))
 
 
-  H1 <- - rowSums((ind * St1)[, 1:(tau-1)]) / bound(Sm1 * gA1[ID] * Gm1)
-  H0 <- - rowSums((ind * St0)[, 1:(tau-1)]) / bound(Sm0 * gA0[ID] * Gm0)
+  ## container
+  SurvProb1_result <- SurvProb0_result <- std.error.diff <- rep(0, length=length(tau))
 
-  DT1 <- with(dlong, tapply(Im * A * H1 * (Lm - h), ID, sum))
-  DT0 <- with(dlong, tapply(Im * (1 - A) * H0 * (Lm - h), ID, sum))
+  ## calculate survival and censoring probability
+  SurvProb1List <- tapply(1 - SurvHaz$SurvHaz1, dlong$id, cumprod, simplify = FALSE)
+  SurvProb0List <- tapply(1 - SurvHaz$SurvHaz0, dlong$id, cumprod, simplify = FALSE)
 
-  DW1 <- with(dlong, rowSums(St1[t == 1, 1:(tau-1)]))
-  DW0 <- with(dlong, rowSums(St0[t == 1, 1:(tau-1)]))
+  SurvProb1 <- unlist(SurvProb1List, use.names = FALSE)
+  SurvProb0 <- unlist(SurvProb0List, use.names = FALSE)
 
-  ## AIPW
-  aipw <- 1+c(mean(DT0 + DW0), mean(DT1 + DW1))
-  ## standard error
-  D <- DT1 - DT0 + DW1 - DW0
-  sdn <- sqrt(var(D) / n)
+  rm(list=c("SurvProb1List", "SurvProb0List", "SurvHaz"))
+
+  CenProb1List <- tapply(1 - CenHaz$CenHaz1, dlong$id, cumprod, simplify = FALSE)
+  CenProb0List <- tapply(1 - CenHaz$CenHaz0, dlong$id, cumprod, simplify = FALSE)
+
+  CenProb1 <- unlist(CenProb1List, use.names = FALSE)
+  CenProb0 <- unlist(CenProb0List, use.names = FALSE)
+
+  rm(list=c("CenProb1List", "CenProb0List", "CenHaz"))
+
+  SurvHaz_obs <- dlong$treatment*SurvHaz$SurvHaz1 + (1-dlong$treatment)*SurvHaz$SurvHaz0
+
+  for (TimePoint in tau){
+
+    if(TimePoint == 1){next}
+
+    ## parameter
+    ind <- (dlong$t <= TimePoint-1)
+
+    ## solve estimating equation
+    H1 <- - unlist(tapply(ind * SurvProb1, dlong$id, function(x){rev(cumsum(rev(x)))}), use.names = FALSE) / bound(SurvProb1 * TreatProb$TreatProb[dlong$id] * CenProb1)
+    H0 <- - unlist(tapply(ind * SurvProb0, dlong$id, function(x){rev(cumsum(rev(x)))}), use.names = FALSE) / bound(SurvProb0 * (1-TreatProb$TreatProb[dlong$id]) * CenProb0)
+
+    DT1 <- with(dlong, tapply(It * treatment * H1 * (Lt - SurvHaz_obs), id, sum))
+    DT0 <- with(dlong, tapply(It * (1 - treatment) * H0 * (Lt - SurvHaz_obs), id, sum))
+
+    DW1 <- tapply(ind * SurvProb1, dlong$id, sum)
+    DW0 <- tapply(ind * SurvProb0, dlong$id, sum)
+
+    aipw <- c(mean(DT0 + DW0), mean(DT1 + DW1))
+
+    D <- DT1 - DT0 + DW1 - DW0
+    sdn <- sqrt(var(D) / length(id))
+
+    ## store
+    SurvRMST1_result[TimePoint] <- SurvRMST1_mean
+    SurvRMST0_result[TimePoint] <- SurvRMST0_mean
+    std.error.diff[TimePoint] <- sdn
+
+    rm(list=c("D", "DW1", "DW0", "DT1", "DT0", "H1", "H0", "ind"))
+
+
+  }
 
   ## result
-  out <- list(rmst1=aipw[2], rmst0=aipw[1], std.error.diff=sdn)
+  out <- list(SurvRMST1=SurvRMST1, SurvRMST0=SurvRMST0, std.error.diff=std.error.diff)
   return(out)
 }
 
