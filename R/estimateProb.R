@@ -228,13 +228,13 @@ estimateCenHaz <- function(dlong, covariates, covID.CenHaz, crossFitnum, index_l
       X_baseline <- cbind(rep(1, dim(cov)[1]), cov)
       temporal_effect <- NULL
       CenHaz1temp <- predict_pooled(coef=coef_CenHaz, X_baseline=X_baseline[idx_test, ],
-                             temporal_effect=temporal_effect, is.temporal = TRUE, maxTpoint=max(time))
+                             temporal_effect=temporal_effect, is.temporal = TRUE, maxTime=max(time))
       CenHaz1temp <- bound01(CenHaz1temp)
 
       X_baseline <- cbind(rep(0, dim(cov)[1]), cov)
       temporal_effect <- NULL
       CenHaz0temp <- predict_pooled(coef=coef_CenHaz, X_baseline=X_baseline[idx_test, ],
-                                    temporal_effect=temporal_effect, is.temporal = TRUE, maxTpoint=max(time))
+                                    temporal_effect=temporal_effect, is.temporal = TRUE, maxTime=max(time))
       CenHaz0temp <- bound01(CenHaz0temp)
 
       ## clear workspace
@@ -328,13 +328,13 @@ estimateCenHaz2 <- function(dlong, covariates, covID.CenHaz, CenHaz.estimate){
     X_baseline <- cbind(rep(1, dim(cov)[1]), cov)
     temporal_effect <- NULL
     CenHaz1 <- predict_pooled(coef=coef_CenHaz, X_baseline=X_baseline,
-                                  temporal_effect=temporal_effect, is.temporal = TRUE, maxTpoint=max(time))
+                                  temporal_effect=temporal_effect, is.temporal = TRUE, maxTime=max(time))
     CenHaz1 <- bound01(CenHaz1)
 
     X_baseline <- cbind(rep(0, dim(cov)[1]), cov)
     temporal_effect <- NULL
     CenHaz0 <- predict_pooled(coef=coef_CenHaz, X_baseline=X_baseline,
-                                  temporal_effect=temporal_effect, is.temporal = TRUE, maxTpoint=max(time))
+                                  temporal_effect=temporal_effect, is.temporal = TRUE, maxTime=max(time))
     CenHaz0 <- bound01(CenHaz0)
 
     ## clear workspace
@@ -428,13 +428,13 @@ estimateSurvHaz <- function(dlong, covariates, covID.SurvHaz, crossFitnum, SurvH
       X_baseline <- cbind(rep(1, dim(cov)[1]), cov)
       temporal_effect <- NULL
       SurvHaz1temp <- predict_pooled(coef=coef_CenHaz, X_baseline=X_baseline[idx_test, ],
-                                    temporal_effect=temporal_effect, is.temporal = TRUE, maxTpoint=max(time))
+                                    temporal_effect=temporal_effect, is.temporal = TRUE, maxTime=max(time))
       SurvHaz1temp <- bound01(SurvHaz1temp)
 
       X_baseline <- cbind(rep(0, dim(cov)[1]), cov)
       temporal_effect <- NULL
       SurvHaz0temp <- predict_pooled(coef=coef_SurvHaz, X_baseline=X_baseline[idx_test, ],
-                                    temporal_effect=temporal_effect, is.temporal = TRUE, maxTpoint=max(time))
+                                    temporal_effect=temporal_effect, is.temporal = TRUE, maxTime=max(time))
       SurvHaz0temp <- bound01(SurvHaz0temp)
 
       ## clear workspace
