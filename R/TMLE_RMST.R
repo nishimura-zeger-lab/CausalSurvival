@@ -78,6 +78,8 @@ estimateTMLErmst <- function(eventTime, censorTime, treatment, covariates, covar
 
   for (TimePoint in tau){
 
+    if(TimePoint == 1){next}
+
     ## initial SurvHaz
     SurvHaz1 <- SurvHaz$SurvHaz1
     SurvHaz0 <- SurvHaz$SurvHaz0
