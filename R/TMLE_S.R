@@ -84,7 +84,7 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
     SurvHaz_obs  <- dlong$treatment*SurvHaz1 + (1-dlong$treatment)*SurvHaz0
 
     ## parameter
-    ind <- (dlong$m <= TimePoint)
+    ind <- (dlong$t <= TimePoint)
     crit <- TRUE
     iter <- 1
 
@@ -144,10 +144,8 @@ estimateTMLEprob <- function(eventTime, censorTime, treatment, covariates, covar
     SurvProb1_mean <- mean(DW1)
     ## S(0, tau)
     SurvProb0_mean <- mean(DW0)
-    ## S(1, tau)-S(0, tau)
-    SurvProb_mean <- SurvProb1_mean - SurvProb0_mean
     ## standard error of S(1, tau)-S(0, tau)
-    D <- DT + DW1 - DW0 - SurvProb_mean
+    D <- DT + DW1 - DW0
     sdn <- sqrt(var(D) / length(id))
 
     ## store
