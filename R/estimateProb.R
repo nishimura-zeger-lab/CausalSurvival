@@ -1,27 +1,27 @@
 #' Estimate cross-fitted treatment probability
 #'
-#' @param covID.TreatProb Covariates id to include in modeling treatment probability. If NULL, then include all covariates in the model
-#' @param TreatProb.estimate Model for estimating nuisance parameter: treatment probability. Options currently include logistic LASSO
+#' @param covIdTreatProb Covariates id to include in modeling treatment probability. If NULL, then include all covariates in the model
+#' @param treatProbEstimate Model for estimating treatment probability. Options currently include logistic LASSO
 #' @param maxCohortSizeForFitting If the target or comparator cohort are larger than this number, they
 #'                                 will be downsampled before fitting the propensity model. The model
 #'                                 will be used to compute propensity scores for all subjects. The
 #'                                 purpose of the sampling is to gain speed.
 #' @param index_ls Index for cross-fitting
-#' @param crossFitnum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
+#' @param crossFitNum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
 #' @return A data frame with columns: id, TreatProb
 
-estimateTreatProb <- function(id, treatment, covariates, covID.TreatProb, TreatProb.estimate, maxCohortSizeForFitting, index_ls, crossFitnum){
+estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb, treatProbEstimate, maxCohortSizeForFitting, index_ls, crossFitNum){
 
   ## container
   ID <- TreatProb <- c()
   ## outcomes
   outcomes <- data.frame(rowId = id, y = treatment)
   ## covariates
-  if (!is.null(covID.TreatProb)){
-    covariates <- covariates[which(covariates$j %in% covID.TreatProb), ]
+  if (!is.null(covIdTreatProb)){
+    covariates <- covariates[which(covariates$j %in% covIdTreatProb), ]
   }
 
-  for (i in 1:crossFitnum){
+  for (i in 1:crossFitNum){
     ## training and testing sets
     idx_test <- index_ls[[i]]
     idx_train <- setdiff(id, idx_test)
@@ -108,21 +108,21 @@ estimateTreatProb <- function(id, treatment, covariates, covID.TreatProb, TreatP
 
 #' Estimate treatment probability (no cross-fitting)
 #'
-#' @param covID.TreatProb Covariates id to include in modeling treatment probability. If NULL, then include all covariates in the model
-#' @param TreatProb.estimate Model for estimating nuisance parameter: treatment probability. Options currently include logistic LASSO
+#' @param covIdTreatProb Covariates id to include in modeling treatment probability. If NULL, then include all covariates in the model
+#' @param treatProbEstimate Model for estimating nuisance parameter: treatment probability. Options currently include logistic LASSO
 #' @param maxCohortSizeForFitting If the target or comparator cohort are larger than this number, they
 #'                                 will be downsampled before fitting the propensity model. The model
 #'                                 will be used to compute propensity scores for all subjects. The
 #'                                 purpose of the sampling is to gain speed.
 #' @return A data frame with columns: id, TreatProb
 
-estimateTreatProb2 <- function(id, treatment, covariates, covID.TreatProb, TreatProb.estimate, maxCohortSizeForFitting){
+estimateTreatProb2 <- function(id, treatment, covariates, covIdTreatProb, treatProbEstimate, maxCohortSizeForFitting){
 
   ## outcomes
   outcomes <- data.frame(rowId = id, y = treatment)
   ## covariates
-  if (!is.null(covID.TreatProb)){
-    covariates <- covariates[which(covariates$j %in% covID.TreatProb), ]
+  if (!is.null(covIdTreatProb)){
+    covariates <- covariates[which(covariates$j %in% covIdTreatProb), ]
   }
 
   ## downsize
@@ -188,30 +188,30 @@ estimateTreatProb2 <- function(id, treatment, covariates, covID.TreatProb, Treat
 #' Estimate cross-fitted discrete censoring hazards
 #'
 #' @param dlong Long-format survival data from function transformData(dwide, freq.time)
-#' @param covID.CenHaz Covariates id to include in modeling discrete censoring hazards. If NULL, then include all covariates in the model
-#' @param crossFitnum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
+#' @param covIdCenHaz Covariates id to include in modeling discrete censoring hazards. If NULL, then include all covariates in the model
+#' @param crossFitNum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
 #' @param index_ls Index for cross-fitting
 #' @param CenHaz.estimate Model for estimating censoring hazards. Options currently include logistic LASSO, glm
 #' @return A data frame with columns: ID, CenHaz1, CenHaz0
 
-estimateCenHaz <- function(dlong, covariates, covID.CenHaz, crossFitnum, index_ls, CenHaz.estimate){
+estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum, index_ls, cenHazEstimate){
 
   ## container
   ID <- CenHaz1 <- CenHaz0 <- c()
   ## covariates to sparse matrix form, and delete unwanted covariates
   cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
-  if (!is.null(covID.CenHaz)){
-    cov <- cov[, covID.CenHaz]
+  if (!is.null(covIdCenHaz)){
+    cov <- cov[, covIdCenHaz]
   }
 
 
-  for (i in 1:crossFitnum){
+  for (i in 1:crossFitNum){
     ## training and testing sets
     idx_test <- index_ls[[i]]
     idx_train <- setdiff(unique(dlong$id), idx_test)
 
     ## model and prediction
-    if (CenHaz.estimate == "glm"){
+    if (cenHazEstimate == "glm"){
       ## data
       X_baseline <- cbind(dlong$treatment[dlong$t==1], cov)
       temporal_effect <- NULL
@@ -240,7 +240,7 @@ estimateCenHaz <- function(dlong, covariates, covID.CenHaz, crossFitnum, index_l
       ## clear workspace
       rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time", "id", "idx_train", "coef_CenHaz"))
 
-    }else if(CenHaz.estimate == "LASSO"){
+    }else if(cenHazEstimate == "LASSO"){
       ## data
       inx_train_LASSO <- which(dlong$id %in% idx_train & dlong$Jt == 1)
       outcomes <- data.frame(rowId = 1:dim(dlong[inx_train_LASSO, ])[1], y = dlong$Rt[inx_train_LASSO])
@@ -264,11 +264,20 @@ estimateCenHaz <- function(dlong, covariates, covID.CenHaz, crossFitnum, index_l
       rm(list=c("cyclopsData", "prior", "control"))
 
       ## predict
+      Intercept <- rep(1, length(idx_test))
+      TreatmentIndi1 <- rep(1, length(idx_test))
+      TreatmentIndi0 <- rep(0, length(idx_test))
+
       coef_CenHaz <- Cyclops::coef(cyclopsFit)
-      LP1 <- rep(cbind(rep(1, length(idx_test)), rep(1, length(idx_test)), cov[idx_test, ]) %*% coef_CenHaz[-3], each=70)+rep(1:70, length(idx_test))*coef_CenHaz[3]
+      timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_CenHaz[-3], each=70)
+      timeDepenLP1 <- rep(1:70, length(idx_test))*coef_CenHaz[3]
+      LP1 <- timeIndepLP1 + timeDepenLP1
       CenHaz1temp <- exp(LP1)/(1+exp(LP1))
       CenHaz1temp <- bound01(CenHaz1temp)
-      LP0 <- rep(cbind(rep(1, length(idx_test)), rep(0, length(idx_test)), cov[idx_test, ]) %*% coef_CenHaz[-3], each=70)+rep(1:70, length(idx_test))*coef_CenHaz[3]
+
+      timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_CenHaz[-3], each=70)
+      timeDepenLP0 <- rep(1:70, length(idx_test))*coef_CenHaz[3]
+      LP0 <- timeIndepLP0 + timeDepenLP0
       CenHaz0temp <- exp(LP0)/(1+exp(LP0))
       CenHaz0temp <- bound01(CenHaz0temp)
 
@@ -296,22 +305,22 @@ estimateCenHaz <- function(dlong, covariates, covID.CenHaz, crossFitnum, index_l
 #' Estimate discrete censoring hazards (no cross-fitting)
 #'
 #' @param dlong Long-format survival data from function transformData(dwide, freq.time)
-#' @param covID.CenHaz Covariates id to include in modeling discrete censoring hazards. If NULL, then include all covariates in the model
-#' @param CenHaz.estimate Model for estimating censoring hazards. Options currently include logistic LASSO, glm
+#' @param covIdCenHaz Covariates id to include in modeling discrete censoring hazards. If NULL, then include all covariates in the model
+#' @param cenHazEstimate Model for estimating censoring hazards. Options currently include logistic LASSO, glm
 #' @return A data frame with columns: CenHaz1, CenHaz0
 
-estimateCenHaz2 <- function(dlong, covariates, covID.CenHaz, CenHaz.estimate){
+estimateCenHaz2 <- function(dlong, covariates, covIdCenHaz, cenHazEstimate){
 
   ## container
   ID <- CenHaz1 <- CenHaz0 <- c()
   ## covariates to sparse matrix form, and delete unwanted covariates
   cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
-  if (!is.null(covID.CenHaz)){
-    cov <- cov[, covID.CenHaz]
+  if (!is.null(covIdCenHaz)){
+    cov <- cov[, covIdCenHaz]
   }
 
   ## model and prediction
-  if (CenHaz.estimate == "glm"){
+  if (cenHazEstimate == "glm"){
     ## data
     X_baseline <- cbind(dlong$treatment[dlong$t==1], cov)
     temporal_effect <- NULL
@@ -340,7 +349,7 @@ estimateCenHaz2 <- function(dlong, covariates, covID.CenHaz, CenHaz.estimate){
     ## clear workspace
     rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time", "id", "coef_CenHaz"))
 
-  }else if(CenHaz.estimate == "LASSO"){
+  }else if(cenHazEstimate == "LASSO"){
     ## data
     inx_train_LASSO <- which(dlong$Jt == 1)
     outcomes <- data.frame(rowId = 1:dim(dlong[inx_train_LASSO, ])[1], y = dlong$Rt[inx_train_LASSO])
@@ -388,30 +397,30 @@ estimateCenHaz2 <- function(dlong, covariates, covID.CenHaz, CenHaz.estimate){
 #' Estimate cross-fitted discrete survival hazards
 #'
 #' @param dlong Long-format survival data from function transformData(dwide, freq.time)
-#' @param covID.SurvHaz Covariates id to include in modeling discrete survival hazards. If NULL, then include all covariates in the model
-#' @param crossFitnum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
+#' @param covIdSurvHaz Covariates id to include in modeling discrete survival hazards. If NULL, then include all covariates in the model
+#' @param crossFitNum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
 #' @param index_ls Index for cross-fitting
-#' @param SurvHaz.estimate Model for estimating survival hazards. Options currently include logistic LASSO, glm
+#' @param survHazEstimate Model for estimating survival hazards. Options currently include logistic LASSO, glm
 #' @return A data frame with columns: ID, SurvHaz1, SurvHaz0
 
-estimateSurvHaz <- function(dlong, covariates, covID.SurvHaz, crossFitnum, SurvHaz.estimate){
+estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum, survHazEstimate){
 
   ## container
   ID <- SurvHaz1 <- SurvHaz0 <- c()
   ## covariates to sparse matrix form, and delete unwanted covariates
   cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
-  if (!is.null(covID.SurvHaz)){
-    cov <- cov[, covID.SurvHaz]
+  if (!is.null(covIdSurvHaz)){
+    cov <- cov[, covIdSurvHaz]
   }
 
 
-  for (i in 1:crossFitnum){
+  for (i in 1:crossFitNum){
     ## training and testing sets
     idx_test <- index_ls[[i]]
     idx_train <- setdiff(unique(dlong$id), idx_test)
 
     ## model and prediction
-    if (SurvHaz.estimate == "glm"){
+    if (survHazEstimate == "glm"){
       ## data
       X_baseline <- cbind(dlong$treatment[dlong$t==1], cov)
       temporal_effect <- NULL
@@ -440,7 +449,7 @@ estimateSurvHaz <- function(dlong, covariates, covID.SurvHaz, crossFitnum, SurvH
       ## clear workspace
       rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time", "id", "idx_train", "coef_SurvHaz"))
 
-    }else if(SurvHaz.estimate == "LASSO"){
+    }else if(survHazEstimate == "LASSO"){
       ## data
       inx_train_LASSO <- which(dlong$id %in% idx_train & dlong$It == 1)
       outcomes <- data.frame(rowId = 1:dim(dlong[inx_train_LASSO, ])[1], y = dlong$Lt[inx_train_LASSO])
