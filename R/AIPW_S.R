@@ -34,6 +34,7 @@ estimateAIPWprob <- function(dlong, survHaz, cenHaz, treatProb, tau){
 
   ## Observed estimated survival hazards
   SurvHaz_obs <- dlong$treatment * survHaz$SurvHaz1 + (1-dlong$treatment) * survHaz$SurvHaz0
+
   rm(list=c("survHaz"))
 
 
@@ -57,7 +58,7 @@ estimateAIPWprob <- function(dlong, survHaz, cenHaz, treatProb, tau){
     aipw <- c(mean(DT0 + DW0), mean(DT1 + DW1))
     ## SE
     D <- DT1 - DT0 + DW1 - DW0
-    sdn <- sqrt(var(D) / length(id))
+    sdn <- sqrt(var(D) / length(unique(dlong$id)))
 
     rm(list=c("D", "DW1", "DW0", "DT1", "DT0"))
 
