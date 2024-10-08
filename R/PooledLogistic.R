@@ -7,14 +7,15 @@
 #' @param temporal_effect Baseline variables that will interact with time in regression,
 #'                        sparse matrix of class "dgTMatrix" or matrix.
 #'                        Rows are ordered into decreasing survival time
-#' @param is.temporal Whether there is temporal effect, i.e. whether time t is a variable in the regression
+#' @param timeEffect Functions of time in the discrete censoring hazards model.
+#'                   Options currently include "linear", "cubic", NULL
 #' @param time Observed survival time. Ordered into decreasing observed survival time
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
 #' @return A vector of coefficients in the order of: baseline covariates, time, interaction term between baseline covariates and time
 
 
-coef_pooled <- function(X_baseline, is.temporal, temporal_effect,
+coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                         time, eventObserved, estimate_hazard,
                         maxiter, threshold){
 
@@ -22,12 +23,15 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect,
 
 
 
-  ## Add intercept term to X_baseline_reorder and temporal_effect_reorder
+  ## Add intercept term to X_baseline and temporal_effect
   X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
   if(is.null(temporal_effect) & !is.temporal){
     temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
-  }else if(is.temporal){
+  }else if(is.temporal & timeEffect == "linear"){
     temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
+  }else if(is.temporal & timeEffect == "cubic"){
+    temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
+                             rep(1, dim(X_baseline)[1]), temporal_effect)
   }
 
   ## subset index for each time point
@@ -48,11 +52,12 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect,
   ## calculate X^T y
   design_matvec_Xy <- pooled_design_matvec(X_baseline=X_baseline,
                                            temporal_effect=temporal_effect,
+                                           timeEffect=timeEffect,
                                            Y=Y,
                                            indx_subset=indx_subset, maxTime=maxTime)
 
   ## initial residual deviance
-  dev_resid <- sum((Y - predict_pooled(coef=beta, X_baseline=X_baseline, temporal_effect=temporal_effect, maxTime=maxTime))^2)
+  dev_resid <- sum((Y - predict_pooled(coef=beta, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, maxTime=maxTime))^2)
 
   ## iterate until converge
   while((!converged) && iter <= maxiter){
@@ -60,13 +65,14 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect,
     ## calculate iterative components
     comp <- pooled_design_iter(X_baseline=X_baseline,
                                temporal_effect=temporal_effect,
+                               timeEffect=timeEffect,
                                beta=beta, indx_subset=indx_subset, maxTime=maxTime)
 
     ## beta_new
     beta_new <- solve(comp$fisher_info, (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu))
 
     ## new residual
-    dev_resid_new <- sum((Y - predict_pooled(coef=beta_new, X_baseline=X_baseline, temporal_effect=temporal_effect, maxTime=maxTime))^2)
+    dev_resid_new <- sum((Y- predict_pooled(coef=beta_new, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, maxTime=maxTime))^2)
 
     ## stopping rule
     iter <-  iter + 1
@@ -76,7 +82,6 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect,
     beta <- beta_new
     dev_resid <- dev_resid_new
 
-    ## clear workspace
     rm(list=c("comp","beta_new"))
 
     print(iter)
@@ -85,6 +90,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect,
   ## result
   return(beta)
 }
+
 
 #' Output outcome Y in the long-format, include outcome with the at-risk group at each time point
 #' @param time Observed survival time. Ordered into decreasing observed survival time
@@ -125,12 +131,14 @@ outcomeY <- function(time, eventObserved, estimate_hazard){
 #'                        sparse matrix of class "dgTMatrix" or matrix,
 #'                        reorder observations into decreasing survival time,
 #'                        intercept included if there is temporal effect
+#' @param timeEffect Functions of time in the discrete censoring hazards model.
+#'                   Options currently include "linear", "cubic", NULL
 #' @param Y Outcome variable in the pooled logistic regression.
 #'          Long-format, include outcome with the at-risk group at each time point
 #' @param indx_subset Subset index for each time point
 #' @return A vector
 
-pooled_design_matvec <- function(X_baseline, temporal_effect, Y, indx_subset, maxTime){
+pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, indx_subset, maxTime){
 
   ## container
   result_Xy <- rep(0, length=dim(X_baseline)[2])
@@ -139,13 +147,17 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, Y, indx_subset, ma
 
   ## loop over each time point
   for (i in 1:maxTime){
-  ## parameter
-  atRiskIndx <- indx_subset[i]
-  n <- dim(X_baseline)[1]
-  y <- Y[((i-1)*n+1):(i*n)]
-  ## X^T y
-  result_Xy <- result_Xy + t(X_baseline[1:atRiskIndx, , drop=FALSE]) %*% y[1:atRiskIndx]
-  result_temporaly <- result_temporaly + i * t(temporal_effect[1:atRiskIndx, , drop=FALSE]) %*% y[1:atRiskIndx] ## could add functions to i
+    ## parameter
+    atRiskIndx <- indx_subset[i]
+    n <- dim(X_baseline)[1]
+    y <- Y[((i-1)*n+1):(i*n)]
+    ## X^T y
+    result_Xy <- result_Xy + t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]
+    if(timeEffect == "linear" | is.null(timeEffect)){
+      result_temporaly <- result_temporaly + i * t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]
+    }else if(timeEffect == "cubic"){
+      result_temporaly <- result_temporaly + (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]) * c(i, i^2, i^3, rep(i, dim(temporal_effect)[2]-3))
+    }
   }
   ## result
   return(c(result_Xy[, 1], result_temporaly[, 1]))
@@ -163,10 +175,13 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, Y, indx_subset, ma
 #'                        sparse matrix of class "dgTMatrix" or matrix,
 #'                        reorder observations into decreasing survival time,
 #'                        intercept included
+#' @param timeEffect Functions of time in the discrete censoring hazards model.
+#'                   Options currently include "linear", "cubic", NULL
 #' @param beta Current iteration of coefficient value
 #' @param indx_subset Subset index for each time point
 #' @return A list
-pooled_design_iter <- function(X_baseline, temporal_effect, beta, indx_subset, maxTime){
+
+pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, indx_subset, maxTime){
 
   ## container
   fisher_info <- matrix(0, nrow=(dim(temporal_effect)[2] + dim(X_baseline)[2]),
@@ -180,22 +195,39 @@ pooled_design_iter <- function(X_baseline, temporal_effect, beta, indx_subset, m
     atRiskIndx <- indx_subset[i]
     timeIndepCoef <- beta[1:dim(X_baseline)[2]]
     timeDepCoef <- beta[(dim(X_baseline)[2]+1):length(beta)]
-    baselineEffect <- X_baseline[1:atRiskIndx, , drop=FALSE] %*% timeIndepCoef
-    temporalEffect <- temporal_effect[1:atRiskIndx, , drop=FALSE] %*% timeDepCoef
+    baselineEffect <- X_baseline[1:atRiskIndx, ,drop=FALSE] %*% timeIndepCoef
     ## mu
-    temp_mu <- 1/(1 + exp(- baselineEffect - i * temporalEffect))
+    if(timeEffect == "linear" | is.null(timeEffect)){
+      temporalEffect <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% timeDepCoef
+      temp_mu <- 1/(1 + exp(- baselineEffect - i * temporalEffect))
+    }else if(timeEffect == "cubic"){
+      timeEffectCube <- c(i, i^2, i^3, rep(i, dim(temporal_effect)[2]-3))
+      temporalEffect <- t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeEffectCube) %*% timeDepCoef
+      temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
+    }
+    ## mu(1-mu)
+    diagmu <- temp_mu[, 1]*(1-temp_mu[, 1])
     ## X^T mu
-    baselineMu <- baselineMu + t(X_baseline[1:atRiskIndx, , drop=FALSE]) %*% temp_mu[, 1]
-    temporalMu <- temporalMu + i * t(temporal_effect[1:atRiskIndx, , drop=FALSE]) %*% temp_mu[, 1]
+    baselineMu <- baselineMu + t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1]
+    if(timeEffect == "linear" | is.null(timeEffect)){
+      temporalMu <- temporalMu + i * t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1]
+    }else if(timeEffect == "cubic"){
+      temporalMu <- temporalMu +  t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1] * timeEffectCube
+    }
     ## X^T diag(D) X
-    temp_X <- t(X_baseline[1:atRiskIndx, , drop=FALSE]) %*% ((temp_mu[, 1]) * X_baseline[1:atRiskIndx, , drop=FALSE])
-    temp_temporal <- (i^2) * t(temporal_effect[1:atRiskIndx, , drop=FALSE]) %*% ((temp_mu[, 1]) * temporal_effect[1:atRiskIndx, , drop=FALSE])
-    temp_Xtemporal <- i * t(X_baseline[1:atRiskIndx, , drop=FALSE]) %*% ((temp_mu[, 1]) * temporal_effect[1:atRiskIndx, , drop=FALSE])
+    temp_X <- t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * X_baseline[1:atRiskIndx, ,drop=FALSE])
+    if(timeEffect == "linear" | is.null(timeEffect)){
+      temp_temporal <- (i^2 * t(temporal_effect[1:atRiskIndx, ,drop=FALSE])) %*% (diagmu * temporal_effect[1:atRiskIndx, ,drop=FALSE])
+      temp_Xtemporal <- (i * t(X_baseline[1:atRiskIndx, ,drop=FALSE])) %*% (diagmu * temporal_effect[1:atRiskIndx, ,drop=FALSE])
+    }else if(timeEffect == "cubic"){
+      temp_temporal <- (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeEffectCube) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeEffectCube))
+      temp_Xtemporal <- t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeEffectCube))
+    }
     fisher_info <- fisher_info + cbind(rbind(temp_X, t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
 
     rm(list=c("temp_mu", "temp_X", "temp_temporal", "temp_Xtemporal",
               "atRiskIndx", "timeIndepCoef", "timeDepCoef",
-              "baselineEffect", "temporalEffect"))
+              "baselineEffect", "temporalEffect", "timeEffectCube", "diagmu"))
   }
   ## result
   return(list(Xmu=c(baselineMu[, 1], temporalMu[, 1]),
@@ -214,14 +246,24 @@ pooled_design_iter <- function(X_baseline, temporal_effect, beta, indx_subset, m
 #' @param temporal_effect Baseline variables that will interact with time in regression,
 #'                        sparse matrix of class "dgTMatrix" or matrix.
 #'                        Need to include intercept if is.temporal = TRUE
+#' @param timeEffect Functions of time in the discrete censoring hazards model.
+#'                   Options currently include "linear", "cubic", NULL
 #' @return Probability, in the order of: id1(t1, t2....), id2(t1, t2....)....
 
-predict_pooled <- function(coef, X_baseline, is.temporal, temporal_effect, maxTime){
+predict_pooled <- function(coef, X_baseline, is.temporal, temporal_effect, timeEffect, maxTime){
 
   ## predict
   timeIndepLP <- X_baseline %*% coef[1:dim(X_baseline)[2]]
-  timeDepenLP <- temporal_effect %*% coef[(dim(X_baseline)[2] + 1):length(coef)]
-  logitProb <- rep(timeIndepLP, each=maxTime) + rep(1:maxTime, dim(X_baseline)[1]) * rep(timeDepenLP, each=maxTime)
+
+  if(timeEffect == "linear" | is.null(timeEffect)){
+    timeDepenLP <- temporal_effect %*% coef[(dim(X_baseline)[2] + 1):length(coef)]
+    logitProb <- rep(timeIndepLP, each=maxTime) + rep(1:maxTime, dim(X_baseline)[1]) * rep(timeDepenLP, each=maxTime)
+  }else if(timeEffect == "cubic"){
+    timeDepenLP <- unlist(lapply(1:maxTime, function(i) {temporal_effect %*% (coef[(dim(X_baseline)[2] + 1):length(coef)] * c(i, i^2, i^3, rep(i, dim(temporal_effect)[2]-3)))}), use.names = FALSE)
+    timeDepenLP <- timeDepenLP[order(rep(1:dim(X_baseline)[1], maxTime))]
+    logitProb <- rep(timeIndepLP, each=maxTime) + timeDepenLP
+  }
+
   predictedProb <- exp(logitProb) / (1 + exp(logitProb))
 
   ## result
