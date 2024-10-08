@@ -53,14 +53,14 @@ estimateTMLEprob <- function(dlong, survHaz, cenHaz, treatProb, tau){
 
       ## update for survival hazard
       eps   <- coef(glm2::glm2(Lt ~ 0 + offset(qlogis(SurvHaz_obs)) + H,
-                         family = binomial(), subset = It == 1, data = dlong))
+                               family = binomial(), subset = It == 1, data = dlong))
 
       ## NA as 0 for the new values
       eps[is.na(eps)] <- 0
 
       ## update values
-      SurvHaz1 <- bound01(plogis(qlogis(SurvHaz1) + eps * H1))
-      SurvHaz0 <- bound01(plogis(qlogis(SurvHaz0) + eps * H0))
+      SurvHaz1 <- plogis(qlogis(SurvHaz1) + eps * H1)
+      SurvHaz0 <- plogis(qlogis(SurvHaz0) + eps * H0)
       SurvHaz_obs  <- dlong$treatment * SurvHaz1  + (1 - dlong$treatment) * SurvHaz0
 
       iter <-  iter + 1
@@ -106,14 +106,11 @@ estimateTMLEprob <- function(dlong, survHaz, cenHaz, treatProb, tau){
     SurvProb0_result[TimePoint] <- SurvProb0_mean
     SEprobDiff_result[TimePoint] <- sdn
 
-}
+  }
 
   ## result
   out <- data.frame(SurvProb1=SurvProb1_result, SurvProb0=SurvProb0_result, SEprobDiff=SEprobDiff_result)
   return(out)
 }
-
-
-
 
 
