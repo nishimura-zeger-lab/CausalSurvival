@@ -14,8 +14,8 @@ estimateIPWprob <- function(dlong, cenHaz, treatProb, tau){
 
   ## Estimate survival hazards
   survHazFit <- lm(Lt ~ as.factor(t) * as.factor(treatment), subset = It == 1, data = dlong)
-  survHaz1 <- bound01(predict(survHazFit, newdata = data.frame(t=1:max(dlong$t), treatment=rep(1, max(dlong$t))), type = 'response'))
-  survHaz0 <- bound01(predict(survHazFit, newdata = data.frame(t=1:max(dlong$t), treatment=rep(0, max(dlong$t))), type = 'response'))
+  survHaz1 <- predict(survHazFit, newdata = data.frame(t=1:max(dlong$t), treatment=rep(1, max(dlong$t))), type = 'response')
+  survHaz0 <- predict(survHazFit, newdata = data.frame(t=1:max(dlong$t), treatment=rep(0, max(dlong$t))), type = 'response')
 
   rm(list=c("survHazFit"))
 

@@ -92,3 +92,12 @@ estimateAIPWrmst <- function(dlong, survHaz, cenHaz, treatProb, tau){
 
 
 
+
+
+
+
+
+
+
+
+
