@@ -8,11 +8,12 @@
 #'                        sparse matrix of class "dgTMatrix" or matrix.
 #'                        Rows are ordered into decreasing survival time
 #' @param timeEffect Functions of time in the discrete censoring hazards model.
-#'                   Options currently include "linear", "cubic", NULL
+#'                   Options currently include "linear", "ns", NULL (if is.temporal = FALSE)
 #' @param time Observed survival time. Ordered into decreasing observed survival time
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
-#' @return A vector of coefficients in the order of: baseline covariates, time, interaction term between baseline covariates and time
+#' @return A vector of coefficients in the order of: intercept, baseline covariates, time,
+#'                                                   interaction term between baseline covariates and time
 
 
 coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
@@ -29,9 +30,10 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
   }else if(is.temporal & timeEffect == "linear"){
     temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
-  }else if(is.temporal & timeEffect == "cubic"){
-    temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                             rep(1, dim(X_baseline)[1]), temporal_effect)
+  }else if(timeEffect == "ns"){
+    temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
+                             rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect,
+                             temporal_effect, temporal_effect, temporal_effect, temporal_effect)
   }
 
   ## subset index for each time point
@@ -143,7 +145,8 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
   ## container
   result_Xy <- rep(0, length=dim(X_baseline)[2])
   result_temporaly <- rep(0, length=dim(temporal_effect)[2])
-
+  ## natural spline for time
+  if(timeEffect == "ns"){nsBase <- splines::ns(1:maxTime, df=5)}
 
   ## loop over each time point
   for (i in 1:maxTime){
@@ -155,8 +158,9 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
     result_Xy <- result_Xy + t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]
     if(timeEffect == "linear" | is.null(timeEffect)){
       result_temporaly <- result_temporaly + i * t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]
-    }else if(timeEffect == "cubic"){
-      result_temporaly <- result_temporaly + (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]) * c(i, i^2, i^3, rep(i, dim(temporal_effect)[2]-3))
+    }else if(timeEffect == "ns"){
+      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5))
+      result_temporaly <- result_temporaly + (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]) * timeNS
     }
   }
   ## result
@@ -189,6 +193,9 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
   baselineMu <- rep(0, length=dim(X_baseline)[2])
   temporalMu <- rep(0, length=dim(temporal_effect)[2])
 
+  ## natural spline for time
+  if(timeEffect == "ns"){nsBase <- splines::ns(1:maxTime, df=5)}
+
   ## loop over each time point
   for (i in 1:maxTime){
     ## parameters
@@ -198,11 +205,11 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
     baselineEffect <- X_baseline[1:atRiskIndx, ,drop=FALSE] %*% timeIndepCoef
     ## mu
     if(timeEffect == "linear" | is.null(timeEffect)){
-      temporalEffect <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% timeDepCoef
-      temp_mu <- 1/(1 + exp(- baselineEffect - i * temporalEffect))
-    }else if(timeEffect == "cubic"){
-      timeEffectCube <- c(i, i^2, i^3, rep(i, dim(temporal_effect)[2]-3))
-      temporalEffect <- t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeEffectCube) %*% timeDepCoef
+      temporalEffect <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% timeDepCoef * i
+      temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
+    }else if(timeEffect == "ns"){
+      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5))
+      temporalEffect <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% (timeDepCoef * timeNS)
       temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
     }
     ## mu(1-mu)
@@ -210,24 +217,24 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
     ## X^T mu
     baselineMu <- baselineMu + t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1]
     if(timeEffect == "linear" | is.null(timeEffect)){
-      temporalMu <- temporalMu + i * t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1]
-    }else if(timeEffect == "cubic"){
-      temporalMu <- temporalMu +  t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1] * timeEffectCube
+      temporalMu <- temporalMu + t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1] * i
+    }else if(timeEffect == "ns"){
+      temporalMu <- temporalMu +  t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1] * timeNS
     }
     ## X^T diag(D) X
     temp_X <- t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * X_baseline[1:atRiskIndx, ,drop=FALSE])
     if(timeEffect == "linear" | is.null(timeEffect)){
       temp_temporal <- (i^2 * t(temporal_effect[1:atRiskIndx, ,drop=FALSE])) %*% (diagmu * temporal_effect[1:atRiskIndx, ,drop=FALSE])
       temp_Xtemporal <- (i * t(X_baseline[1:atRiskIndx, ,drop=FALSE])) %*% (diagmu * temporal_effect[1:atRiskIndx, ,drop=FALSE])
-    }else if(timeEffect == "cubic"){
-      temp_temporal <- (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeEffectCube) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeEffectCube))
-      temp_Xtemporal <- t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeEffectCube))
+    }else if(timeEffect == "ns"){
+      temp_temporal <- (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS))
+      temp_Xtemporal <- t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS))
     }
     fisher_info <- fisher_info + cbind(rbind(temp_X, t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
 
     rm(list=c("temp_mu", "temp_X", "temp_temporal", "temp_Xtemporal",
               "atRiskIndx", "timeIndepCoef", "timeDepCoef",
-              "baselineEffect", "temporalEffect", "timeEffectCube", "diagmu"))
+              "baselineEffect", "temporalEffect", "timeNS", "diagmu"))
   }
   ## result
   return(list(Xmu=c(baselineMu[, 1], temporalMu[, 1]),
@@ -242,7 +249,6 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
 #' @param X_baseline Baseline variables that won't interact with time in regression,
 #'                  sparse matrix of class "dgTMatrix".
 #'                  Need to include intercept
-#' @param is.temporal Whether there is temporal effect, i.e. whether time t is a variable in the regression
 #' @param temporal_effect Baseline variables that will interact with time in regression,
 #'                        sparse matrix of class "dgTMatrix" or matrix.
 #'                        Need to include intercept if is.temporal = TRUE
@@ -250,7 +256,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
 #'                   Options currently include "linear", "cubic", NULL
 #' @return Probability, in the order of: id1(t1, t2....), id2(t1, t2....)....
 
-predict_pooled <- function(coef, X_baseline, is.temporal, temporal_effect, timeEffect, maxTime){
+predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTime){
 
   ## predict
   timeIndepLP <- X_baseline %*% coef[1:dim(X_baseline)[2]]
@@ -258,8 +264,9 @@ predict_pooled <- function(coef, X_baseline, is.temporal, temporal_effect, timeE
   if(timeEffect == "linear" | is.null(timeEffect)){
     timeDepenLP <- temporal_effect %*% coef[(dim(X_baseline)[2] + 1):length(coef)]
     logitProb <- rep(timeIndepLP, each=maxTime) + rep(1:maxTime, dim(X_baseline)[1]) * rep(timeDepenLP, each=maxTime)
-  }else if(timeEffect == "cubic"){
-    timeDepenLP <- unlist(lapply(1:maxTime, function(i) {temporal_effect %*% (coef[(dim(X_baseline)[2] + 1):length(coef)] * c(i, i^2, i^3, rep(i, dim(temporal_effect)[2]-3)))}), use.names = FALSE)
+  }else if(timeEffect == "ns"){
+    nsBase <- splines::ns(1:maxTime, df=5)
+    timeDepenLP <- unlist(lapply(1:maxTime, function(i) {temporal_effect %*% (coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5)))}), use.names = FALSE)
     timeDepenLP <- timeDepenLP[order(rep(1:dim(X_baseline)[1], maxTime))]
     logitProb <- rep(timeIndepLP, each=maxTime) + timeDepenLP
   }
