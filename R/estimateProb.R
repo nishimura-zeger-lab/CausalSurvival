@@ -259,15 +259,15 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
 
       if(timeEffect == "linear"){
         timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+!is.null(interactWithTime))], each=maxTime)
-        timeDepenLP1 <- cbind(rep(1:maxTime, length(idx_test)), rep(1:maxTime, length(idx_test)) * TreatmentIndi1 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+!is.null(interactWithTime))]
+        timeDepenLP1 <- cbind(rep(1:maxTime, length(idx_test)), rep(1:maxTime, length(idx_test)) * TreatmentIndi1 * interactWithTime) %*% coef_CenHaz[3:(3+!is.null(interactWithTime))]
       }else if(timeEffect == "cubic"){
         timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+3*!is.null(interactWithTime))], each=maxTime)
         timeDepenLP1 <- cbind(rep(1:maxTime, length(idx_test)), (rep(1:maxTime, length(idx_test)))^2, (rep(1:maxTime, length(idx_test)))^3,
-                              rep(1:maxTime, length(idx_test)) * TreatmentIndi1 * !is.null(interactWithTime), (rep(1:maxTime, length(idx_test)))^2 * TreatmentIndi1 * !is.null(interactWithTime),
-                              (rep(1:maxTime, length(idx_test)))^3 * TreatmentIndi1 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+3*!is.null(interactWithTime))]
+                              rep(1:maxTime, length(idx_test)) * TreatmentIndi1 * interactWithTime, (rep(1:maxTime, length(idx_test)))^2 * TreatmentIndi1 * interactWithTime,
+                              (rep(1:maxTime, length(idx_test)))^3 * TreatmentIndi1 * interactWithTime) %*% coef_CenHaz[3:(3+3*!is.null(interactWithTime))]
       }else if(timeEffect == "ns"){
         timeIndepLP1 <- rep(cbind(Intercept, TreatmentIndi1, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+5*!is.null(interactWithTime))], each=maxTime)
-        timeDepenLP1 <- cbind(ns(rep(1:maxTime, length(idx_test)), df=5), ns(rep(1:maxTime, length(idx_test)), df=5) * TreatmentIndi1 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+5*!is.null(interactWithTime))]
+        timeDepenLP1 <- cbind(ns(rep(1:maxTime, length(idx_test)), df=5), ns(rep(1:maxTime, length(idx_test)), df=5) * TreatmentIndi1 * interactWithTime) %*% coef_CenHaz[3:(3+5*!is.null(interactWithTime))]
       }
 
       LP1 <- timeIndepLP1 + timeDepenLP1
@@ -275,15 +275,15 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
 
       if(timeEffect == "linear"){
         timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+!is.null(interactWithTime))], each=maxTime)
-        timeDepenLP0 <- cbind(rep(1:maxTime, length(idx_test)), rep(1:maxTime, length(idx_test)) * TreatmentIndi0 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+!is.null(interactWithTime))]
+        timeDepenLP0 <- cbind(rep(1:maxTime, length(idx_test)), rep(1:maxTime, length(idx_test)) * TreatmentIndi0 * interactWithTime) %*% coef_CenHaz[3:(3+!is.null(interactWithTime))]
       }else if(timeEffect == "cubic"){
         timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+3*!is.null(interactWithTime))], each=maxTime)
         timeDepenLP0 <- cbind(rep(1:maxTime, length(idx_test)), (rep(1:maxTime, length(idx_test)))^2, (rep(1:maxTime, length(idx_test)))^3,
-                              rep(1:maxTime, length(idx_test)) * TreatmentIndi0 * !is.null(interactWithTime), (rep(1:maxTime, length(idx_test)))^2 * TreatmentIndi0 * !is.null(interactWithTime),
-                              (rep(1:maxTime, length(idx_test)))^3 * TreatmentIndi0 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+3*!is.null(interactWithTime))]
+                              rep(1:maxTime, length(idx_test)) * TreatmentIndi0 * interactWithTime, (rep(1:maxTime, length(idx_test)))^2 * TreatmentIndi0 * interactWithTime,
+                              (rep(1:maxTime, length(idx_test)))^3 * TreatmentIndi0 * interactWithTime) %*% coef_CenHaz[3:(3+3*!is.null(interactWithTime))]
       }else if(timeEffect == "ns"){
         timeIndepLP0 <- rep(cbind(Intercept, TreatmentIndi0, cov[idx_test, ]) %*% coef_CenHaz[-3:-(3+5*!is.null(interactWithTime))], each=maxTime)
-        timeDepenLP0 <- cbind(ns(rep(1:maxTime, length(idx_test)), df=5), ns(rep(1:maxTime, length(idx_test)), df=5) * TreatmentIndi0 * !is.null(interactWithTime)) %*% coef_CenHaz[3:(3+5*!is.null(interactWithTime))]
+        timeDepenLP0 <- cbind(ns(rep(1:maxTime, length(idx_test)), df=5), ns(rep(1:maxTime, length(idx_test)), df=5) * TreatmentIndi0 * interactWithTime) %*% coef_CenHaz[3:(3+5*!is.null(interactWithTime))]
       }
 
       LP0 <- timeIndepLP0 + timeDepenLP0
