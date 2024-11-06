@@ -18,7 +18,9 @@ Depends:
     tidyverse,
     Matrix
 Imports: 
-    data.table
+    data.table,
+    tidyverse,
+    Matrix
 Suggests:
     usethis, 
     testthat
