@@ -71,7 +71,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                                beta=beta, indx_subset=indx_subset, maxTime=maxTime)
 
     ## beta_new
-    beta_new <- solve(comp$fisher_info, (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu))
+    beta_new <- solve(comp$fisher_info, (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
 
     ## new residual
     dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, Y=Y, indx_subset=indx_subset, maxTime=maxTime)
@@ -233,7 +233,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
 
     rm(list=c("temp_mu", "temp_X", "temp_temporal", "temp_Xtemporal",
               "atRiskIndx", "timeIndepCoef", "timeDepCoef",
-              "baselineEffect", "temporalEffect", "timeNS", "diagmu"))
+              "baselineEffect", "temporalEffect", "diagmu"))
   }
   ## result
   return(list(Xmu=c(baselineMu[, 1], temporalMu[, 1]),
