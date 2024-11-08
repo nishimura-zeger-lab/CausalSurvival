@@ -260,7 +260,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
 resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_subset, maxTime){
 
   ## container
-  resid <- c()
+  resid <- 0
   if(timeEffect == "ns") {nsBase <- splines::ns(1:maxTime, df=5)}
 
   ## loop over each time point
