@@ -59,7 +59,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                                            indx_subset=indx_subset, maxTime=maxTime)
 
   ## initial residual deviance
-  dev_resid <- sum((Y - predict_pooled(coef=beta, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, maxTime=maxTime))^2)
+  dev_resid <- resid_pooled(coef=beta, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, Y=Y, indx_subset=indx_subset, maxTime=maxTime)
 
   ## iterate until converge
   while((!converged) && iter <= maxiter){
@@ -74,8 +74,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     beta_new <- solve(comp$fisher_info, (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu))
 
     ## new residual
-    dev_resid_new <- sum((Y- predict_pooled(coef=beta_new, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, maxTime=maxTime))^2)
-
+    dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, Y=Y, indx_subset=indx_subset, maxTime=maxTime)
     ## stopping rule
     iter <-  iter + 1
     converged <- (abs(dev_resid_new-dev_resid)/abs(dev_resid) <= threshold)
@@ -94,7 +93,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 }
 
 
-#' Output outcome Y in the long-format, include outcome with the at-risk group at each time point
+#' Output outcome Y in the long-format, include outcome with all individuals at each time point
 #' @param time Observed survival time. Ordered into decreasing observed survival time
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
@@ -136,7 +135,7 @@ outcomeY <- function(time, eventObserved, estimate_hazard){
 #' @param timeEffect Functions of time in the discrete censoring hazards model.
 #'                   Options currently include "linear", "cubic", NULL
 #' @param Y Outcome variable in the pooled logistic regression.
-#'          Long-format, include outcome with the at-risk group at each time point
+#'          Long-format, include outcome with all individuals at each time point
 #' @param indx_subset Subset index for each time point
 #' @return A vector
 
@@ -155,7 +154,7 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
     n <- dim(X_baseline)[1]
     y <- Y[((i-1)*n+1):(i*n)]
     ## X^T y
-    result_Xy <- result_Xy + t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]
+    result_Xy <- result_Xy + Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]
     if(timeEffect == "linear" | is.null(timeEffect)){
       result_temporaly <- result_temporaly + i * t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]
     }else if(timeEffect == "ns"){
@@ -243,6 +242,53 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
 
 
 
+#' Residual deviance for pooled logistic regression
+#'
+#' @param X_baseline Baseline variables that won't interact with time in regression,
+#'                  sparse matrix of class "dgTMatrix".
+#'                  Need to include intercept
+#' @param temporal_effect Baseline variables that will interact with time in regression,
+#'                        sparse matrix of class "dgTMatrix" or matrix.
+#'                        Need to include intercept if is.temporal = TRUE
+#' @param timeEffect Functions of time in the discrete censoring hazards model.
+#'                   Options currently include "linear", "cubic", NULL
+#' @param Y Outcome variable in the pooled logistic regression.
+#'          Long-format, include outcome with all individuals at each time point
+#' @param indx_subset Subset index for each time point
+#'
+
+resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_subset, maxTime){
+
+  ## container
+  resid <- c()
+  if(timeEffect == "ns") {nsBase <- splines::ns(1:maxTime, df=5)}
+
+  ## loop over each time point
+  for (i in 1:maxTime){
+    atRiskIndx <- indx_subset[i]
+    n <- dim(X_baseline)[1]
+    y <- Y[((i-1)*n+1):(i*n)]
+    ## predict
+    timeIndepLP_temp <- X_baseline[1:atRiskIndx, ,drop=FALSE] %*% coef[1:dim(X_baseline)[2]]
+    if(timeEffect == "linear" | is.null(timeEffect)){
+      timeDepenLP_temp <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% coef[(dim(X_baseline)[2] + 1):length(coef)] * i
+    }else if(timeEffect == "ns"){
+      timeDepenLP_temp <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% (coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5)))
+    }
+    logitProb <- timeIndepLP_temp + timeDepenLP_temp
+    predictedProb <- exp(logitProb) / (1 + exp(logitProb))
+    ## residuals
+    resid_temp <- sum((y[1:atRiskIndx]-predictedProb)^2)
+    ## store
+    resid <- resid + resid_temp
+  }
+
+  ## result
+  return(resid)
+}
+
+
+
 
 #' Prediction for pooled logistic regression
 #'
@@ -254,7 +300,9 @@ pooled_design_iter <- function(X_baseline, temporal_effect, timeEffect, beta, in
 #'                        Need to include intercept if is.temporal = TRUE
 #' @param timeEffect Functions of time in the discrete censoring hazards model.
 #'                   Options currently include "linear", "cubic", NULL
+#' @param indx_subset Subset index for each time point
 #' @return Probability, in the order of: id1(t1, t2....), id2(t1, t2....)....
+#'
 
 predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTime){
 
@@ -276,7 +324,6 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTim
   ## result
   return(predictedProb)
 }
-
 
 
 
