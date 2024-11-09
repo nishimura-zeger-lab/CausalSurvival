@@ -83,13 +83,13 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     beta <- beta_new
     dev_resid <- dev_resid_new
 
-    rm(list=c("comp","beta_new"))
+    rm(list=c("beta_new", "dev_resid_new"))
 
     print(iter)
   }
 
   ## result
-  return(list(estimates=beta, sd=sd))
+  return(list(estimates=beta, sd=sqrt(diag(comp$fisher_info))))
 }
 
 
