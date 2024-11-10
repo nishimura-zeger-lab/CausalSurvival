@@ -180,12 +180,12 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
       ## model: glm
       coef_CenHaz <- coef_pooled(X_baseline=X_baseline, is.temporal=TRUE, temporal_effect=temporal_effect,
                                  timeEffect=timeEffect, eventObserved=eventObserved, time=time,
-                                 estimate_hazard=estimate_hazard, maxiter=40, threshold=1e-8)
+                                 estimate_hazard=estimate_hazard, maxiter=40, threshold=1e-14)
 
       ## prediction
       is.temporal <- TRUE
 
-      X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
+      X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)
       if(is.null(temporal_effect) & !is.temporal){
         temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
       }else if(is.temporal & timeEffect == "linear"){
@@ -196,12 +196,12 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
                                  temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
 
-      CenHaz1temp <- predict_pooled(coef=coef_CenHaz, X_baseline=X_baseline[idx_test, , drop=FALSE],
+      CenHaz1temp <- predict_pooled(coef=coef_CenHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                     temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
                                     is.temporal = is.temporal, maxTime=maxTime)
 
       X_baseline <- cbind(rep(1, dim(cov)[1]), rep(0, dim(cov)[1]), cov)
-      CenHaz0temp <- predict_pooled(coef=coef_CenHaz, X_baseline=X_baseline[idx_test, , drop=FALSE],
+      CenHaz0temp <- predict_pooled(coef=coef_CenHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                     temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
                                     is.temporal = is.temporal, maxTime=maxTime)
 
@@ -374,7 +374,7 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
 
       rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time"))
 
-      X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
+      X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)
       if(is.null(temporal_effect) & !is.temporal){
         temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
       }else if(is.temporal & timeEffect == "linear"){
@@ -385,12 +385,12 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
                                  temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
 
-      SurvHaz1temp <- predict_pooled(coef=coef_SurvHaz, X_baseline=X_baseline[idx_test, , drop=FALSE],
+      SurvHaz1temp <- predict_pooled(coef=coef_SurvHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                      temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
                                      is.temporal = TRUE, maxTime=maxTime)
 
       X_baseline <- cbind(rep(1, dim(cov)[1]), rep(0, dim(cov)[1]), cov)
-      SurvHaz0temp <- predict_pooled(coef=coef_SurvHaz, X_baseline=X_baseline[idx_test, , drop=FALSE],
+      SurvHaz0temp <- predict_pooled(coef=coef_SurvHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                      temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
                                      is.temporal = TRUE, maxTime=maxTime)
 
