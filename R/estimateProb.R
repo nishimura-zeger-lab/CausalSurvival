@@ -368,7 +368,7 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
       coef_SurvHaz <- coef_pooled(X_baseline=X_baseline, temporal_effect=temporal_effect,
                                   is.temporal=TRUE, timeEffect=timeEffect,
                                   eventObserved=eventObserved, time=time,
-                                  estimate_hazard=estimate_hazard, maxiter=40, threshold=1e-8)
+                                  estimate_hazard=estimate_hazard, maxiter=40, threshold=1e-14)
       ## prediction
       is.temporal <- TRUE
 
