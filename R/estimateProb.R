@@ -197,6 +197,11 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
 
       ## parameter
       maxTime <- min(max(dlong$time[dlong$eventObserved == 1]), max(dlong$time[dlong$eventObserved == 0]))
+      if(timeEffect == "ns"){
+        maxTimeSplines <- max(dlong$time[dlong$eventObserved == 0])
+      }else{
+        maxTimeSplines <- NULL
+      }
 
       CenHaz1temp <- predict_pooled(coef=coef_CenHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                     temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
@@ -389,15 +394,20 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
 
       ## parameter
       maxTime <- min(max(dlong$time[dlong$eventObserved == 1]), max(dlong$time[dlong$eventObserved == 0]))
+      if(timeEffect == "ns"){
+        maxTimeSplines <- max(dlong$time[dlong$eventObserved == 1])
+      }else{
+        maxTimeSplines <- NULL
+        }
 
       SurvHaz1temp <- predict_pooled(coef=coef_SurvHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                      temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
-                                     maxTime=maxTime)
+                                     maxTime=maxTime, maxTimeSplines=maxTimeSplines)
 
       X_baseline <- cbind(rep(1, dim(cov)[1]), rep(0, dim(cov)[1]), cov)
       SurvHaz0temp <- predict_pooled(coef=coef_SurvHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                      temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
-                                     maxTime=maxTime)
+                                     maxTime=maxTime, maxTimeSplines=maxTimeSplines)
 
       rm(list=c("X_baseline", "temporal_effect", "idx_train", "coef_SurvHaz"))
 
