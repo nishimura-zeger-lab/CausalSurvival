@@ -51,7 +51,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   beta <- rep(0, length=dim(temporal_effect)[2] + dim(X_baseline)[2])
 
   ## outcome
-  Y <- outcomeY(time=time, eventObserved=eventObserved, estimate_hazard=estimate_hazard)
+  Y <- outcomeY(time=time, eventObserved=eventObserved, estimate_hazard=estimate_hazard, maxTime=maxTime)
   ## calculate X^T y
   design_matvec_Xy <- pooled_design_matvec(X_baseline=X_baseline,
                                            temporal_effect=temporal_effect,
@@ -100,12 +100,10 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 #' @param estimate_hazard "survival" or "censoring"
 #' @return A vector
 
-outcomeY <- function(time, eventObserved, estimate_hazard){
+outcomeY <- function(time, eventObserved, estimate_hazard, maxTime){
 
   ## container
   Y <- c()
-  ## parameter
-  maxTime <- max(time)
 
   ## loop over each time point
   for (i in 1:maxTime){
