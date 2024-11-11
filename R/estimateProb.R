@@ -182,10 +182,12 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
                                  timeEffect=timeEffect, eventObserved=eventObserved, time=time,
                                  estimate_hazard=estimate_hazard, maxiter=40, threshold=1e-14)
 
+      rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time"))
+
       ## prediction
       is.temporal <- TRUE
-
       X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)
+      temporal_effect <- interactWithTime
       if(is.null(temporal_effect) & !is.temporal){
         temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
       }else if(is.temporal & timeEffect == "linear"){
@@ -206,7 +208,7 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
                                     maxTime=maxTime)
 
       ## clear workspace
-      rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time", "idx_train", "coef_CenHaz"))
+      rm(list=c("X_baseline", "temporal_effect", "idx_train", "coef_CenHaz"))
 
     }else if(cenHazEstimate == "LASSO"){
       ## data
@@ -369,12 +371,13 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
                                   is.temporal=TRUE, timeEffect=timeEffect,
                                   eventObserved=eventObserved, time=time,
                                   estimate_hazard=estimate_hazard, maxiter=40, threshold=1e-14)
-      ## prediction
-      is.temporal <- TRUE
 
       rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time"))
 
+      ## prediction
+      is.temporal <- TRUE
       X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)
+      temporal_effect <- interactWithTime
       if(is.null(temporal_effect) & !is.temporal){
         temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
       }else if(is.temporal & timeEffect == "linear"){
@@ -394,7 +397,7 @@ estimateSurvHaz <- function(dlong, covariates, covIdSurvHaz, crossFitNum=1, inde
                                      temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
                                      maxTime=maxTime)
 
-      rm(list=c("X_baseline", "temporal_effect", "eventObserved", "time", "idx_train", "coef_SurvHaz"))
+      rm(list=c("X_baseline", "temporal_effect", "idx_train", "coef_SurvHaz"))
 
     }else if(survHazEstimate == "LASSO"){
       ## data
