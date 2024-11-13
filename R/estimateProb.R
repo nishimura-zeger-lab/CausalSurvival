@@ -205,12 +205,12 @@ estimateCenHaz <- function(dlong, covariates, covIdCenHaz, crossFitNum=1, index_
 
       CenHaz1temp <- predict_pooled(coef=coef_CenHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                     temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
-                                    maxTime=maxTime)
+                                    maxTime=maxTime, maxTimeSplines=maxTimeSplines)
 
       X_baseline <- cbind(rep(1, dim(cov)[1]), rep(0, dim(cov)[1]), cov)
       CenHaz0temp <- predict_pooled(coef=coef_CenHaz$estimates, X_baseline=X_baseline[idx_test, , drop=FALSE],
                                     temporal_effect=temporal_effect[idx_test, , drop=FALSE], timeEffect=timeEffect,
-                                    maxTime=maxTime)
+                                    maxTime=maxTime, maxTimeSplines=maxTimeSplines)
 
       ## clear workspace
       rm(list=c("X_baseline", "temporal_effect", "idx_train", "coef_CenHaz"))
