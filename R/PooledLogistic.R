@@ -381,10 +381,10 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
                              timeEffect=timeEffect, eventObserved=eventObserved, time=time,
                              estimate_hazard=estimate_hazard, sigma=s, maxiter=maxiter, threshold=threshold, printIter=printIter)
     ## marginal likelihood for each sigma
-    marginalLik_temp <- marginalLik(betaMAP=coef_temp$estimates, sigma=s, p=length(coef_temp$estimates),
+    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, sigma=s, p=length(coef_temp$estimates),
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
     ## result
-    return(c(coef_temp, marginalLik_temp))
+    return(c(coef_temp, marginalLogLik_temp))
   }, USE.NAMES = FALSE)
 
   ## pick the coef's and sigma with the largest marginal likelihood
@@ -397,12 +397,13 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
 
 #' Laplace’s method for estimating marginal likelihood
 
-marginalLik <- function(betaMAP, sigma, p, logLik, fisherInfo){
+marginalLogLik <- function(betaMAP, sigma, p, logLik, fisherInfo){
 
-  ## marginal likelihood
-  likelihood <- exp(logLik-p*log(sqrt(2*pi)*sigma)-sum(betaMAP^2)/(2*sigma^2))*(2*pi)^(p/2)*sqrt(det(fisherInfo))
+  ## marginal log likelihood
+  logLikelihood <- logLik - p * log(sqrt(2*pi)*sigma) - sum(betaMAP^2)/(2*sigma^2) + p * log(sqrt(2*pi)) + Matrix::det(fisherInfo, logarithm = TRUE)/2
+
   ## result
-  return(likelihood)
+  return(logLikelihood)
 
 }
 
