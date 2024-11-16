@@ -33,8 +33,8 @@ estimateIPWrmst <- function(dlong, cenHaz, treatProb, tau){
 
   rm(list=c("SurvProb1List", "SurvProb0List"))
 
-  CenProb1List <- tapply(1 - cenHaz$CenHaz1, dlong$id, cumprod, simplify = FALSE)
-  CenProb0List <- tapply(1 - cenHaz$CenHaz0, dlong$id, cumprod, simplify = FALSE)
+  CenProb1List <- tapply(1 - cenHaz$Haz1, dlong$id, cumprod, simplify = FALSE)
+  CenProb0List <- tapply(1 - cenHaz$Haz0, dlong$id, cumprod, simplify = FALSE)
 
   CenProb1 <- unlist(CenProb1List, use.names = FALSE)
   CenProb0 <- unlist(CenProb0List, use.names = FALSE)

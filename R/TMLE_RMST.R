@@ -16,8 +16,8 @@ estimateTMLErmst <- function(dlong, survHaz, cenHaz, treatProb, tau){
 
 
   ## calculate censoring probability that doesn't need iterative updates
-  CenProb1List <- tapply(1 - cenHaz$CenHaz1, dlong$id, cumprod, simplify = FALSE)
-  CenProb0List <- tapply(1 - cenHaz$CenHaz0, dlong$id, cumprod, simplify = FALSE)
+  CenProb1List <- tapply(1 - cenHaz$Haz1, dlong$id, cumprod, simplify = FALSE)
+  CenProb0List <- tapply(1 - cenHaz$Haz0, dlong$id, cumprod, simplify = FALSE)
 
   CenProb1 <- unlist(CenProb1List, use.names = FALSE)
   CenProb0 <- unlist(CenProb0List, use.names = FALSE)
@@ -31,8 +31,8 @@ estimateTMLErmst <- function(dlong, survHaz, cenHaz, treatProb, tau){
 
 
     ## initial SurvHaz
-    SurvHaz1 <- survHaz$SurvHaz1
-    SurvHaz0 <- survHaz$SurvHaz0
+    SurvHaz1 <- survHaz$Haz1
+    SurvHaz0 <- survHaz$Haz0
     SurvHaz_obs  <- dlong$treatment*SurvHaz1 + (1-dlong$treatment)*SurvHaz0
 
     ## parameter
