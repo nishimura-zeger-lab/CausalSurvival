@@ -12,7 +12,7 @@
 #' @param time Observed survival time. Ordered into decreasing observed survival time
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
-#' @param sigma Penalized parameter for ridge regression, a scalar. If sigma = NULL, then no penalization.
+#' @param lambda Penalized parameter for ridge regression, a scalar. If lambda = NULL, then no penalization.
 #' @param maxiter Maximum iterations
 #' @param threshold Threshold for convergence
 #' @param printIter TRUE/FALSE. Whether to print iterations or not
@@ -22,17 +22,15 @@
 
 
 coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
-                        time, eventObserved, estimate_hazard, sigma,
+                        time, eventObserved, estimate_hazard, lambda,
                         maxiter, threshold, printIter){
 
   ## check and warning for reorder
 
 
   ## penalized parameter: lambda
-  if(is.null(sigma)){
+  if(is.null(lambda)){
     lambda <- 0
-  }else{
-    lambda <- 1/(2*(sigma^2))
   }
 
   ## Add intercept term to X_baseline and temporal_effect
@@ -366,28 +364,28 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTim
 #' @param time Observed survival time. Ordered into decreasing observed survival time
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
-#' @param sigma A range of penalized parameters for ridge regression, a vector.
+#' @param lambda A range of penalized parameters for ridge regression, a vector.
 #' @param maxiter Maximum iterations
 #' @param threshold Threshold for convergence
 #' @param printIter TRUE/FALSE. Whether to print iterations or not
 
 coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
                       timeEffect, eventObserved, time,
-                      estimate_hazard, sigma, maxiter, threshold, printIter){
+                      estimate_hazard, lambda, maxiter, threshold, printIter){
 
-  result_temp <- sapply(sigma, function(s){
-    ## coef's for each sigma
+  result_temp <- sapply(lambda, function(s){
+    ## coef's for each lambda
     coef_temp <- coef_pooled(X_baseline=X_baseline, is.temporal=is.temporal, temporal_effect=temporal_effect,
                              timeEffect=timeEffect, eventObserved=eventObserved, time=time,
-                             estimate_hazard=estimate_hazard, sigma=s, maxiter=maxiter, threshold=threshold, printIter=printIter)
-    ## marginal likelihood for each sigma
-    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, sigma=s, p=length(coef_temp$estimates),
+                             estimate_hazard=estimate_hazard, lambda=s, maxiter=maxiter, threshold=threshold, printIter=printIter)
+    ## marginal likelihood for each lambda
+    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, lambda=s, p=length(coef_temp$estimates),
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
     ## result
     return(c(coef_temp$estimates, marginalLogLik_temp))
   }, USE.NAMES = FALSE)
 
-  ## pick the coef's and sigma with the largest marginal likelihood
+  ## pick the coef's and lambda with the largest marginal likelihood
   pick <- which.max(result_temp[dim(result_temp)[1],])
   return(result_temp[-dim(result_temp)[1], pick])
 }
@@ -397,7 +395,9 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
 
 #' Laplace’s method for estimating marginal likelihood
 
-marginalLogLik <- function(betaMAP, sigma, p, logLik, fisherInfo){
+marginalLogLik <- function(betaMAP, lambda, p, logLik, fisherInfo){
+
+  sigma <- 1/sqrt(2*lambda)
 
   ## marginal log likelihood
   logLikelihood <- logLik - p * log(sqrt(2*pi)*sigma) - sum(betaMAP^2)/(2*sigma^2) + p * log(sqrt(2*pi)) + Matrix::det(fisherInfo, logarithm = TRUE)/2
