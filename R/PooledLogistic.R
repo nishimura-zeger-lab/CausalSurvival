@@ -46,21 +46,19 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 
   ## center data
   if(center){
-    ## center X_baseline
-    X_baseline <- apply(X_baseline, 2, function(z) (z - mean(z)) / sd(z))
-    ## center temporal_effect
-    if(is.null(temporal_effect)){
-      temporal_effect <- temporal_effect
-    }else if(is.null(dim(temporal_effect))){
-      temporal_effect <- (temporal_effect-mean(temporal_effect))/sd(temporal_effect)
-    }else{
-      temporal_effect <- apply(temporal_effect, 2, function(z) (z - mean(z)) / sd(z))
-    }
     ## calculate
     centerTime <- c(0, 0)
     centerTime[1] <- sum(indx_subset * c(1:maxTime))/sum(indx_subset)
     centerTime[2] <- sqrt(sum((c(1:maxTime)-centerTime[1])^2 * indx_subset)/sum(indx_subset))
   }
+
+  ## natural spline for time
+  if(timeEffect == "ns" & center){
+    nsBase <- splines::ns(c(1:maxTime), df=5)
+    nsBase <- apply(nsBase, 2, function(z) (z - mean(z)) / sd(z))
+  }else if(timeEffect == "ns" & !center){
+    nsBase <- splines::ns(c(1:maxTime), df=5)
+  }else if(timeEffect != "ns"){nsBase <- NULL}
 
 
   ## Add intercept term to X_baseline and temporal_effect
@@ -75,7 +73,6 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                              temporal_effect, temporal_effect, temporal_effect, temporal_effect)
   }
 
-
   ## initial value
   converged <- FALSE
   iter <- 1
@@ -84,16 +81,21 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   ## outcome
   Y <- outcomeY(time=time, eventObserved=eventObserved, estimate_hazard=estimate_hazard, maxTime=maxTime)
 
+
   ## calculate X^T y
   design_matvec_Xy <- pooled_design_matvec(X_baseline=X_baseline,
                                            temporal_effect=temporal_effect,
                                            timeEffect=timeEffect,
-                                           Y=Y,
+                                           Y=Y, nsBase=nsBase,
                                            indx_subset=indx_subset, maxTime=maxTime,
                                            center=center, centerTime=centerTime)
 
   ## initial residual deviance
-  dev_resid <- resid_pooled(coef=beta, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, Y=Y, indx_subset=indx_subset, maxTime=maxTime, center=center, centerTime=centerTime)
+  dev_resid <- resid_pooled(coef=beta, X_baseline=X_baseline,
+                            temporal_effect=temporal_effect,
+                            timeEffect=timeEffect, Y=Y, nsBase=nsBase,
+                            indx_subset=indx_subset, maxTime=maxTime,
+                            center=center, centerTime=centerTime)
 
   ## iterate until converge
   while((!converged) && iter <= maxiter){
@@ -103,13 +105,18 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                                temporal_effect=temporal_effect, Y=Y,
                                timeEffect=timeEffect,
                                beta=beta, indx_subset=indx_subset, maxTime=maxTime,
+                               nsBase=nsBase,
                                center=center, centerTime=centerTime)
 
     ## beta_new
     beta_new <- solve((comp$fisher_info + 2*lambda), (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
 
     ## new residual
-    dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline, temporal_effect=temporal_effect, timeEffect=timeEffect, Y=Y, indx_subset=indx_subset, maxTime=maxTime, center=center, centerTime=centerTime)
+    dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline,
+                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
+                                  Y=Y, indx_subset=indx_subset, maxTime=maxTime,
+                                  nsBase=nsBase,
+                                  center=center, centerTime=centerTime)
     ## stopping rule
     iter <-  iter + 1
     converged <- (abs(dev_resid_new-dev_resid)/abs(dev_resid_new) <= threshold)
@@ -179,16 +186,11 @@ outcomeY <- function(time, eventObserved, estimate_hazard, maxTime){
 #' @param maxTime Maximum time for estimation
 #' @return A vector
 
-pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, indx_subset, maxTime, center, centerTime){
+pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, nsBase, indx_subset, maxTime, center, centerTime){
 
   ## container
   result_Xy <- rep(0, length=dim(X_baseline)[2])
   result_temporaly <- rep(0, length=dim(temporal_effect)[2])
-  ## natural spline for time
-  if(timeEffect == "ns" & center){
-    nsBase <- splines::ns(c(1:maxTime), df=5)
-    nsBase <- apply(nsBase, 2, function(z) (z - mean(z)) / sd(z))
-  }else if(timeEffect == "ns" & !center){nsBase <- splines::ns(c(1:maxTime), df=5)}
 
 
   ## loop over each time point
@@ -233,7 +235,7 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
 #' @param maxTime Maximum time for estimation
 #' @return A list
 
-pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta, indx_subset, maxTime, center, centerTime){
+pooled_design_iter <- function(X_baseline, temporal_effect, Y, nsBase, timeEffect, beta, indx_subset, maxTime, center, centerTime){
 
   ## container
   fisher_info <- matrix(0, nrow=(dim(temporal_effect)[2] + dim(X_baseline)[2]),
@@ -241,12 +243,6 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
   baselineMu <- rep(0, length=dim(X_baseline)[2])
   temporalMu <- rep(0, length=dim(temporal_effect)[2])
   logLik <- 0
-
-  ## natural spline for time
-  if(timeEffect == "ns" & center){
-    nsBase <- splines::ns(c(1:maxTime), df=5)
-    nsBase <- apply(nsBase, 2, function(z) (z - mean(z)) / sd(z))
-  }else if(timeEffect == "ns" & !center){nsBase <- splines::ns(c(1:maxTime), df=5)}
 
 
   ## loop over each time point
@@ -324,14 +320,10 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
 #' @param maxTime Maximum time for estimation
 #'
 
-resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_subset, maxTime, center, centerTime){
+resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, nsBase, indx_subset, maxTime, center, centerTime){
 
   ## container
   resid <- 0
-  if(timeEffect == "ns" & center){
-    nsBase <- splines::ns(c(1:maxTime), df=5)
-    nsBase <- apply(nsBase, 2, function(z) (z - mean(z)) / sd(z))
-  }else if(timeEffect == "ns" & !center){nsBase <- splines::ns(c(1:maxTime), df=5)}
 
   ## loop over each time point
   for (i in 1:maxTime){
