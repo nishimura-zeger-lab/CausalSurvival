@@ -116,7 +116,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                                   temporal_effect=temporal_effect, timeEffect=timeEffect,
                                   Y=Y, indx_subset=indx_subset, maxTime=maxTime,
                                   nsBase=nsBase,
-                                  center=center, centerTime=centerTime, lambda=lambda)
+                                  center=center, centerTime=centerTime)
     ## stopping rule
     iter <-  iter + 1
     converged <- (abs(dev_resid_new-dev_resid)/abs(dev_resid_new) <= threshold)
