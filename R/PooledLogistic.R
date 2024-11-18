@@ -91,7 +91,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                             temporal_effect=temporal_effect,
                             timeEffect=timeEffect, Y=Y, nsBase=nsBase,
                             indx_subset=indx_subset, maxTime=maxTime,
-                            center=center, centerTime=centerTime)
+                            center=center, centerTime=centerTime, lambda=lambda)
 
   ## iterate until converge
   while((!converged) && iter <= maxiter){
@@ -112,7 +112,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                                   temporal_effect=temporal_effect, timeEffect=timeEffect,
                                   Y=Y, indx_subset=indx_subset, maxTime=maxTime,
                                   nsBase=nsBase,
-                                  center=center, centerTime=centerTime)
+                                  center=center, centerTime=centerTime, lambda=lambda)
     ## stopping rule
     iter <-  iter + 1
     converged <- (abs(dev_resid_new-dev_resid)/abs(dev_resid_new) <= threshold)
@@ -317,7 +317,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, nsBase, timeEffec
 #' @param maxTime Maximum time for estimation
 #'
 
-resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, nsBase, indx_subset, maxTime, center, centerTime){
+resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, nsBase, indx_subset, maxTime, center, centerTime, lambda){
 
   ## container
   resid <- 0
