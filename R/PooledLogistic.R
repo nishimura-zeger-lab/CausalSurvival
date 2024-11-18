@@ -127,7 +127,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 
     rm(list=c("beta_new", "dev_resid_new"))
 
-    if(printIter){print(iter)}
+    if(printIter){print(abs(dev_resid_new-dev_resid)/abs(dev_resid_new))}
   }
 
   ## result
