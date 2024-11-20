@@ -68,12 +68,20 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                                            Y=Y,
                                            indx_subset=indx_subset, maxTime=maxTime)
 
+  comp <- pooled_design_iter(X_baseline=X_baseline,
+                             temporal_effect=temporal_effect, Y=Y,
+                             timeEffect=timeEffect,
+                             beta=beta, indx_subset=indx_subset, maxTime=maxTime)
+
   ## initial residual deviance
-  dev_resid <- resid_pooled(coef=beta, X_baseline=X_baseline,
-                            temporal_effect=temporal_effect,
-                            timeEffect=timeEffect, Y=Y,
-                            indx_subset=indx_subset, maxTime=maxTime,
-                            lambda = lambda)
+  # dev_resid <- resid_pooled(coef=beta, X_baseline=X_baseline,
+  #                           temporal_effect=temporal_effect,
+  #                           timeEffect=timeEffect, Y=Y,
+  #                           indx_subset=indx_subset, maxTime=maxTime,
+  #                           lambda = lambda)
+
+  ## initial (penalized) log-likelihood
+  logLikelihood <- comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2]]^2)
 
   ## iterate until converge
   while((!converged) && iter <= maxiter){
@@ -91,21 +99,24 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     beta_new <- solve((comp$fisher_info + 2*lambda*Imop), (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
 
     ## new residual
-    dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline,
-                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                  Y=Y, indx_subset=indx_subset, maxTime=maxTime, lambda = lambda)
+    # dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline,
+    #                               temporal_effect=temporal_effect, timeEffect=timeEffect,
+    #                               Y=Y, indx_subset=indx_subset, maxTime=maxTime, lambda = lambda)
+
+    ## initial (penalized) log-likelihood
+    logLikelihood_new <- comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2]]^2)
+
     ## stopping rule
     iter <-  iter + 1
-    converged <- (abs(dev_resid_new-dev_resid)/abs(dev_resid_new) <= threshold)
-    r <- dev_resid_new
+    converged <- (abs(logLikelihood_new-logLikelihood)/abs(logLikelihood_new) <= threshold)
 
     ## update value
     beta <- beta_new
-    dev_resid <- dev_resid_new
+    logLikelihood <- logLikelihood_new
 
-    rm(list=c("beta_new", "dev_resid_new"))
+    rm(list=c("beta_new", "logLikelihood_new"))
 
-    if(printIter){print(c(r, comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2]]^2)))}
+    if(printIter){print(i)}
   }
 
   ## result
