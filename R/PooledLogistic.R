@@ -105,7 +105,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 
     rm(list=c("beta_new", "dev_resid_new"))
 
-    if(printIter){print(c(r, comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2], 1]^2)))}
+    if(printIter){print(c(r, comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2]]^2)))}
   }
 
   ## result
@@ -326,7 +326,7 @@ resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_
     resid <- resid + resid_temp
   }
 
-  resid <- resid + lambda * sum(coef[2:dim(X_baseline)[2], 1]^2)
+  resid <- resid + lambda * sum(coef[2:dim(X_baseline)[2]]^2)
 
   ## result
   return(resid)
