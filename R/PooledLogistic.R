@@ -72,7 +72,8 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   dev_resid <- resid_pooled(coef=beta, X_baseline=X_baseline,
                             temporal_effect=temporal_effect,
                             timeEffect=timeEffect, Y=Y,
-                            indx_subset=indx_subset, maxTime=maxTime)
+                            indx_subset=indx_subset, maxTime=maxTime,
+                            lambda = lambda)
 
   ## iterate until converge
   while((!converged) && iter <= maxiter){
@@ -92,7 +93,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     ## new residual
     dev_resid_new <- resid_pooled(coef=beta_new, X_baseline=X_baseline,
                                   temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                  Y=Y, indx_subset=indx_subset, maxTime=maxTime)
+                                  Y=Y, indx_subset=indx_subset, maxTime=maxTime, lambda = lambda)
     ## stopping rule
     iter <-  iter + 1
     converged <- (abs(dev_resid_new-dev_resid)/abs(dev_resid_new) <= threshold)
@@ -104,7 +105,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 
     rm(list=c("beta_new", "dev_resid_new"))
 
-    if(printIter){print(c(r, comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2]]^2)))}
+    if(printIter){print(c(r, comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2], 1]^2)))}
   }
 
   ## result
@@ -295,7 +296,7 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
 #' @param maxTime Maximum time for estimation
 #'
 
-resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_subset, maxTime){
+resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_subset, maxTime, lambda){
 
   ## container
   resid <- 0
@@ -325,7 +326,7 @@ resid_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, Y, indx_
     resid <- resid + resid_temp
   }
 
-  resid <- resid + lambda * sum(coef^2)
+  resid <- resid + lambda * sum(coef[2:dim(X_baseline)[2], 1]^2)
 
   ## result
   return(resid)
