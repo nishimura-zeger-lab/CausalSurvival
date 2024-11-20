@@ -121,10 +121,10 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   }
 
   ## result
-  # r_var <- solve(comp$fisher_info + 2*lambda) %*% comp$fisher_info %*% solve(comp$fisher_info + 2*lambda)
+  r_var <- solve(comp$fisher_info + 2*lambda*Imop) %*% comp$fisher_info %*% solve(comp$fisher_info + 2*lambda*Imop)
 
   return(list(estimates=beta,
-            #  sd=sqrt(diag(r_var)),
+             sd=sqrt(diag(r_var)),
               fisherInfo = comp$fisher_info + 2*lambda*diag(dim(comp$fisher_info)[1]),
               logLik=comp$logLik))
 }
