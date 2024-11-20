@@ -102,7 +102,7 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
     comp <- pooled_design_iter(X_baseline=X_baseline,
                                temporal_effect=temporal_effect, Y=Y,
                                timeEffect=timeEffect,
-                               beta=beta, indx_subset=indx_subset, maxTime=maxTime)
+                               beta=beta_new, indx_subset=indx_subset, maxTime=maxTime)
 
     ## initial (penalized) log-likelihood
     logLikelihood_new <- comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2]]^2)
