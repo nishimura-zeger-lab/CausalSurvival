@@ -68,17 +68,15 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
                                            Y=Y,
                                            indx_subset=indx_subset, maxTime=maxTime)
 
+  ## parameter
   comp <- pooled_design_iter(X_baseline=X_baseline,
                              temporal_effect=temporal_effect, Y=Y,
                              timeEffect=timeEffect,
                              beta=beta, indx_subset=indx_subset, maxTime=maxTime)
-
-  ## initial residual deviance
-  # dev_resid <- resid_pooled(coef=beta, X_baseline=X_baseline,
-  #                           temporal_effect=temporal_effect,
-  #                           timeEffect=timeEffect, Y=Y,
-  #                           indx_subset=indx_subset, maxTime=maxTime,
-  #                           lambda = lambda)
+  ## parameter
+  Imop <- diag(dim(comp$fisher_info)[1])
+  Imop[1, 1] <- 0
+  Imop[(dim(X_baseline)[2]+1):length(beta), ] <- 0
 
   ## initial (penalized) log-likelihood
   logLikelihood <- comp$logLik - lambda*sum(beta[2:dim(X_baseline)[2]]^2)
@@ -88,9 +86,6 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
 
 
     ## beta_new
-    Imop <- diag(dim(comp$fisher_info)[1])
-    Imop[1, 1] <- 0
-    Imop[(dim(X_baseline)[2]+1):length(beta), ] <- 0
     beta_new <- solve((comp$fisher_info + 2*lambda*Imop), (comp$fisher_info %*% beta + design_matvec_Xy - comp$Xmu)[, 1])
 
     ## new residual
@@ -121,11 +116,8 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   }
 
   ## result
-  # r_var <- solve(comp$fisher_info + 2*lambda*Imop) %*% comp$fisher_info %*% solve(comp$fisher_info + 2*lambda*Imop)
-
   return(list(estimates=beta,
-             # sd=sqrt(diag(r_var)),
-              fisherInfo = comp$fisher_info + 2*lambda*diag(dim(comp$fisher_info)[1]),
+              fisherInfo = comp$fisher_info + 2*lambda*Imop,
               logLik=comp$logLik))
 }
 
@@ -414,7 +406,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
                              timeEffect=timeEffect, eventObserved=eventObserved, time=time,
                              estimate_hazard=estimate_hazard, lambda=s, maxiter=maxiter, threshold=threshold, printIter=printIter)
     ## marginal likelihood for each lambda
-    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, lambda=s, p=(dim(X_baseline)[2]-1),
+    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, lambda=s, p=dim(X_baseline)[2],
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
     ## result
     return(c(coef_temp$estimates, marginalLogLik_temp))
@@ -422,7 +414,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
 
   ## pick the coef's and lambda with the largest marginal likelihood
   pick <- which.max(result_temp[dim(result_temp)[1],])
-  return(list(best=result_temp[-dim(result_temp)[1], pick], all_like=result_temp[dim(result_temp)[1], ]))
+  return(list(best=unname(result_temp[-dim(result_temp)[1], pick]), all_like=result_temp[dim(result_temp)[1], ]))
 }
 
 
@@ -435,7 +427,7 @@ marginalLogLik <- function(betaMAP, lambda, p, logLik, fisherInfo){
   sigma <- 1/sqrt(2*lambda)
 
   ## marginal log likelihood
-  logLikelihood <- logLik - p * log(sqrt(2*pi)*sigma) - sum(betaMAP[2:(p+1)]^2)/(2*sigma^2) + p * log(sqrt(2*pi)) + determinant(as.matrix(fisherInfo))$modulus/2
+  logLikelihood <- logLik - p * log(sqrt(2*pi)*sigma) - sum(betaMAP[2:(p+1)]^2)/(2*sigma^2) + length(betaMAP) * log(sqrt(2*pi)) + determinant(as.matrix(fisherInfo))$modulus/2
 
   ## result
   return(logLikelihood)
