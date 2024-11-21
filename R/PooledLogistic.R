@@ -414,7 +414,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
                              timeEffect=timeEffect, eventObserved=eventObserved, time=time,
                              estimate_hazard=estimate_hazard, lambda=s, maxiter=maxiter, threshold=threshold, printIter=printIter)
     ## marginal likelihood for each lambda
-    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, lambda=s, p=length(coef_temp$estimates),
+    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, lambda=s, p=(dim(X_baseline)[2]-1),
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
     ## result
     return(c(coef_temp$estimates, marginalLogLik_temp))
@@ -422,7 +422,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
 
   ## pick the coef's and lambda with the largest marginal likelihood
   pick <- which.max(result_temp[dim(result_temp)[1],])
-  return(result_temp[-dim(result_temp)[1], pick])
+  return(list(best=result_temp[-dim(result_temp)[1], pick], all_like=result_temp[dim(result_temp)[1], ]))
 }
 
 
@@ -435,7 +435,7 @@ marginalLogLik <- function(betaMAP, lambda, p, logLik, fisherInfo){
   sigma <- 1/sqrt(2*lambda)
 
   ## marginal log likelihood
-  logLikelihood <- logLik - p * log(sqrt(2*pi)*sigma) - sum(betaMAP^2)/(2*sigma^2) + p * log(sqrt(2*pi)) + Matrix::det(fisherInfo, logarithm = TRUE)/2
+  logLikelihood <- logLik - p * log(sqrt(2*pi)*sigma) - sum(betaMAP[2:(p+1)]^2)/(2*sigma^2) + p * log(sqrt(2*pi)) + Matrix::det(fisherInfo, logarithm = TRUE)/2
 
   ## result
   return(logLikelihood)
