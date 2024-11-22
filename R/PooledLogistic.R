@@ -415,7 +415,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
                              maxiter=maxiter, threshold=threshold, printIter=printIter, initial_coef=initial_coef)
 
     ## marginal likelihood for each lambda
-    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, lambda=s, p=dim(X_baseline)[2],
+    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, lambda=lambda[i], p=dim(X_baseline)[2],
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
     ## result
     result_temp <- cbind(result_temp, c(coef_temp$estimates, marginalLogLik_temp))
