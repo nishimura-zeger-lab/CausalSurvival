@@ -424,7 +424,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
 
   ## pick the coef's and lambda with the largest marginal likelihood
   pick <- which.max(result_temp[dim(result_temp)[1],])
-  return(list(best=unname(result_temp[-dim(result_temp)[1], pick]), all_like=result_temp[dim(result_temp)[1], ]))
+  return(list(estimates=unname(result_temp[-dim(result_temp)[1], pick]), all_like=result_temp[dim(result_temp)[1], ]))
 }
 
 
