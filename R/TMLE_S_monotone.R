@@ -10,9 +10,6 @@
 
 estimateTMLEprob_monotone <- function(treatment, eventObserved, time, survHaz, cenHaz, treatProb, tau){
 
-  ## check if ID is in the same order
-  identical(survHaz$ID, cenHaz$ID)
-
   ## container
   SurvProb1_result <- SurvProb0_result <- SEprobDiff_result <- rep(0, length=length(tau))
 
