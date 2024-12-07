@@ -1,14 +1,6 @@
 #include <RcppEigen.h>
+#include "CausalSurvival_types.h"
 // [[Rcpp::depends(RcppEigen)]]
-
-using Eigen::Map; // 'Map' (i.e. reference without making copies) R matrices
-using Eigen::VectorXd;
-using Eigen::MatrixXd;
-using Eigen::SparseMatrix;
-typedef Eigen::DiagonalMatrix<double, Eigen::Dynamic> DiagonalMatrix;
-typedef Eigen::SparseMatrix<double, Eigen::RowMajor> CsrMatrix;
-typedef Map<SparseMatrix<double, Eigen::RowMajor>> MappedCsr;
-
 
 // [[Rcpp::export]]
 MatrixXd computeSubsetInformationMatrix(
