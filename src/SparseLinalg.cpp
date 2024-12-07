@@ -14,7 +14,7 @@ MatrixXd computeSubsetInformationMatrix(
   const MappedCsr X, const Map<VectorXd> weight, int subsetSize
 ) {
   int nPred = X.cols();
-  MatrixXd subsetInfoMat = MatrixXd::Zero(nPred, nPred);
+  MatrixXd subsetInfoMat = MatrixXd::Zero(nPred, nPred).selfadjointView<Eigen::Lower>();
   EigenDiagonalMatrix subsetWeightMat = weight.head(subsetSize).asDiagonal();
   SparseMatrix<double, Eigen::RowMajor> subsetX = X.topRows(subsetSize);
   subsetInfoMat = subsetX.transpose() * subsetWeightMat * subsetX;
