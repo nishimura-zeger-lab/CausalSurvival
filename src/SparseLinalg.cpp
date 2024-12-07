@@ -11,13 +11,13 @@ typedef Map<SparseMatrix<double, Eigen::RowMajor>> MappedCsr;
 
 // [[Rcpp::export]]
 MatrixXd computeSubsetInformationMatrix(
-  const MappedCsr X, const VectorXd sqrtWeight, int subsetSize
+  const MappedCsr X, const Map<VectorXd> weight, int subsetSize
 ) {
   int nPred = X.cols();
-  MatrixXd subsetInfoMat = MatrixXd::Zero(nPred, nPred);\
-  EigenDiagonalMatrix subsetSqrtWeightMat = sqrtWeight.head(subsetSize).asDiagonal();
-  SparseMatrix<double, Eigen::RowMajor> subsetWeigtedX = subsetSqrtWeightMat * X.topRows(subsetSize);
-  subsetInfoMat = subsetWeigtedX.transpose() * subsetWeigtedX;
+  MatrixXd subsetInfoMat = MatrixXd::Zero(nPred, nPred);
+  EigenDiagonalMatrix subsetWeightMat = weight.head(subsetSize).asDiagonal();
+  SparseMatrix<double, Eigen::RowMajor> subsetX = X.topRows(subsetSize);
+  subsetInfoMat = subsetX.transpose() * subsetWeightMat * subsetX;
   return subsetInfoMat;
 }
 
