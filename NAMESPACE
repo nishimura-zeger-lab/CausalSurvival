@@ -2,4 +2,6 @@
 
 export("%>%")
 export(estimateAdditiveHazard)
+importFrom(Rcpp,sourceCpp)
 importFrom(magrittr,"%>%")
+useDynLib(CausalSurvival, .registration = TRUE)
