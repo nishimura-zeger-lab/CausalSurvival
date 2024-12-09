@@ -12,22 +12,81 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// computeSubsetInformationMatrix
-MatrixXd computeSubsetInformationMatrix(const Map<CsrMatrix> X, const Map<VectorXd> weight, int subsetSize);
-RcppExport SEXP _CausalSurvival_computeSubsetInformationMatrix(SEXP XSEXP, SEXP weightSEXP, SEXP subsetSizeSEXP) {
+// computeSubsetSparseInformationMatrix
+MatrixXd computeSubsetSparseInformationMatrix(const Map<CsrMatrix> X, const Map<VectorXd> weight, int subsetSize);
+RcppExport SEXP _CausalSurvival_computeSubsetSparseInformationMatrix(SEXP XSEXP, SEXP weightSEXP, SEXP subsetSizeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const Map<CsrMatrix> >::type X(XSEXP);
     Rcpp::traits::input_parameter< const Map<VectorXd> >::type weight(weightSEXP);
     Rcpp::traits::input_parameter< int >::type subsetSize(subsetSizeSEXP);
-    rcpp_result_gen = Rcpp::wrap(computeSubsetInformationMatrix(X, weight, subsetSize));
+    rcpp_result_gen = Rcpp::wrap(computeSubsetSparseInformationMatrix(X, weight, subsetSize));
+    return rcpp_result_gen;
+END_RCPP
+}
+// computeSubsetInformationMatrix
+MatrixXd computeSubsetInformationMatrix(const Map<MatrixXd> Y, const Map<VectorXd> weight, int subsetSize);
+RcppExport SEXP _CausalSurvival_computeSubsetInformationMatrix(SEXP YSEXP, SEXP weightSEXP, SEXP subsetSizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Map<MatrixXd> >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< const Map<VectorXd> >::type weight(weightSEXP);
+    Rcpp::traits::input_parameter< int >::type subsetSize(subsetSizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(computeSubsetInformationMatrix(Y, weight, subsetSize));
+    return rcpp_result_gen;
+END_RCPP
+}
+// computeSubsetMatrix
+MatrixXd computeSubsetMatrix(const Map<CsrMatrix> X, const Map<VectorXd> weight, const Map<MatrixXd> Y, int subsetSize);
+RcppExport SEXP _CausalSurvival_computeSubsetMatrix(SEXP XSEXP, SEXP weightSEXP, SEXP YSEXP, SEXP subsetSizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Map<CsrMatrix> >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const Map<VectorXd> >::type weight(weightSEXP);
+    Rcpp::traits::input_parameter< const Map<MatrixXd> >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< int >::type subsetSize(subsetSizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(computeSubsetMatrix(X, weight, Y, subsetSize));
+    return rcpp_result_gen;
+END_RCPP
+}
+// computeSubsetSparseMatVec
+VectorXd computeSubsetSparseMatVec(const Map<CsrMatrix> X, const Map<VectorXd> v, int subsetSize, bool transposed);
+RcppExport SEXP _CausalSurvival_computeSubsetSparseMatVec(SEXP XSEXP, SEXP vSEXP, SEXP subsetSizeSEXP, SEXP transposedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Map<CsrMatrix> >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const Map<VectorXd> >::type v(vSEXP);
+    Rcpp::traits::input_parameter< int >::type subsetSize(subsetSizeSEXP);
+    Rcpp::traits::input_parameter< bool >::type transposed(transposedSEXP);
+    rcpp_result_gen = Rcpp::wrap(computeSubsetSparseMatVec(X, v, subsetSize, transposed));
+    return rcpp_result_gen;
+END_RCPP
+}
+// computeSubsetMatVec
+VectorXd computeSubsetMatVec(const Map<MatrixXd> Y, const Map<VectorXd> v, int subsetSize, bool transposed);
+RcppExport SEXP _CausalSurvival_computeSubsetMatVec(SEXP YSEXP, SEXP vSEXP, SEXP subsetSizeSEXP, SEXP transposedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Map<MatrixXd> >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< const Map<VectorXd> >::type v(vSEXP);
+    Rcpp::traits::input_parameter< int >::type subsetSize(subsetSizeSEXP);
+    Rcpp::traits::input_parameter< bool >::type transposed(transposedSEXP);
+    rcpp_result_gen = Rcpp::wrap(computeSubsetMatVec(Y, v, subsetSize, transposed));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_CausalSurvival_computeSubsetSparseInformationMatrix", (DL_FUNC) &_CausalSurvival_computeSubsetSparseInformationMatrix, 3},
     {"_CausalSurvival_computeSubsetInformationMatrix", (DL_FUNC) &_CausalSurvival_computeSubsetInformationMatrix, 3},
+    {"_CausalSurvival_computeSubsetMatrix", (DL_FUNC) &_CausalSurvival_computeSubsetMatrix, 4},
+    {"_CausalSurvival_computeSubsetSparseMatVec", (DL_FUNC) &_CausalSurvival_computeSubsetSparseMatVec, 4},
+    {"_CausalSurvival_computeSubsetMatVec", (DL_FUNC) &_CausalSurvival_computeSubsetMatVec, 4},
     {NULL, NULL, 0}
 };
 

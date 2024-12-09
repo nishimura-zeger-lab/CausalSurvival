@@ -12,7 +12,7 @@
 #' @param time Observed survival time. Ordered into decreasing observed survival time
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
-#' @param lambda Penalized parameter for ridge regression, a scalar. If lambda = NULL, then no penalization.
+#' @param sigma Penalized parameter for ridge regression, a scalar. If sigma = NULL, then no penalization.
 #' @param maxiter Maximum iterations
 #' @param threshold Threshold for convergence
 #' @param printIter TRUE/FALSE. Whether to print iterations or not
@@ -22,12 +22,18 @@
 
 
 coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
-                        time, eventObserved, estimate_hazard, lambda,
+                        time, eventObserved, estimate_hazard, sigma,
                         maxiter, threshold, printIter, initial_coef){
 
   ## check and warning for reorder
 
 
+  ## lambda
+  if(is.null(sigma)){
+    lambda <- 0
+  }else{
+    lambda <- 1/(2*sigma^2)
+  }
 
   ## subset index for each time point
   if (estimate_hazard == "survival"){
@@ -39,10 +45,10 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect, timeEffect,
   }
 
 
-
   ## Add intercept term to X_baseline and temporal_effect
   X_baseline <- cbind(rep(1, dim(X_baseline)[1]), X_baseline)
-
+  X_baseline <- Matrix::sparseMatrix(i = Matrix::summary(X_baseline)$i, j = Matrix::summary(X_baseline)$j,
+                             x = Matrix::summary(X_baseline)$x, repr = "R")
   if(is.null(temporal_effect) & !is.temporal){
     temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
   }else if(is.temporal & timeEffect == "linear"){
@@ -186,14 +192,9 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
   result_temporaly <- rep(0, length=dim(temporal_effect)[2])
 
   ## natural spline for time
-  if(timeEffect == "ns2"){
-    nsBase <- splines::ns(c(1:maxTime), df=2)
-  }else if(timeEffect == "ns3"){
-    nsBase <- splines::ns(c(1:maxTime), df=3)
-  }else if(timeEffect == "ns4"){
-    nsBase <- splines::ns(c(1:maxTime), df=4)
-  }else if(timeEffect == "ns5"){
-    nsBase <- splines::ns(c(1:maxTime), df=5)
+  if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
+    indx <- as.integer(substr(timeEffect, 3, 3))
+    nsBase <- splines::ns(c(1:maxTime), df=indx)
   }
 
   ## loop over each time point
@@ -203,27 +204,17 @@ pooled_design_matvec <- function(X_baseline, temporal_effect, timeEffect, Y, ind
     n <- dim(X_baseline)[1]
     y <- Y[((i-1)*n+1):(i*n)]
     ## X^T y
-    result_Xy <- result_Xy + Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]
+    result_Xy <- result_Xy + computeSubsetSparseMatVec(X=X_baseline, v=y, subsetSize=atRiskIndx, transposed=true)
     if(timeEffect == "linear" | is.null(timeEffect)){
-      result_temporaly <- result_temporaly + i * t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]
-    }else if(timeEffect == "ns2"){
-      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-2)/2))
-      result_temporaly <- result_temporaly + (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]) * timeNS
-    }else if(timeEffect == "ns3"){
-      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-3)/3))
-      result_temporaly <- result_temporaly + (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]) * timeNS
-    }else if(timeEffect == "ns4"){
-      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-4)/4))
-      result_temporaly <- result_temporaly + (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]) * timeNS
-    }else if(timeEffect == "ns5"){
-      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5))
-      result_temporaly <- result_temporaly + (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% y[1:atRiskIndx]) * timeNS
+      result_temporaly <- result_temporaly + computeSubsetMatVec(Y=temporal_effect, v=y, subsetSize=atRiskIndx, transposed=true) * i
+    }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
+      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-indx)/indx))
+      result_temporaly <- result_temporaly + computeSubsetMatVec(Y=temporal_effect, v=y, subsetSize=atRiskIndx, transposed=true) * timeNS
     }
   }
   ## result
   return(c(result_Xy[, 1], result_temporaly[, 1]))
 }
-
 
 
 #' Calculate X^T mu, D and X^T diag(D) X for pooled logistic regression
@@ -255,14 +246,9 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
   logLik <- 0
 
   ## natural spline for time
-  if(timeEffect == "ns2"){
-    nsBase <- splines::ns(c(1:maxTime), df=2)
-  }else if(timeEffect == "ns3"){
-    nsBase <- splines::ns(c(1:maxTime), df=3)
-  }else if(timeEffect == "ns4"){
-    nsBase <- splines::ns(c(1:maxTime), df=4)
-  }else if(timeEffect == "ns5"){
-    nsBase <- splines::ns(c(1:maxTime), df=5)
+  if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
+    indx <- as.integer(substr(timeEffect, 3, 3))
+    nsBase <- splines::ns(c(1:maxTime), df=indx)
   }
 
   ## loop over each time point
@@ -271,47 +257,36 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
     atRiskIndx <- indx_subset[i]
     timeIndepCoef <- beta[1:dim(X_baseline)[2]]
     timeDepCoef <- beta[(dim(X_baseline)[2]+1):length(beta)]
-    baselineEffect <- X_baseline[1:atRiskIndx, ,drop=FALSE] %*% timeIndepCoef
+    baselineEffect <- computeSubsetSparseMatVec(X=X_baseline, v=timeIndepCoef, subsetSize=atRiskIndx, transposed=false)
     n <- dim(X_baseline)[1]
     y <- Y[((i-1)*n+1):(i*n)]
     ## mu
     if((timeEffect == "linear" | is.null(timeEffect))){
-      temporalEffect <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% timeDepCoef * i
+      temporalEffect <- computeSubsetMatVec(Y=temporal_effect, v=timeDepCoef, subsetSize=atRiskIndx, transposed=false) * i
       temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
-    }else if(timeEffect == "ns2"){
-      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-2)/2))
-      temporalEffect <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% (timeDepCoef * timeNS)
-      temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
-    }else if(timeEffect == "ns3"){
-      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-3)/3))
-      temporalEffect <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% (timeDepCoef * timeNS)
-      temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
-    }else if(timeEffect == "ns4"){
-      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-4)/4))
-      temporalEffect <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% (timeDepCoef * timeNS)
-      temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
-    }else if(timeEffect == "ns5"){
-      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5))
-      temporalEffect <- temporal_effect[1:atRiskIndx, ,drop=FALSE] %*% (timeDepCoef * timeNS)
+    }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
+      timeNS <- c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-indx)/indx))
+      temporalEffect <- computeSubsetMatVec(Y=temporal_effect, v=(timeDepCoef*timeNS), subsetSize=atRiskIndx, transposed=false)
       temp_mu <- 1/(1 + exp(- baselineEffect - temporalEffect))
     }
+
     ## mu(1-mu)
     diagmu <- temp_mu[, 1]*(1-temp_mu[, 1])
     ## X^T mu
-    baselineMu <- baselineMu + Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1]
+    baselineMu <- baselineMu + computeSubsetSparseMatVec(X=X_baseline, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=true)
     if(timeEffect == "linear" | is.null(timeEffect)){
-      temporalMu <- temporalMu + t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1] * i
+      temporalMu <- temporalMu + computeSubsetMatVec(Y=temporal_effect, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=true) * i
     }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
-      temporalMu <- temporalMu +  t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) %*% temp_mu[, 1] * timeNS
+      temporalMu <- temporalMu + computeSubsetMatVec(Y=temporal_effect, v=temp_mu[, 1], subsetSize=atRiskIndx, transposed=true) * timeNS
     }
     ## X^T diag(D) X
-    temp_X <- Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * X_baseline[1:atRiskIndx, ,drop=FALSE])
+    temp_X <- computeSubsetSparseInformationMatrix(X=X_baseline, weight=diagmu, subsetSize=atRiskIndx)
     if(timeEffect == "linear" | is.null(timeEffect)){
-      temp_temporal <- (i^2 * t(temporal_effect[1:atRiskIndx, ,drop=FALSE])) %*% (diagmu * temporal_effect[1:atRiskIndx, ,drop=FALSE])
-      temp_Xtemporal <- (i * Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE])) %*% (diagmu * temporal_effect[1:atRiskIndx, ,drop=FALSE])
+      temp_temporal <- computeSubsetInformationMatrix(Y=temporal_effect, weight=diagmu, subsetSize=atRiskIndx) * i^2
+      temp_Xtemporal <- computeSubsetMatrix(X=X_baseline, weight=diagmu, Y=temporal_effect, subsetSize=atRiskIndx) * i
     }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
-      temp_temporal <- (t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS))
-      temp_Xtemporal <- Matrix::t(X_baseline[1:atRiskIndx, ,drop=FALSE]) %*% (diagmu * t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS))
+      temp_temporal <- computeSubsetInformationMatrix(Y=t(t(temporal_effect[1:atRiskIndx, ,drop=FALSE]) * timeNS), weight=diagmu, subsetSize=atRiskIndx)
+      temp_Xtemporal <- computeSubsetMatrix(X=X_baseline, weight=diagmu, Y=t(t(temporal_effect)*timeNS), subsetSize=atRiskIndx)
     }
     fisher_info <- fisher_info + cbind(rbind(temp_X, Matrix::t(temp_Xtemporal)), rbind(temp_Xtemporal, temp_temporal))
     ## log likelihood
@@ -324,8 +299,8 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
               "baselineEffect", "temporalEffect", "diagmu", "logLik_temp"))
   }
   ## result
-  return(list(Xmu=c(baselineMu[, 1], temporalMu[, 1]),
-              fisher_info=fisher_info, logLik=logLik))
+  return(list(Xmu=unname(c(baselineMu[, 1], temporalMu[, 1])),
+              fisher_info=unname(fisher_info), logLik=logLik))
 }
 
 
@@ -349,31 +324,29 @@ pooled_design_iter <- function(X_baseline, temporal_effect, Y, timeEffect, beta,
 predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTime, maxTimeSplines){
 
   ## predict
-  timeIndepLP <- X_baseline %*% coef[1:dim(X_baseline)[2]]
+  timeIndepLP <- computeSubsetSparseMatVec(X=X_baseline, v=coef[1:dim(X_baseline)[2]], subsetSize=dim(X_baseline)[1], transpose=false)
 
   if(timeEffect == "linear" | is.null(timeEffect)){
-    timeDepenLP <- temporal_effect %*% coef[(dim(X_baseline)[2] + 1):length(coef)]
+
+    timeDepenLP <- computeSubsetMatVec(Y=temporal_effect, v=coef[1:dim(X_baseline)[2]], subsetSize=dim(X_baseline)[1], transpose=false)
     logitProb <- rep(timeIndepLP, each=maxTime) + rep(1:maxTime, dim(X_baseline)[1]) * rep(timeDepenLP, each=maxTime)
-  }else if(timeEffect == "ns2"){
-    nsBase <- splines::ns(c(1:maxTimeSplines), df=2)
-    timeDepenLP <- unlist(lapply(1:maxTime, function(i) {temporal_effect %*% (coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-2)/2)))}), use.names = FALSE)
+
+  }else if(timeEffect %in% c("ns2", "ns3", "ns4", "ns5")){
+
+    indx <- as.integer(substr(timeEffect, 3, 3))
+    nsBase <- splines::ns(c(1:maxTimeSplines), df=indx)
+
+    timeDepenLP <- c()
+    for (i in 1:maxTime){
+      timeDepenLP_temp <- computeSubsetMatVec(Y=temporal_effect,
+                                              v=(coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-indx)/indx))),
+                                              subsetSize=dim(X_baseline)[1], transpose=false)
+      timeDepenLP <- c(timeDepenLP, timeDepenLP_temp)
+      rm(timeDepenLP_temp)
+    }
     timeDepenLP <- timeDepenLP[order(rep(1:dim(X_baseline)[1], maxTime))]
     logitProb <- rep(timeIndepLP, each=maxTime) + timeDepenLP
-  }else if(timeEffect == "ns3"){
-    nsBase <- splines::ns(c(1:maxTimeSplines), df=3)
-    timeDepenLP <- unlist(lapply(1:maxTime, function(i) {temporal_effect %*% (coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-3)/3)))}), use.names = FALSE)
-    timeDepenLP <- timeDepenLP[order(rep(1:dim(X_baseline)[1], maxTime))]
-    logitProb <- rep(timeIndepLP, each=maxTime) + timeDepenLP
-  }else if(timeEffect == "ns4"){
-    nsBase <- splines::ns(c(1:maxTimeSplines), df=4)
-    timeDepenLP <- unlist(lapply(1:maxTime, function(i) {temporal_effect %*% (coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-4)/4)))}), use.names = FALSE)
-    timeDepenLP <- timeDepenLP[order(rep(1:dim(X_baseline)[1], maxTime))]
-    logitProb <- rep(timeIndepLP, each=maxTime) + timeDepenLP
-  }else if(timeEffect == "ns5"){
-    nsBase <- splines::ns(c(1:maxTimeSplines), df=5)
-    timeDepenLP <- unlist(lapply(1:maxTime, function(i) {temporal_effect %*% (coef[(dim(X_baseline)[2] + 1):length(coef)] * c(nsBase[i, ], rep(nsBase[i, ], each=(dim(temporal_effect)[2]-5)/5)))}), use.names = FALSE)
-    timeDepenLP <- timeDepenLP[order(rep(1:dim(X_baseline)[1], maxTime))]
-    logitProb <- rep(timeIndepLP, each=maxTime) + timeDepenLP
+
   }
 
   predictedProb <- exp(logitProb) / (1 + exp(logitProb))
@@ -398,32 +371,32 @@ predict_pooled <- function(coef, X_baseline, temporal_effect, timeEffect, maxTim
 #' @param time Observed survival time. Ordered into decreasing observed survival time
 #' @param eventObserved Event indicator. Ordered into decreasing observed survival time
 #' @param estimate_hazard "survival" or "censoring"
-#' @param lambda A range of penalized parameters for ridge regression, a vector.
+#' @param sigma A range of penalized parameters for ridge regression, a vector.
 #' @param maxiter Maximum iterations
 #' @param threshold Threshold for convergence
 #' @param printIter TRUE/FALSE. Whether to print iterations or not
 
 coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
                       timeEffect, eventObserved, time,
-                      estimate_hazard, lambda, maxiter, threshold, printIter){
+                      estimate_hazard, sigma, maxiter, threshold, printIter){
 
   result_temp <- c()
 
-  for (i in 1:length(lambda)){
+  for (i in 1:length(sigma)){
 
     if(i == 1){
       initial_coef <- NULL
     }else{initial_coef <- coef_temp$estimates}
 
     try({
-    ## coef's for each lambda
+    ## coef's for each sigma
     coef_temp <- coef_pooled(X_baseline=X_baseline, is.temporal=is.temporal, temporal_effect=temporal_effect,
                              timeEffect=timeEffect, eventObserved=eventObserved, time=time,
-                             estimate_hazard=estimate_hazard, lambda=lambda[i],
+                             estimate_hazard=estimate_hazard, sigma=sigma[i],
                              maxiter=maxiter, threshold=threshold, printIter=printIter, initial_coef=initial_coef)
 
-    ## marginal likelihood for each lambda
-    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, lambda=lambda[i], p=dim(X_baseline)[2],
+    ## marginal likelihood for each sigma
+    marginalLogLik_temp <- marginalLogLik(betaMAP=coef_temp$estimates, sigma=sigma[i], p=dim(X_baseline)[2],
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
 
     ## result
@@ -433,7 +406,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
 
      }
 
-  ## pick the coef's and lambda with the largest marginal likelihood
+  ## pick the coef's and sigma with the largest marginal likelihood
   pick <- which.max(result_temp[dim(result_temp)[1],])
   return(list(estimates=unname(result_temp[-dim(result_temp)[1], pick]), all_like=result_temp[dim(result_temp)[1], ]))
 }
@@ -443,9 +416,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
 
 #' Laplace’s method for estimating marginal likelihood
 
-marginalLogLik <- function(betaMAP, lambda, p, logLik, fisherInfo){
-
-  sigma <- 1/sqrt(2*lambda)
+marginalLogLik <- function(betaMAP, sigma, p, logLik, fisherInfo){
 
   ## marginal log likelihood
   logLikelihood <- logLik - p * log(sqrt(2*pi)*sigma) - sum(betaMAP[2:(p+1)]^2)/(2*sigma^2) + p * log(sqrt(2*pi)) + determinant(solve(as.matrix(fisherInfo)))$modulus/2
