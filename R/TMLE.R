@@ -28,9 +28,9 @@ estimateTMLE <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
   maxTime <- dim(survHaz)[1]/n
 
   ## dlong
-  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1)
+  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1, type="survival")
   rownames(dlong) <- NULL
-  dlong <- dlong[which(dlong$t <= maxTime),]
+  dlong <- dlong[which(dlong$t <= maxTime), c("Lt", "It", "t")]
 
   for (TimePoint in tau){
 
@@ -151,7 +151,7 @@ estimateTMLE <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
 
     }
 
-    DT <- tapply(dlong$It * (treatment[SurvHaz$ID] * H1 - (1 - treatment[SurvHaz$ID]) * H0) * (dlong$Lt - SurvHaz_obs), survHaz$ID, sum)
+    DT <- tapply(dlong$It * (treatment[survHaz$ID] * H1 - (1 - treatment[survHaz$ID]) * H0) * (dlong$Lt - SurvHaz_obs), survHaz$ID, sum)
 
     rm(list=c("H1", "H0"))
 
@@ -162,8 +162,8 @@ estimateTMLE <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
 
     }else if(estimand=="rmst"){
 
-      DW1 <- tapply(ind * SurvProb1, SurvHaz$ID, sum)
-      DW0 <- tapply(ind * SurvProb0, SurvHaz$ID, sum)
+      DW1 <- tapply(ind * SurvProb1, survHaz$ID, sum)
+      DW0 <- tapply(ind * SurvProb0, survHaz$ID, sum)
 
     }
 
@@ -186,7 +186,7 @@ estimateTMLE <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
 
     rm(list=c("estimand1", "estimand0", "sdn"))
 
-    if(printTau){print(paste("Time point", i, "finished"))}
+    if(printTau){print(paste("Time point", TimePoint, "finished"))}
 
   }
 
