@@ -48,10 +48,11 @@ VectorXd computeSubsetSparseMatVec(
   VectorXd subsetv = v.head(subsetSize);
   if (transposed) {
     return subsetX.transpose() * subsetv;
-  }else {
+  } else {
   return subsetX * v;
   }
 }
+
 
 
 // [[Rcpp::export]]
@@ -62,7 +63,7 @@ VectorXd computeSubsetMatVec(
   VectorXd subsetv = v.head(subsetSize);
   if (transposed) {
     return subsetY.transpose() * subsetv;
-  }else {
+  } else {
     return subsetY * v;
   }
 }
