@@ -17,11 +17,12 @@ RoxygenNote: 7.1.1
 Imports: 
     data.table,
     tidyverse,
-    Matrix, 
-    magrittr
+    Matrix,
+    magrittr,
+    Rcpp
 Suggests:
     usethis, 
     testthat
-
-
-
+LinkingTo: 
+    RcppEigen,
+    Rcpp

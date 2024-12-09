@@ -2,9 +2,9 @@
 % Please edit documentation in R/PooledLogistic.R
 \name{outcomeY}
 \alias{outcomeY}
-\title{Output outcome Y in the long-format, include outcome with the at-risk group at each time point}
+\title{Output outcome Y in the long-format, include outcome with all individuals at each time point}
 \usage{
-outcomeY(time, eventObserved, estimate_hazard)
+outcomeY(time, eventObserved, estimate_hazard, maxTime)
 }
 \arguments{
 \item{time}{Observed survival time. Ordered into decreasing observed survival time}
@@ -12,10 +12,12 @@ outcomeY(time, eventObserved, estimate_hazard)
 \item{eventObserved}{Event indicator. Ordered into decreasing observed survival time}
 
 \item{estimate_hazard}{"survival" or "censoring"}
+
+\item{maxTime}{Maximum time for estimation}
 }
 \value{
 A vector
 }
 \description{
-Output outcome Y in the long-format, include outcome with the at-risk group at each time point
+Output outcome Y in the long-format, include outcome with all individuals at each time point
 }

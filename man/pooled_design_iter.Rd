@@ -7,6 +7,7 @@
 pooled_design_iter(
   X_baseline,
   temporal_effect,
+  Y,
   timeEffect,
   beta,
   indx_subset,
@@ -24,12 +25,17 @@ sparse matrix of class "dgTMatrix" or matrix,
 reorder observations into decreasing survival time,
 intercept included}
 
+\item{Y}{Outcome variable in the pooled logistic regression.
+Long-format, include outcome with all individuals at each time point}
+
 \item{timeEffect}{Functions of time in the discrete censoring hazards model.
-Options currently include "linear", "cubic", NULL}
+Options currently include "linear", "ns", NULL}
 
 \item{beta}{Current iteration of coefficient value}
 
 \item{indx_subset}{Subset index for each time point}
+
+\item{maxTime}{Maximum time for estimation}
 }
 \value{
 A list
