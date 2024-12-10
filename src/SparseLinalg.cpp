@@ -47,9 +47,14 @@ VectorXd computeSubsetSparseMatVec(
   CsrMatrix subsetX = X.topRows(subsetSize);
   VectorXd subsetv = v.head(subsetSize);
   if (transposed) {
-    return subsetX.transpose() * subsetv;
+    int nPred = X.cols();
+    VectorXd subsetVec = VectorXd::Zero(nPred);
+    subsetVec = subsetX.transpose() * subsetv;
+    return subsetVec;
   } else {
-  return subsetX * v;
+    VectorXd subsetVec = VectorXd::Zero(subsetSize);
+    subsetVec = subsetX * v;
+    return subsetVec;
   }
 }
 
@@ -62,9 +67,14 @@ VectorXd computeSubsetMatVec(
   MatrixXd subsetY = Y.topRows(subsetSize);
   VectorXd subsetv = v.head(subsetSize);
   if (transposed) {
-    return subsetY.transpose() * subsetv;
+    int nPred = Y.cols();
+    VectorXd subsetVec = VectorXd::Zero(nPred);
+    subsetVec = subsetY.transpose() * subsetv;
+    return subsetVec;
   } else {
-    return subsetY * v;
+    VectorXd subsetVec = VectorXd::Zero(subsetSize);
+    subsetVec = subsetY * v;
+    return subsetVec;
   }
 }
 
