@@ -380,8 +380,8 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
                       timeEffect, eventObserved, time,
                       estimate_hazard, sigma, maxiter, threshold, printIter){
 
-  coef_temp <- c()
-  lik_temp <- c()
+  r_coef <- c()
+  r_lik <- c()
 
   for (i in 1:length(sigma)){
 
@@ -401,13 +401,13 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
 
     ## result
-    coef_temp <- cbind(coef_temp, coef_temp$estimates)
-    lik_temp <- c(lik_temp, marginalLogLik_temp)
+    r_coef <- cbind(r_coef, coef_temp$estimates)
+    r_lik <- c(r_lik, marginalLogLik_temp)
 
     })
 
-    if(length(lik_temp) > 3){
-      crit <- (lik_temp[length(lik_temp)] < lik_temp[length(lik_temp)-1]) & (lik_temp[length(lik_temp)-1] < lik_temp[length(lik_temp)-2])
+    if(length(r_lik) > 3){
+      crit <- (r_lik[length(r_lik)] < r_lik[length(r_lik)-1]) & (r_lik[length(r_lik)-1] < r_lik[length(r_lik)-2])
       if(crit){
         break
       }
@@ -415,8 +415,8 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
      }
 
   ## pick the coef's and sigma with the largest marginal likelihood
-  pick <- which.max(lik_temp)
-  return(list(estimates=unname(coef_temp[, pick]), all_like=lik_temp))
+  pick <- which.max(r_lik)
+  return(list(estimates=unname(r_coef[, pick]), all_like=r_lik))
 }
 
 
