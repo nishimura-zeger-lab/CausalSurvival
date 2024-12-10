@@ -42,7 +42,7 @@ estimateAIPW <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
   rm(list=c("CenProb1List", "CenProb0List", "cenHaz"))
 
   ## dlong
-  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1)
+  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1, type="survival")
   rownames(dlong) <- NULL
   dlong <- dlong[which(dlong$t <= maxTime), c("Lt", "It", "t")]
 

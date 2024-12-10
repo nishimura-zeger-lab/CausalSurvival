@@ -6,7 +6,7 @@
 #' @param tau Time of interest. Can be a vector (multiple time of interest)
 #' @return A data frame with three columns: estimand1, estimand0, SE
 
-estimateIPWprob <- function(treatment, eventObserved, time, cenHaz, treatProb, tau, estimand, printTau){
+estimateIPW <- function(treatment, eventObserved, time, cenHaz, treatProb, tau, estimand, printTau){
 
   ## container
   estimand1_result <- estimand0_result <- SE_result <- rep(0, length=length(tau))
@@ -14,10 +14,10 @@ estimateIPWprob <- function(treatment, eventObserved, time, cenHaz, treatProb, t
   ## parameter
   n <- length(treatment)
   maxTime <- dim(cenHaz)[1]/n
-  ID <- rep(1:n, each=survHaz$ID)
+  ID <- rep(1:n, each=maxTime)
 
   ## dlong
-  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1)
+  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1, type="survival")
   rownames(dlong) <- NULL
   dlong <- dlong[which(dlong$t <= maxTime), c("Lt", "It", "t")]
 
@@ -66,7 +66,6 @@ estimateIPWprob <- function(treatment, eventObserved, time, cenHaz, treatProb, t
     ind <- (dlong$t <= TimePoint)
 
     ## IPW
-
     Z1ipw <-  1 / (treatProb[ID] * CenProb1)
     Z0ipw <-  1 / ((1-treatProb[ID]) * CenProb0)
     Z1ipw[which(Z1ipw >= quantile(Z1ipw, probs = 0.95))] <- quantile(Z1ipw, probs = 0.95)
@@ -91,7 +90,7 @@ estimateIPWprob <- function(treatment, eventObserved, time, cenHaz, treatProb, t
     DW1 <- SurvProb1[which(dlong$t == TimePoint)]
     DW0 <- SurvProb0[which(dlong$t == TimePoint)]
     D <- DT1 - DT0 + DW1 - DW0
-    sdn <- sqrt(var(D) / length(unique(dlong$id)))
+    sdn <- sqrt(var(D) / n)
 
     rm(list=c("D", "DW1", "DW0", "DT1", "DT0"))
 
