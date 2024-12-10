@@ -400,7 +400,7 @@ coef_ridge <- function(X_baseline, is.temporal, temporal_effect,
                                     logLik=coef_temp$logLik, fisherInfo=coef_temp$fisherInfo)
 
     ## result
-    result_temp <- cbind(result_temp, c(coef_temp$estimates[, 1], marginalLogLik_temp))
+    result_temp <- cbind(result_temp, c(coef_temp$estimates, marginalLogLik_temp))
 
     })
 
