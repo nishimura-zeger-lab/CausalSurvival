@@ -45,7 +45,7 @@ estimateTMLE <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
 
     ## parameter
     if(estimand=="rmst"){
-      ind <- (dlong$t <= TimePoint -1)
+      ind <- (dlong$t <= (TimePoint -1))
     }else if(estimand=="risk"){
       ind <- (dlong$t <= TimePoint)
     }
