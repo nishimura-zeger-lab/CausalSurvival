@@ -134,7 +134,7 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
 #' @param timeEffect Functions of time in the discrete hazards model.
 #'                   Options currently include "linear", "ns2", "ns3", "ns4", "ns5"
 #' @param interactWithTime Data frame that include variables that interact with time in the hazards model
-#' @param hazEstimate Model for estimating censoring hazards. Options currently include "glm", "ridge", "LASSO".
+#' @param hazEstimate Model for estimating censoring hazards. Options currently include "glm", "ridge".
 #'                    If hazEstimate = NULL, then must provide coef_Haz to have prediction of hazards
 #' @param estimate_hazard "survival" or "censoring"
 #' @param coef_H Supply output from pooledLogistic to have prediction of hazards
@@ -144,7 +144,8 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
 estimateHaz <- function(id, treatment, eventObserved, time,
                            covariates, covIdHaz,
                            crossFitNum=1, index_ls=NULL,
-                           timeEffect, interactWithTime, hazEstimate,
+                           timeEffect, evenKnot, penalizeTimeTreatment,
+                           interactWithTime, hazEstimate,
                            estimate_hazard, getHaz, coef_H, maxTimePredict){
 
   ## container
@@ -199,7 +200,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
       ## model: glm
       coef_Haz <- coef_pooled(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
-                                 timeEffect=timeEffect, eventObserved=d_eventObserved, time=d_time,
+                                 timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=penalizeTimeTreatment,
+                                 eventObserved=d_eventObserved, time=d_time,
                                  estimate_hazard=estimate_hazard, sigma=NULL,
                                  maxiter=40, threshold=1e-14, printIter=TRUE, initial_coef=NULL)
 
@@ -209,7 +211,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
       ## model: ridge
       coef_Haz <- coef_ridge(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
-                                timeEffect=timeEffect, eventObserved=d_eventObserved, time=d_time,
+                                timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=penalizeTimeTreatment,
+                                eventObserved=d_eventObserved, time=d_time,
                                 estimate_hazard=estimate_hazard, sigma=exp(seq(log(1), log(0.01), length.out = 20)),
                                 maxiter=40, threshold=1e-8, printIter=TRUE)
 
