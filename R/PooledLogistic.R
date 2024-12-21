@@ -60,11 +60,12 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect,
                              rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
     if(evenKnot){
       nsBase <- splines::ns(c(1:maxTime), df=4)
+      if(lambda != 0){if(penalizeTimeTreatment){nsBase <- apply(nsBase, 2, function(x) x/sd(x))}}
     }else{
       nsBase <- splines::ns(c(1:maxTime), knots=quantile(rep(1:maxTime, times=indx_subset), probs=c(0.25, 0.5, 0.75)))
-      nsBase <- apply(nsBase, 2, function(x) x/sd(rep(x, times=indx_subset)))
+      if(lambda != 0){if(penalizeTimeTreatment){nsBase <- apply(nsBase, 2, function(x) x/sd(rep(x, times=indx_subset)))}}
     }
-  }
+    }
 
   ## initial value
   converged <- FALSE
@@ -97,13 +98,15 @@ coef_pooled <- function(X_baseline, is.temporal, temporal_effect,
   ## parameter
   Imop <- diag(dim(comp$fisher_info)[1])
   Imop[1, 1] <- 0
-  if(!penalizeTimeTreatment){
-  Imop[2, 2] <- 0
-  Imop[(dim(X_baseline)[2]+1):length(beta), ] <- 0
+  if(lambda != 0){
+    if(!penalizeTimeTreatment){
+      Imop[2, 2] <- 0
+      Imop[(dim(X_baseline)[2]+1):length(beta), ] <- 0
+    }
   }
 
   ## initial (penalized) log-likelihood
-  logLikelihood <- comp$logLik - lambda*sum(beta[2:length(beta)]^2)
+  logLikelihood <- comp$logLik - lambda*sum((beta*diag(Imop))^2)
 
   ## iterate until converge
   while((!converged) && iter <= maxiter){

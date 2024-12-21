@@ -223,7 +223,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     ## prediction
     if(getHaz){
 
-      ## parameter: maxTimeSplines for prediction if use ns(time, df=5)
+      ## parameter: maxTimeSplines for prediction if use ns(time, df=4)
       if(timeEffect == "ns" & estimate_hazard == "censoring"){
         maxTimeSplines <- max(d_time[d_eventObserved == 0])
         indx_subset <- sapply(1:maxTimeSplines, function(x) sum((time > x)*eventObserved+(time >= x)*(1 - eventObserved)), USE.NAMES = FALSE)
@@ -254,7 +254,13 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     }else if(timeEffect == "ns"){
       temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
                                rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
-      nsBase <- splines::ns(c(1:maxTimeSplines), knots=quantile(rep(1:maxTimeSplines, times=indx_subset), probs=c(0.25, 0.5, 0.75)))
+      if(evenKnot){
+        nsBase <- splines::ns(c(1:maxTimeSplines), df=4)
+        if(hazEstimate == "ridge"){if(penalizeTimeTreatment){nsBase <- apply(nsBase, 2, function(x) x/sd(x))}}
+      }else{
+        nsBase <- splines::ns(c(1:maxTimeSplines), knots=quantile(rep(1:maxTimeSplines, times=indx_subset), probs=c(0.25, 0.5, 0.75)))
+        if(hazEstimate == "ridge"){if(penalizeTimeTreatment){nsBase <- apply(nsBase, 2, function(x) x/sd(rep(x, times=indx_subset)))}}
+      }
     }
 
 

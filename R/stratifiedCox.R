@@ -14,7 +14,7 @@ strataCox <- function(treatment, eventObserved, time, treatProb, cenHaz, nsim, p
 
   ## parameters
   n <- length(treatment)
-  maxTime <- dim(cenHaz)[1]/n
+  maxTime <- min(max(time[eventObserved == 1]), max(time[eventObserved == 0]))
   ID <- rep(1:n, each=maxTime)
 
   ## create dlong
@@ -26,7 +26,7 @@ strataCox <- function(treatment, eventObserved, time, treatProb, cenHaz, nsim, p
   ## fit glm
   if(is.null(cenHaz)){
 
-    fit <- glm(Lt ~ splines::ns(t, df=4) * treat + as.factor(stratumId)*splines::ns(t, df=4), subset = It == 1, data = dlong)
+    fit <- glm(Lt ~ splines::ns(t, df=4) * treat + as.factor(stratumId)*splines::ns(t, df=4), data = dlong[which(dlong$It==1), ])
 
   }else{
 
@@ -43,8 +43,8 @@ strataCox <- function(treatment, eventObserved, time, treatProb, cenHaz, nsim, p
 
     weight <- weight1 * dlong$treat + weight0 * (1 - dlong$treat)
 
-    fit <- glm(Lt ~ splines::ns(t, df=4) * treat + as.factor(stratumId)*splines::ns(t, df=4),
-               subset = It == 1, weights=weight, data = dlong)
+    fit <- glm(Lt ~ splines::ns(t, df=3) * treat + as.factor(stratumId)*splines::ns(t, df=3),
+               weights=weight, data = dlong[which(dlong$It==1), ])
 
   }
 
