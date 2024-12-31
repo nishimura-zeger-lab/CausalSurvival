@@ -8,7 +8,9 @@
 #' @param tau Time of interest. Can be a vector (multiple time of interest)
 #' @return A data frame with three columns: estimand1, estimand0, SE
 
-estimateAIPW <- function(treatment, eventObserved, time, survHaz, cenHaz, treatProb, tau, estimand, printTau){
+estimateAIPW <- function(treatment, eventObserved, time,
+                         survHaz, cenHaz, treatProb,
+                         tau, timeIntMidPoint, estimand, printTau){
 
 
   ## container
@@ -42,9 +44,9 @@ estimateAIPW <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
   rm(list=c("CenProb1List", "CenProb0List", "cenHaz"))
 
   ## dlong
-  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1, type="survival")
+  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), timeIntMidPoint=timeIntMidPoint, type="survival")
   rownames(dlong) <- NULL
-  dlong <- dlong[which(dlong$t <= maxTime), c("Lt", "It", "t")]
+  dlong <- dlong[, c("Lt", "It", "t")]
 
   ## denominator
   weightH1 <- 1/(SurvProb1 * treatProb[ID] * CenProb1)
@@ -54,7 +56,7 @@ estimateAIPW <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
   weightH0[which(weightH0 >= quantile(weightH0, probs = 0.95))] <- quantile(weightH0, probs = 0.95)
 
 
-  for (TimePoint in tau){
+  for (TimePoint in 1:length(tau)){
 
     if(estimand=="rmst"){
       if(TimePoint == 1){next}
@@ -62,16 +64,16 @@ estimateAIPW <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
 
     ## parameter
     if(estimand=="rmst"){
-      ind <- (dlong$t <= (TimePoint -1))
+      ind <- (dlong$t <= tau[TimePoint -1])
     }else if(estimand=="risk"){
-      ind <- (dlong$t <= TimePoint)
+      ind <- (dlong$t <= tau[TimePoint])
     }
 
     ## solve estimating equation
     if(estimand=="risk"){
 
-    H1 <- - (ind * rep(SurvProb1[which(dlong$t == TimePoint)], each=max(dlong$t))) * weightH1
-    H0 <- - (ind * rep(SurvProb0[which(dlong$t == TimePoint)], each=max(dlong$t))) * weightH0
+    H1 <- - (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1
+    H0 <- - (ind * rep(SurvProb0[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH0
 
     }else if(estimand=="rmst"){
 
@@ -91,8 +93,8 @@ estimateAIPW <- function(treatment, eventObserved, time, survHaz, cenHaz, treatP
     rm(list=c("H1", "H0"))
 
     if(estimand=="risk"){
-      DW1 <- SurvProb1[which(dlong$t == TimePoint)]
-      DW0 <- SurvProb0[which(dlong$t == TimePoint)]
+      DW1 <- SurvProb1[which(dlong$t == tau[TimePoint])]
+      DW0 <- SurvProb0[which(dlong$t == tau[TimePoint])]
     }else if(estimand=="rmst"){
       DW1 <- tapply(ind * SurvProb1, ID, sum)
       DW0 <- tapply(ind * SurvProb0, ID, sum)
