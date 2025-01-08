@@ -36,12 +36,13 @@ strataCox <- function(treatment, eventObserved, time,
     covariates <- Matrix::summary(interactWithTime)
     colnames(covariates) <- c("i", "j", "val")
 
-    eps <- estimateHaz(id=1:length(treatment), treatment=d_treatment, eventObserved=eventObserved, time=time,
+    eps <- estimateHaz(id=1:length(treatment), treatment=treatment, eventObserved=eventObserved, time=time,
                 offset_t=offset_t, offset_X=FALSE, breaks=breaks, weight=NULL,
                 covariates=covariates, covIdHaz=NULL, crossFitNum=1, index_ls=NULL,
                 timeEffect="linear", evenKnot=NULL, penalizeTimeTreatment=NULL,
                 interactWithTime=as.matrix(interactWithTime), hazEstimate="glm", intercept=TRUE,
-                estimate_hazard="survival", getHaz=FALSE, coef_H=NULL, sigma=NULL)
+                estimate_hazard="survival", getHaz=FALSE, coef_H=NULL, sigma=NULL,
+                robust=FALSE, threshold=1e-10)
 
   }else{
 
@@ -51,7 +52,7 @@ strataCox <- function(treatment, eventObserved, time,
     weight1 <- 1/unlist(CenProb1List, use.names = FALSE)
     weight0 <- 1/unlist(CenProb0List, use.names = FALSE)
 
-    rm(list=c("CenProb1List", "CenProb0List", "cenHaz"))
+    rm(list=c("CenProb1List", "CenProb0List"))
 
     weight1[which(weight1 >= quantile(weight1, probs = 0.95))] <- quantile(weight1, probs = 0.95)
     weight0[which(weight0 >= quantile(weight0, probs = 0.95))] <- quantile(weight0, probs = 0.95)
@@ -63,12 +64,13 @@ strataCox <- function(treatment, eventObserved, time,
     covariates <- Matrix::summary(interactWithTime)
     colnames(covariates) <- c("i", "j", "val")
 
-    eps <- estimateHaz(id=1:length(treatment), treatment=d_treatment, eventObserved=eventObserved, time=time,
+    eps <- estimateHaz(id=1:length(treatment), treatment=treatment, eventObserved=eventObserved, time=time,
                        offset_t=offset_t, offset_X=FALSE, breaks=breaks, weight=weight,
                        covariates=covariates, covIdHaz=NULL, crossFitNum=1, index_ls=NULL,
                        timeEffect="linear", evenKnot=NULL, penalizeTimeTreatment=NULL,
                        interactWithTime=as.matrix(interactWithTime), hazEstimate="glm", intercept=TRUE,
-                       estimate_hazard="survival", getHaz=FALSE, coef_H=NULL, sigma=NULL)
+                       estimate_hazard="survival", getHaz=FALSE, coef_H=NULL, sigma=NULL,
+                       robust=TRUE, threshold=1e-10)
 
   }
 
@@ -100,7 +102,11 @@ strataCox <- function(treatment, eventObserved, time,
   for (i in 1:nsim){
 
     ## simulate coef
+    if(is.null(cenHaz)){
     coef_temp <- MASS::mvrnorm(1, mu=eps$coef_fit, Sigma=eps$coef_var)
+    }else{
+    coef_temp <- MASS::mvrnorm(1, mu=eps$coef_fit, Sigma=eps$coef_robustVar)
+    }
     ## get estimates
     designM$treat <- 1
     haz1 <- plogis(rep(offset_t, each=16) + (as.matrix(designM) %*% coef_temp[-1])[, 1] + coef_temp[1])
