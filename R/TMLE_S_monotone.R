@@ -8,7 +8,9 @@
 #' @param tau Max time of interest. A scalar
 #' @return A data frame with three columns: estimand1, estimand0, SE
 
-estimateTMLEprob_monotone <- function(treatment, eventObserved, time, survHaz, cenHaz, treatProb, tau, printIter){
+estimateTMLEprob_monotone <- function(treatment, eventObserved, time,
+                                      survHaz, cenHaz, treatProb, tau,
+                                      timeIntMidPoint, printIter){
 
   ## container
   estimand1_result <- estimand0_result <- SE_result <- rep(0, length=length(tau))
@@ -29,14 +31,14 @@ estimateTMLEprob_monotone <- function(treatment, eventObserved, time, survHaz, c
 
   ## parameter
   n <- length(unique(survHaz$ID))
-  maxTime <- dim(survHaz)[1]/n
+  maxTime <- length(timeIntMidPoint)
   converged <- FALSE
   iter <- 1
 
   ## dlong
-  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), freqTime=1, type="survival")
+  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), timeIntMidPoint=timeIntMidPoint, type="survival")
   rownames(dlong) <- NULL
-  dlong <- dlong[which(dlong$t <= maxTime), c("Lt", "It", "t")]
+  dlong <- dlong[, c("Lt", "It", "t")]
 
   ## iterate
   while((!converged) && iter <= 50){
@@ -57,7 +59,7 @@ estimateTMLEprob_monotone <- function(treatment, eventObserved, time, survHaz, c
 
     H1 <- H0 <- c()
 
-    for (TimePoint in 1:tau){
+    for (TimePoint in timeIntMidPoint){
 
       ind <- (dlong$t <= TimePoint)
       H1_temp <- as(matrix(- (ind * rep(SurvProb1[which(dlong$t == TimePoint)], each=maxTime)), ncol = 1), "sparseMatrix")
@@ -95,11 +97,10 @@ estimateTMLEprob_monotone <- function(treatment, eventObserved, time, survHaz, c
     ## NA as 0 for the new values
     eps[is.na(eps)] <- 0
 
+
     ## update values
-    H1
-    H0
-    SurvHaz1 <- plogis(qlogis(SurvHaz1) + computeSubsetSparseMatVec(X=H1, v=eps, subsetSize=dim(H1)[1], transposed=FALSE))
-    SurvHaz0 <- plogis(qlogis(SurvHaz0) + computeSubsetSparseMatVec(X=H0, v=eps, subsetSize=dim(H0)[1], transposed=FALSE))
+    SurvHaz1 <- plogis(qlogis(SurvHaz1) + (H1 %*% eps)[, 1])
+    SurvHaz0 <- plogis(qlogis(SurvHaz0) + (H0 %*% eps)[, 1])
     SurvHaz1 <- bound01(SurvHaz1)
     SurvHaz0 <- bound01(SurvHaz0)
     SurvHaz_obs  <- treatment[survHaz$ID] * SurvHaz1  + (1 - treatment[survHaz$ID]) * SurvHaz0
