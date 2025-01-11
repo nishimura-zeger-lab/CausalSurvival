@@ -1,3 +1,83 @@
+#' Get initial parameters for simulation
+#'
+
+estimateSimulationParams <- function(treatment, covariates, outcome, hazEstimate, hazMethod, seed){
+
+  ################
+  ## parameters ##
+  ################
+
+  ## cov
+  cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
+  ## id
+  rowId <- 1:length(outcome)
+
+  #######################################
+  ## variable selection from real data ##
+  #######################################
+
+  if(hazEstimate == "censoring"){
+    d_outcome <- 1 - outcome
+    sigma <- exp(seq(log(0.5), log(0.01), length.out = 20))
+  }else if(hazEstimate == "survival"){
+    d_outcome <- outcome
+    sigma <- exp(seq(log(1), log(0.01), length.out = 20))
+  }
+
+  ## variable selection
+  set.seed(seed)
+  fit <- glmnet::cv.glmnet(x=cbind(treatment, cov), y=Surv(time=time, event=d_outcome), family = "cox", nfolds = 5, penalty.factor = c(0, rep(1, dim(cov)[2])))
+  cf <- coef(fit, s = fit$lambda.1se)
+  cov_indx <- setdiff(which(cf != 0)-1, 0)
+  rm(list=c("fit", "cf"))
+
+
+  ############################
+  ## hazards from real data ##
+  ############################
+
+  if(hazMethod == "twoStage"){
+
+    ## coarsen data
+    timeStrata <- floor(quantile(time[outcome == 1], probs = seq(0.02, 0.98, by=0.02)))
+    breaks <- unname(c(0, timeStrata, max(time)))
+    timeIntMidPoint <- breaks[-length(breaks)] + (diff(breaks)/2)
+    timeInt <- as.double(as.character(cut(time, breaks=breaks, labels=breaks[-length(breaks)] + (diff(breaks)/2))))
+
+    # dlong
+    dlong <- transformData(dwide=data.frame(eventObserved=outcome, time=timeInt), timeIntMidPoint=timeIntMidPoint, type="survival")
+    rownames(dlong) <- NULL
+    dlong <- dlong[, c("Lt", "It", "t")]
+
+    ## offset
+    fit <- mgcv::bam(Lt ~ s(t, bs="ps"), family = binomial, subset = It == 1, data = dlong, method="REML")
+    offset_t <- predict(fit, newdata = data.frame(t=timeIntMidPoint))
+    rm(list=c("dlong", "fit"))
+
+    ## other parameters
+    timeEffect <- "linear"
+    evenKnot <- NULL
+
+  }else if(hazMethod == "ns"){
+
+    offset_t <- NULL
+    timeEffect <- "ns"
+    evenKnot <- FALSE
+
+  }
+
+  coef_h <- estimateHaz(id=rowId, treatment=treatment, eventObserved=outcome, time=timeInt,
+                        offset_t=offset_t, offset_X=FALSE, intercept=TRUE, breaks=breaks,
+                        covariates=covariates, covIdHaz=cov_indx, crossFitNum=1, index_ls=NULL,
+                        timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=FALSE,
+                        interactWithTime=treatment, hazEstimate="ridge", weight=NULL,
+                        sigma=sigma, estimate_hazard=hazEstimate, getHaz=FALSE, coef_H=NULL,
+                        robust=FALSE, threshold=1e-8)
+
+}
+
+
+
 #' Simulate time-to-event data with survival and censoring hazards
 #'
 #' @param survHaz Output from estimateHaz
