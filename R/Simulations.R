@@ -148,7 +148,7 @@ simData2 <- function(survHaz, cenHaz, treatment, maxTime){
 #'
 #'
 
-counterFactuals <- function(survHaz, maxTime){
+counterFactuals <- function(survHaz, maxTime, timeIntLength){
 
   ## paramters
   n <- dim(survHaz)[1]/maxTime
@@ -162,8 +162,8 @@ counterFactuals <- function(survHaz, maxTime){
   rm(list=c("Sm1"))
 
   ## rmst
-  rmst0 <- cumsum(S0)
-  rmst1 <- cumsum(S1)
+  rmst0 <- cumsum(timeIntLength * S0)
+  rmst1 <- cumsum(timeIntLength * S1)
 
   return(data.frame(S0=S0, S1=S1, rmst0=rmst0, rmst1=rmst1))
 
