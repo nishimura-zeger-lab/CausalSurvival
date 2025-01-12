@@ -4,7 +4,7 @@
 #' @param cenHaz
 #'
 
-strataCox <- function(treatment, eventObserved, time,
+strataCox <- function(treatment, eventObserved, time, timeIntLength,
                       treatProb, cenHaz, timeIntMidPoint, breaks,
                       nsim, printSim){
 
@@ -93,12 +93,13 @@ strataCox <- function(treatment, eventObserved, time,
 
   rm(list = c("haz1", "haz0", "SurvProb1", "SurvProb0"))
 
-  rmst1_result <- cumsum(S1_result)
-  rmst0_result <- cumsum(S0_result)
+  rmst1_result <- cumsum(timeIntLength * S1_result)
+  rmst0_result <- cumsum(timeIntLength * S0_result)
 
   ## get CI
   S1 <- S0 <- c()
   rmst1 <- rmst0 <- c()
+
   for (i in 1:nsim){
 
     ## simulate coef
@@ -123,8 +124,8 @@ strataCox <- function(treatment, eventObserved, time,
     S1 <- rbind(S1, SProb1)
     S0 <- rbind(S0, SProb0)
 
-    rmst1 <- rbind(rmst1, cumsum(SProb1))
-    rmst0 <- rbind(rmst0, cumsum(SProb0))
+    rmst1 <- rbind(rmst1, cumsum(timeIntLength * SProb1))
+    rmst0 <- rbind(rmst0, cumsum(timeIntLength * SProb0))
 
     rm(list = c("haz1", "haz0", "SurvProb1", "SurvProb0", "SProb1", "SProb0"))
 
