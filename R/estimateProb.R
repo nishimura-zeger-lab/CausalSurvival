@@ -141,18 +141,20 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
 #' @param maxTimePredict Maximum time for prediction
 #' @return A data frame with columns: ID, Haz1, Haz0
 
-estimateHaz <- function(id, treatment, eventObserved, time,
-                           covariates, covIdHaz,
-                           crossFitNum=1, index_ls=NULL,
+estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X, weight,
+                           covariates, covIdHaz, sigma=exp(seq(log(1), log(0.01), length.out = 20)),
+                           crossFitNum=1, index_ls=NULL, breaks,
                            timeEffect, evenKnot, penalizeTimeTreatment,
-                           interactWithTime, hazEstimate,
-                           estimate_hazard, getHaz, coef_H, maxTimePredict){
+                           interactWithTime, hazEstimate, intercept,
+                           estimate_hazard, getHaz, coef_H, robust, threshold){
 
   ## container
   if(getHaz){
     ID <- Haz1 <- Haz0 <- c()
   }else{
     coef_fit <- c()
+    coef_var <- c()
+    coef_robustVar <- c()
   }
 
   ## covariates to sparse matrix form, and delete unwanted covariates
@@ -161,15 +163,38 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     cov <- cov[, covIdHaz]
   }
 
+  ## coarsen data
+  if(is.null(breaks)){
+    timeStrata <- floor(quantile(time[eventObserved == 1], probs = seq(0.02, 0.98, by=0.02)))
+    breaks <- unname(c(0, timeStrata, max(time)))
+    timeIntMidPoint <- breaks[-length(breaks)] + (diff(breaks)/2)
+    timeInt <- as.double(as.character(cut(time, breaks=breaks, labels=timeIntMidPoint)))
+  }else{
+    timeIntMidPoint <- breaks[-length(breaks)] + (diff(breaks)/2)
+    timeInt <- time
+  }
+  if(offset_X){
+    offset_used_X <- log(as.double(as.character(cut(time, breaks=breaks, labels=diff(breaks)))))
+  }else{
+    offset_used_X <- NULL
+  }
+
+
+
   for (i in crossFitNum){
 
     if (is.null(index_ls)){
       ## training and testing sets are both the entire dataset
       idx_train <- idx_test <- id
+      ## offset
+      offset_used_t <- offset_t
     }else{
       ## training and testing sets
       idx_test <- index_ls[[i]]
       idx_train <- setdiff(id, idx_test)
+      idx_train <- idx_train[order(idx_train)]
+      ## offset
+      offset_used_t <- offset_t[[i]]
     }
 
     ## data
@@ -180,7 +205,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       temporal_effect <- interactWithTime[idx_train, ]
     }
     d_eventObserved <- eventObserved[idx_train]
-    d_time <- time[idx_train]
+    d_time <- timeInt[idx_train]
+    d_offset_used_X <- offset_used_X[idx_train]
 
     ## reorder data
     time_indx <- order(d_time, 1-d_eventObserved, decreasing = TRUE)
@@ -192,6 +218,7 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     }
     d_eventObserved <- d_eventObserved[time_indx]
     d_time <- d_time[time_indx]
+    d_offset_used_X <- d_offset_used_X[time_indx]
     rm(time_indx)
 
 
@@ -199,22 +226,22 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     if(hazEstimate == "glm"){
 
       ## model: glm
-      coef_Haz <- coef_pooled(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
-                                 timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=penalizeTimeTreatment,
-                                 eventObserved=d_eventObserved, time=d_time,
-                                 estimate_hazard=estimate_hazard, sigma=NULL,
-                                 maxiter=40, threshold=1e-14, printIter=TRUE, initial_coef=NULL)
+      coef_Haz <- coef_pooled(X_baseline=X_baseline, temporal_effect=temporal_effect, time=d_time, eventObserved=d_eventObserved,
+                              timeIntMidPoint=timeIntMidPoint, offset_t=offset_used_t, offset_X=d_offset_used_X, weight=weight,
+                              timeEffect=timeEffect, is.temporal=TRUE, evenKnot=evenKnot, penalizeTimeTreatment=penalizeTimeTreatment,
+                              intercept=intercept, estimate_hazard=estimate_hazard, sigma=NULL, maxiter=40, threshold=threshold, printIter=TRUE,
+                              initial_coef=NULL, robust=robust)
 
       rm(list=c("X_baseline", "temporal_effect"))
 
     }else if(hazEstimate == "ridge"){
 
       ## model: ridge
-      coef_Haz <- coef_ridge(X_baseline=X_baseline, temporal_effect=temporal_effect, is.temporal=TRUE,
-                                timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=penalizeTimeTreatment,
-                                eventObserved=d_eventObserved, time=d_time,
-                                estimate_hazard=estimate_hazard, sigma=exp(seq(log(1), log(0.01), length.out = 20)),
-                                maxiter=40, threshold=1e-8, printIter=TRUE)
+      coef_Haz <- coef_ridge(X_baseline=X_baseline, temporal_effect=temporal_effect, eventObserved=d_eventObserved, time=d_time,
+                             timeIntMidPoint=timeIntMidPoint, offset_t=offset_used_t, offset_X=d_offset_used_X, weight=weight,
+                             timeEffect=timeEffect, is.temporal=TRUE, evenKnot=evenKnot, penalizeTimeTreatment=penalizeTimeTreatment,
+                             intercept=intercept, estimate_hazard=estimate_hazard, sigma=sigma,
+                             maxiter=40, threshold=threshold, printIter=TRUE)
 
       rm(list=c("X_baseline", "temporal_effect"))
 
@@ -225,19 +252,18 @@ estimateHaz <- function(id, treatment, eventObserved, time,
 
       ## parameter: maxTimeSplines for prediction if use ns(time, df=4)
       if(timeEffect == "ns" & estimate_hazard == "censoring"){
-        maxTimeSplines <- max(d_time[d_eventObserved == 0])
-        indx_subset <- sapply(1:maxTimeSplines, function(x) sum((time > x)*eventObserved+(time >= x)*(1 - eventObserved)), USE.NAMES = FALSE)
+        indx_subset <- sapply(timeIntMidPoint, function(x) sum((d_time > x)*d_eventObserved+(d_time >= x)*(1 - d_eventObserved)), USE.NAMES = FALSE)
       }else if(timeEffect == "ns" & estimate_hazard == "survival"){
-        maxTimeSplines <- max(d_time[d_eventObserved == 1])
-        indx_subset <- sapply(1:maxTimeSplines, function(x) sum(time >= x), USE.NAMES = FALSE)
-      }else{
-        maxTimeSplines <- NULL
+        indx_subset <- sapply(timeIntMidPoint, function(x) sum(d_time >= x), USE.NAMES = FALSE)
       }
-
 
     ## prepare dataset for prediction
     is.temporal <- TRUE
-    X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)[idx_test, , drop=FALSE]
+    if(intercept){
+      X_baseline <- cbind(rep(1, dim(cov)[1]), rep(1, dim(cov)[1]), cov)[idx_test, , drop=FALSE]
+    }else{
+      X_baseline <- cbind(rep(1, dim(cov)[1]), cov)[idx_test, , drop=FALSE]
+    }
     X_baseline <- Matrix::sparseMatrix(i = Matrix::summary(X_baseline)$i, j = Matrix::summary(X_baseline)$j,
                                        x = Matrix::summary(X_baseline)$x, repr = "R")
     if(is.null(interactWithTime)){
@@ -245,6 +271,8 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     }else{
       temporal_effect <- rep(1, length(idx_test))
     }
+    d_offset_used_X <- offset_used_X[idx_test]
+
     if(is.null(temporal_effect) & !is.temporal){
       temporal_effect <- cbind(rep(0, dim(X_baseline)[1]), temporal_effect)
       nsBase <- NULL
@@ -253,12 +281,13 @@ estimateHaz <- function(id, treatment, eventObserved, time,
       nsBase <- NULL
     }else if(timeEffect == "ns"){
       temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                               rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
+                               rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect,
+                               temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       if(evenKnot){
-        nsBase <- splines::ns(c(1:maxTimeSplines), df=4)
+        nsBase <- splines::ns(timeIntMidPoint, df=5)
         if(hazEstimate == "ridge"){if(penalizeTimeTreatment){nsBase <- apply(nsBase, 2, function(x) x/sd(x))}}
       }else{
-        nsBase <- splines::ns(c(1:maxTimeSplines), knots=quantile(rep(1:maxTimeSplines, times=indx_subset), probs=c(0.25, 0.5, 0.75)))
+        nsBase <- splines::ns(timeIntMidPoint, knots=quantile(rep(timeIntMidPoint, times=indx_subset), probs=c(0.2, 0.4, 0.6, 0.8)))
         if(hazEstimate == "ridge"){if(penalizeTimeTreatment){nsBase <- apply(nsBase, 2, function(x) x/sd(rep(x, times=indx_subset)))}}
       }
     }
@@ -267,10 +296,9 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     if(is.null(coef_H)){
       ## prediction with derived coefficients
       Haz1temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
-                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines, nsBase=nsBase)
-
-      X_baseline[, 2] <- 0
+                                 temporal_effect=temporal_effect, offset_t=offset_used_t, offset_X=d_offset_used_X,
+                                 timeIntMidPoint=timeIntMidPoint, timeEffect=timeEffect, nsBase=nsBase)
+      if(intercept){X_baseline[, 2] <- 0}else{X_baseline[, 1] <- 0}
       X_baseline <- Matrix::sparseMatrix(i = Matrix::summary(X_baseline)$i, j = Matrix::summary(X_baseline)$j,
                                          x = Matrix::summary(X_baseline)$x, repr = "R")
       if(is.null(interactWithTime)){
@@ -285,24 +313,23 @@ estimateHaz <- function(id, treatment, eventObserved, time,
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
       }else if(timeEffect == "ns"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
+                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
+                                 temporal_effect, temporal_effect, temporal_effect, temporal_effect, temporal_effect)
       }
 
       Haz0temp <- predict_pooled(coef=coef_Haz$estimates, X_baseline=X_baseline,
-                                  temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                  maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines,
-                                  nsBase=nsBase)
+                                 temporal_effect=temporal_effect, offset_t=offset_used_t, offset_X=d_offset_used_X,
+                                 timeIntMidPoint=timeIntMidPoint, timeEffect=timeEffect, nsBase=nsBase)
 
       rm(coef_Haz)
 
     }else{
       ## prediction with input coefficients
       Haz1temp <- predict_pooled(coef=coef_H[, i], X_baseline=X_baseline,
-                                 temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                 maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines,
-                                 nsBase=nsBase)
+                                 temporal_effect=temporal_effect, offset_t=offset_used_t, offset_X=d_offset_used_X,
+                                 timeIntMidPoint=timeIntMidPoint, timeEffect=timeEffect, nsBase=nsBase)
 
-      X_baseline[, 2] <- 0
+      if(intercept){X_baseline[, 2] <- 0}else{X_baseline[, 1] <- 0}
       X_baseline <- Matrix::sparseMatrix(i = Matrix::summary(X_baseline)$i, j = Matrix::summary(X_baseline)$j,
                                          x = Matrix::summary(X_baseline)$x, repr = "R")
       if(is.null(interactWithTime)){
@@ -317,18 +344,18 @@ estimateHaz <- function(id, treatment, eventObserved, time,
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), temporal_effect)
       }else if(timeEffect == "ns"){
         temporal_effect <- cbind(rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]),
-                                 rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect, temporal_effect, temporal_effect)
+                                 rep(1, dim(X_baseline)[1]), rep(1, dim(X_baseline)[1]), temporal_effect, temporal_effect,
+                                 temporal_effect, temporal_effect, temporal_effect)
       }
       Haz0temp <- predict_pooled(coef=coef_H[, i], X_baseline=X_baseline,
-                                 temporal_effect=temporal_effect, timeEffect=timeEffect,
-                                 maxTime=maxTimePredict, maxTimeSplines=maxTimeSplines,
-                                 nsBase=nsBase)
+                                 temporal_effect=temporal_effect, offset_t=offset_used_t, offset_X=d_offset_used_X,
+                                 timeIntMidPoint=timeIntMidPoint, timeEffect=timeEffect, nsBase=nsBase)
     }
     ## clear workspace
     rm(list=c("X_baseline", "temporal_effect", "idx_train"))
 
     ## store
-    ID <- c(ID, rep(idx_test, each=maxTimePredict))
+    ID <- c(ID, rep(idx_test, each=length(timeIntMidPoint)))
     Haz1 <- c(Haz1, Haz1temp)
     Haz0 <- c(Haz0, Haz0temp)
 
@@ -338,6 +365,12 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     }else{
     ## no prediction, output coefficients
       coef_fit <- cbind(coef_fit, coef_Haz$estimates)
+      if(hazEstimate == "glm"){
+        coef_var <- cbind(coef_var, coef_Haz$var)
+        if(robust){
+        coef_robustVar <- cbind(coef_robustVar, coef_Haz$robustVar)
+        }
+        }
     }
   }
 
@@ -348,9 +381,16 @@ estimateHaz <- function(id, treatment, eventObserved, time,
     rownames(out) <- NULL
     return(out)
   }else{
-    return(coef_fit)
+    if(hazEstimate == "glm"){
+      if(robust){
+      return(list(coef_fit=coef_fit, coef_var=coef_var, coef_robustVar=coef_robustVar))
+      }else{
+      return(list(coef_fit=coef_fit, coef_var=coef_var))
+      }
+    }else if(hazEstimate == "ridge"){
+      return(coef_fit)
+    }
   }
-
 }
 
 
