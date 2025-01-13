@@ -156,7 +156,6 @@ estimateTMLE <- function(treatment, eventObserved, time,
       cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, survHaz$ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
       H0 <- as(matrix(- cumProb0TillTimePoint * weightH0 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
 
-
       rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint", "weightH1", "weightH0"))
 
     }
