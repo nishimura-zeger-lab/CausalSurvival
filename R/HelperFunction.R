@@ -89,6 +89,31 @@ crossFit <- function(eventObserved, id, crossFitNum){
   return(index_ls)
 }
 
+#' Coarsen data to non-uniform time intervals
+#'
+#'
+
+coarseData <- function(time, outcome, nInt){
+
+  probSeq <- seq(0, 1, length.out=nInt+1)[-c(1, nInt+1)]
+  timeStrata <- floor(quantile(time[outcome == 1], probs = probSeq))
+
+  breaks <- unname(c(0, timeStrata, max(time)))
+  timeIntMidPoint <- breaks[-length(breaks)] + (diff(breaks)/2)
+  timeIntLength <- diff(breaks)
+
+  timeInt <- as.double(as.character(cut(time, breaks=breaks, labels=timeIntMidPoint)))
+
+  return(list(breaks=breaks, timeIntMidPoint=timeIntMidPoint, timeIntLength=timeIntLength, timeInt=timeInt))
+
+}
+
+
+
+
+
+
+
 
 
 
