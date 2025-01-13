@@ -65,19 +65,19 @@ estimateSimulationParams <- function(treatment, covariates, outcome, hazEstimate
 
   }
 
-  coef_h <- estimateHaz(id=rowId, treatment=treatment, eventObserved=outcome, time=timeInt,
+  haz <- estimateHaz(id=rowId, treatment=treatment, eventObserved=outcome, time=timeInt,
                         offset_t=offset_t, offset_X=FALSE, intercept=TRUE, breaks=breaks,
                         covariates=covariates, covIdHaz=cov_indx, crossFitNum=1, index_ls=NULL,
                         timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=FALSE,
                         interactWithTime=treatment, hazEstimate="ridge", weight=NULL,
-                        sigma=sigma, estimate_hazard=hazEstimate, getHaz=FALSE, coef_H=NULL,
+                        sigma=sigma, estimate_hazard=hazEstimate, getHaz=TRUE, coef_H=NULL,
                         robust=FALSE, threshold=1e-10)
 
   ############
   ## output ##
   ############
 
-  return(list(coef_h=coef_h, cov_indx=cov_indx))
+  return(list(haz=haz, cov_indx=cov_indx))
 
 }
 
