@@ -11,11 +11,16 @@
 
 estimateTMLE <- function(treatment, eventObserved, time,
                          survHaz, cenHaz, treatProb, tau,
-                         timeIntMidPoint,
-                         estimand, printIter, printTau){
+                         timeIntMidPoint, timeIntLength,
+                         estimand, printIter, printTau,
+                         tempCompare){
 
   ## container
   estimand1_result <- estimand0_result <- SE_result <- rep(0, length=length(tau))
+  if(tempCompare){
+    Dac <- c()
+    SE_transform_result <- rep(0, length=length(tau))
+  }
 
   ## calculate censoring probability that doesn't need iterative updates
   CenProb1List <- tapply(1 - cenHaz$Haz1, survHaz$ID, cumprod, simplify = FALSE)
@@ -37,21 +42,13 @@ estimateTMLE <- function(treatment, eventObserved, time,
 
   for (TimePoint in 1:length(tau)){
 
-    if(estimand=="rmst"){
-      if(TimePoint == 1){next}
-    }
-
     ## initial SurvHaz
     SurvHaz1 <- survHaz$Haz1
     SurvHaz0 <- survHaz$Haz0
     SurvHaz_obs  <- treatment[survHaz$ID]*SurvHaz1 + (1-treatment[survHaz$ID])*SurvHaz0
 
     ## parameter
-    if(estimand=="rmst"){
-      ind <- (dlong$t <= tau[TimePoint -1])
-    }else if(estimand=="risk"){
-      ind <- (dlong$t <= tau[TimePoint])
-    }
+    ind <- (dlong$t <= tau[TimePoint])
     converged <- FALSE
     iter <- 1
 
@@ -83,10 +80,10 @@ estimateTMLE <- function(treatment, eventObserved, time,
       }else if(estimand=="rmst"){
 
       cumProb1TillTimePoint <- unlist(tapply(ind * SurvProb1, survHaz$ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      H1 <- as(matrix(- cumProb1TillTimePoint * weightH1, ncol = 1), "sparseMatrix")
+      H1 <- as(matrix(- cumProb1TillTimePoint * weightH1 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
 
       cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, survHaz$ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      H0 <- as(matrix(- cumProb0TillTimePoint * weightH0, ncol = 1), "sparseMatrix")
+      H0 <- as(matrix(- cumProb0TillTimePoint * weightH0 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
 
       rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint", "weightH1", "weightH0"))
 
@@ -154,10 +151,10 @@ estimateTMLE <- function(treatment, eventObserved, time,
     }else if(estimand=="rmst"){
 
       cumProb1TillTimePoint <- unlist(tapply(ind * SurvProb1, survHaz$ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      H1 <- as(matrix(- cumProb1TillTimePoint * weightH1, ncol = 1), "sparseMatrix")
+      H1 <- as(matrix(- cumProb1TillTimePoint * weightH1 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
 
       cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, survHaz$ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      H0 <- as(matrix(- cumProb0TillTimePoint * weightH0, ncol = 1), "sparseMatrix")
+      H0 <- as(matrix(- cumProb0TillTimePoint * weightH0 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
 
 
       rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint", "weightH1", "weightH0"))
@@ -189,6 +186,10 @@ estimateTMLE <- function(treatment, eventObserved, time,
     ## standard error of estimand1-estimand0
     D <- DT + DW1 - DW0
     sdn <- sqrt(var(D) / n)
+    if(tempCompare){
+      Dac <- Dac + D
+      SE_transform_result[TimePoint] <- sqrt(var(Dac) / n)
+    }
 
     rm(list=c("DT", "DW1", "DW0", "D"))
 
@@ -204,7 +205,11 @@ estimateTMLE <- function(treatment, eventObserved, time,
   }
 
   ## result
-  out <- data.frame(estimand1=estimand1_result, estimand0=estimand0_result, SE=SE_result)
+  if(tempCompare){
+    out <- data.frame(estimand1=estimand1_result, estimand0=estimand0_result, SE=SE_result, SE_transform=SE_transform_result)
+  }else{
+    out <- data.frame(estimand1=estimand1_result, estimand0=estimand0_result, SE=SE_result)
+  }
   return(out)
 }
 
