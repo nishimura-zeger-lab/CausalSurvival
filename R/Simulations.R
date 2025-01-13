@@ -31,7 +31,6 @@ estimateSimulationParams <- function(treatment, covariates, outcome, hazEstimate
   cov_indx <- setdiff(which(cf != 0)-1, 0)
   rm(list=c("fit", "cf"))
 
-
   ############################
   ## hazards from real data ##
   ############################
@@ -72,7 +71,13 @@ estimateSimulationParams <- function(treatment, covariates, outcome, hazEstimate
                         timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=FALSE,
                         interactWithTime=treatment, hazEstimate="ridge", weight=NULL,
                         sigma=sigma, estimate_hazard=hazEstimate, getHaz=FALSE, coef_H=NULL,
-                        robust=FALSE, threshold=1e-8)
+                        robust=FALSE, threshold=1e-10)
+
+  ############
+  ## output ##
+  ############
+
+  return(list(coef_h=coef_h, cov_indx=cov_indx))
 
 }
 
