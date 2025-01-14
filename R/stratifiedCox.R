@@ -4,8 +4,9 @@
 #' @param cenHaz
 #'
 
-strataCox <- function(treatment, eventObserved, time, timeIntLength,
-                      treatProb, cenHaz, timeIntMidPoint, breaks,
+strataCox <- function(treatment, eventObserved, time,
+                      treatProb, cenHaz,
+                      timeIntMidPoint, timeIntLength, breaks,
                       nsim, printSim){
 
   ## create strata

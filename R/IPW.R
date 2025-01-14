@@ -8,8 +8,8 @@
 
 estimateIPW <- function(treatment, eventObserved, time,
                         cenHaz, treatProb,
-                        tau, timeIntMidPoint, estimand, printTau,
-                        timeIntLength){
+                        tau, timeIntMidPoint, timeIntLength,
+                        estimand, printTau){
 
   ## container
   estimand1_result <- estimand0_result <- SE_result <- rep(0, length=length(tau))
