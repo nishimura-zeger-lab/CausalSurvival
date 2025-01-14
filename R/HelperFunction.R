@@ -90,7 +90,7 @@ crossFit <- function(eventObserved, id, crossFitNum){
 }
 
 #' Coarsen data to non-uniform time intervals
-#'
+#' @param nInt number of time intervals for coarsening the data
 #'
 
 coarseData <- function(time, outcome, nInt){

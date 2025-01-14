@@ -1,5 +1,8 @@
 #' Get initial parameters for simulation
-#'
+#' @param nInt number of time intervals for coarsening the data
+#' @param hazEstimate "survival" or "censoring"
+#' @param hazMethod "twoStage" or "ns"
+#' @param seed to set.seed()
 
 estimateSimulationParams <- function(treatment, covariates, outcome, nInt, hazEstimate, hazMethod, seed){
 
