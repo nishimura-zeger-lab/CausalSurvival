@@ -62,7 +62,7 @@ cenHaz_initial <- estimateSimulationParams(outcome=d_outcome, time=d_time, treat
 ## counterfactuals
 Truth <- counterFactuals(time=d_time, outcome=d_outcome, survHaz=survHaz_initial$haz, nInt=nInt)
 
-## simulation
+## simulation - one set
 set.seed(2019)
 SimData <- simData(time=d_time, outcome=d_outcome, treatment=d_treatment,
                    survHaz=survHaz_initial$haz, cenHaz=cenHaz_initial$haz, nInt=nInt)
@@ -74,14 +74,14 @@ SimData <- simData(time=d_time, outcome=d_outcome, treatment=d_treatment,
 
 
 ## survival hazards and selected covariates
-survHaz_initial <- estimateSimulationParams(outcome=d_outcome, time=d_time, treatment=d_treatment, covariates=covariates,
+survHaz_sim <- estimateSimulationParams(outcome=d_outcome, time=d_time, treatment=d_treatment, covariates=covariates,
                                             simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, covId=survHaz_initial$cov_indx,
-                                            nInt=nInt, hazEstimate="survival", hazMethod=hazMethod, seed=2019)
+                                            nInt=nInt, hazEstimate="survival", hazMethod=hazMethod, seed=NULL)
 
 ## censoring hazards and selected covariates
-cenHaz_initial <- estimateSimulationParams(outcome=d_outcome, time=d_time, treatment=d_treatment, covariates=covariates,
+cenHaz_sim <- estimateSimulationParams(outcome=d_outcome, time=d_time, treatment=d_treatment, covariates=covariates,
                                            simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, covId=cenHaz_initial$cov_indx,
-                                           nInt=nInt, hazEstimate="censoring", hazMethod=hazMethod, seed=2019)
+                                           nInt=nInt, hazEstimate="censoring", hazMethod=hazMethod, seed=NULL)
 
 
 
@@ -89,30 +89,75 @@ cenHaz_initial <- estimateSimulationParams(outcome=d_outcome, time=d_time, treat
 ## estimate S(1)-S(0) ##
 ########################
 
-## predicted hazards
+## tmle_S
+tmle_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
+                     survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
+                     simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
+                     estimand="risk", algorithm="TMLE")
 
+## aipw_S
+aipw_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
+                     survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
+                     simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
+                     estimand="risk", algorithm="AIPW")
 
-## algorithm
+## ipw_S
+ipw_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
+                      survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
+                      simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
+                      estimand="risk", algorithm="IPW")
 
+## cox_S
+ipw_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
+                      survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
+                      simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
+                      estimand="risk", algorithm="cox")
 
-## predicted hazards
-
-## algorithm
-
-
-####################
-## plot S(1)-S(0) ##
-####################
-
-
-
-
-
+## weightedCox_S
+weightedCox_S <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
+                              survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
+                              simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
+                              estimand="risk", algorithm="weightedCox")
 
 ##############################
 ## estimate RMST(1)-RMST(0) ##
 ##############################
 
+## tmle_rmst
+tmle_rmst <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
+                       survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
+                       simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
+                       estimand="rmst", algorithm="TMLE")
+
+## aipw_rmst
+aipw_rmst <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
+                       survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
+                       simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
+                       estimand="rmst", algorithm="AIPW")
+
+## ipw_rmst
+ipw_rmst <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
+                      survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
+                      simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
+                      estimand="rmst", algorithm="IPW")
+
+## cox_rmst
+ipw_rmst <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
+                      survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
+                      simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
+                      estimand="rmst", algorithm="cox")
+
+## weightedCox_rmst
+weightedCox_rmst <- algorithmSim(treatment=d_treatment, outcome=d_outcome, time=d_time,
+                              survHaz=survHaz_sim$haz, cenHaz=cenHaz_sim$haz, treatProb=treatProb$TreatProb,
+                              simOutcome=SimData$ObservedEvent, simTime=SimData$ObservedTime, nInt=nInt,
+                              estimand="risk", algorithm="weightedCox")
+
+
+
+####################
+## plot S(1)-S(0) ##
+####################
 
 
 
