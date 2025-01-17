@@ -171,8 +171,8 @@ estimateTMLE <- function(treatment, eventObserved, time,
 
     }else if(estimand=="rmst"){
 
-      DW1 <- tapply(ind * SurvProb1, survHaz$ID, sum)
-      DW0 <- tapply(ind * SurvProb0, survHaz$ID, sum)
+      DW1 <- tapply(ind * SurvProb1 * rep(timeIntLength, n), survHaz$ID, sum)
+      DW0 <- tapply(ind * SurvProb0 * rep(timeIntLength, n), survHaz$ID, sum)
 
     }
 
@@ -186,7 +186,7 @@ estimateTMLE <- function(treatment, eventObserved, time,
     D <- DT + DW1 - DW0
     sdn <- sqrt(var(D) / n)
     if(tempCompare){
-      Dac <- Dac + D
+      Dac <- Dac + D * timeIntLength[TimePoint]
       SE_transform_result[TimePoint] <- sqrt(var(Dac) / n)
     }
 

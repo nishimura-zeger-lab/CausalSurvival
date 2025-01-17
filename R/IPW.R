@@ -119,8 +119,8 @@ estimateIPW <- function(treatment, eventObserved, time,
 
     }else if(estimand=="rmst"){
 
-      DW1 <- tapply(ind * SurvProb1, ID, sum)
-      DW0 <- tapply(ind * SurvProb0, ID, sum)
+      DW1 <- tapply(ind * SurvProb1 * rep(timeIntLength, n), ID, sum)
+      DW0 <- tapply(ind * SurvProb0 * rep(timeIntLength, n), ID, sum)
 
     }
 
