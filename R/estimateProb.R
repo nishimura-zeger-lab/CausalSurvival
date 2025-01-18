@@ -165,7 +165,7 @@ estimateHaz <- function(id, treatment, eventObserved, time, offset_t, offset_X, 
 
   ## coarsen data
   if(is.null(breaks)){
-    cData <- coarseData(time=time, outcome=eventObserved, nInt=nInt)
+    cData <- coarseData(time=time, outcome=eventObserved, nInt=50)
     breaks <- cData$breaks
     timeIntMidPoint <- cData$timeIntMidPoint
     timeInt <- cData$timeInt
