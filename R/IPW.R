@@ -107,8 +107,8 @@ estimateIPW <- function(treatment, eventObserved, time,
       rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint"))
     }
 
-    DT1 <- tapply(dlong$It * treatment[ID] * H1 * (dlong$Lt - SurvHaz_obs), ID, sum)
-    DT0 <- tapply(dlong$It * (1 - treatment[ID]) * H0 * (dlong$Lt - SurvHaz_obs), ID, sum)
+    DT1 <- tapply(dlong$It * treatment[ID] * H1[, 1] * (dlong$Lt - SurvHaz_obs), ID, sum)
+    DT0 <- tapply(dlong$It * (1 - treatment[ID]) * H0[, 1] * (dlong$Lt - SurvHaz_obs), ID, sum)
 
     rm(list=c("H1", "H0"))
 
