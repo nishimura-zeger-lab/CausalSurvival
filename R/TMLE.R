@@ -18,7 +18,7 @@ estimateTMLE <- function(treatment, eventObserved, time,
   ## container
   estimand1_result <- estimand0_result <- SE_result <- rep(0, length=length(tau))
   if(tempCompare){
-    Dac <- c()
+    Dac <- 0
     SE_transform_result <- rep(0, length=length(tau))
   }
 
