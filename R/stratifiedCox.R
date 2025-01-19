@@ -21,11 +21,11 @@ strataCox <- function(treatment, eventObserved, time,
   ID <- rep(1:n, each=maxTime)
   id <- rep(1:16, maxTime)
 
-  if(hazMethod == "twoStage"){
-
   ## create dlong
   dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time, stratumId=stratumId, treat=treatment), timeIntMidPoint=timeIntMidPoint, type="survival")
   rownames(dlong) <- NULL
+
+  if(hazMethod == "twoStage"){
 
   ## mgcv
   fit <- mgcv::bam(Lt ~ s(t, bs="ps"), family = binomial, subset = It == 1, data = dlong, method="REML")
@@ -51,12 +51,12 @@ strataCox <- function(treatment, eventObserved, time,
     colnames(covariates) <- c("i", "j", "val")
 
     eps <- estimateHaz(id=1:length(treatment), treatment=treatment, eventObserved=eventObserved, time=time,
-                offset_t=offset_t, offset_X=FALSE, breaks=breaks, weight=NULL,
-                covariates=covariates, covIdHaz=NULL, crossFitNum=1, index_ls=NULL,
-                timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=NULL,
-                interactWithTime=as.matrix(interactWithTime), hazEstimate="glm", intercept=TRUE,
-                estimate_hazard="survival", getHaz=FALSE, coef_H=NULL, sigma=NULL,
-                robust=FALSE, threshold=1e-10)
+                       offset_t=offset_t, offset_X=FALSE, breaks=breaks, weight=NULL,
+                       covariates=covariates, covIdHaz=NULL, crossFitNum=1, index_ls=NULL,
+                       timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=NULL,
+                       interactWithTime=as.matrix(interactWithTime), hazEstimate="glm", intercept=TRUE,
+                       estimate_hazard="survival", getHaz=FALSE, coef_H=NULL, sigma=NULL,
+                       robust=FALSE, threshold=1e-10)
 
   }else{
 
@@ -89,6 +89,8 @@ strataCox <- function(treatment, eventObserved, time,
   }
 
   ## get estimates
+  if(hazMethod == "twoStage"){
+
   designM <- expand.grid(treat=1, stratumId2=c(0, 1), stratumId3=c(0, 1), stratumId4=c(0, 1), stratumId5=c(0, 1), t=timeIntMidPoint)
   designM$stratumId2t <- designM$stratumId2*designM$t
   designM$stratumId3t <- designM$stratumId3*designM$t
@@ -97,6 +99,24 @@ strataCox <- function(treatment, eventObserved, time,
   haz1 <- plogis(rep(offset_t, each=16) + (as.matrix(designM) %*% eps$coef_fit[-1, 1])[, 1] + eps$coef_fit[1, 1])
   designM$treat <- 0
   haz0 <- plogis(rep(offset_t, each=16) + (as.matrix(designM) %*% eps$coef_fit[-1, 1])[, 1] + eps$coef_fit[1, 1])
+
+  }else if(hazMethod == "ns"){
+
+      indx_subset <- sapply(timeIntMidPoint, function(x) sum(time >= x), USE.NAMES = FALSE)
+      nsBase <- splines::ns(timeIntMidPoint, knots=quantile(rep(timeIntMidPoint, times=indx_subset), probs=c(0.2, 0.4, 0.6, 0.8)))
+
+      designM <- expand.grid(treat=1, stratumId2=c(0, 1), stratumId3=c(0, 1), stratumId4=c(0, 1), stratumId5=c(0, 1), nsBase)
+      designM <- cbind(designM, designM[, 2:5] * nsBase[, 1])
+      designM <- cbind(designM, designM[, 2:5] * nsBase[, 2])
+      designM <- cbind(designM, designM[, 2:5] * nsBase[, 3])
+      designM <- cbind(designM, designM[, 2:5] * nsBase[, 4])
+      designM <- cbind(designM, designM[, 2:5] * nsBase[, 5])
+      haz1 <- plogis((as.matrix(designM) %*% eps$coef_fit[-1, 1])[, 1] + eps$coef_fit[1, 1])
+      designM$treat <- 0
+      haz0 <- plogis((as.matrix(designM) %*% eps$coef_fit[-1, 1])[, 1] + eps$coef_fit[1, 1])
+
+  }
+
 
   ## S
   SurvProb1 <- unlist(tapply(1 - haz1, id, cumprod, simplify = FALSE), use.names = FALSE)
@@ -124,9 +144,17 @@ strataCox <- function(treatment, eventObserved, time,
     }
     ## get estimates
     designM$treat <- 1
+    if(hazMethod == "twoStage"){
     haz1 <- plogis(rep(offset_t, each=16) + (as.matrix(designM) %*% coef_temp[-1])[, 1] + coef_temp[1])
+    }else if(hazMethod == "ns"){
+    haz1 <- plogis((as.matrix(designM) %*% coef_temp[-1])[, 1] + coef_temp[1])
+    }
     designM$treat <- 0
+    if(hazMethod == "twoStage"){
     haz0 <- plogis(rep(offset_t, each=16) + (as.matrix(designM) %*% coef_temp[-1])[, 1] + coef_temp[1])
+    }else if(hazMethod == "ns"){
+    haz0 <- plogis((as.matrix(designM) %*% coef_temp[-1])[, 1] + coef_temp[1])
+    }
 
     ## S
     SurvProb1 <- unlist(tapply(1 - haz1, id, cumprod, simplify = FALSE), use.names = FALSE)
