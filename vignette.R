@@ -9,26 +9,6 @@ hazMethod <- "ns"
 ###############
 ## load data ##
 ###############
-setwd("/Users/shiyaoxu/Documents/Research/causal_ODHSI/major_cardio_event")
-d_treatment <- read.table("treatment.txt", header = FALSE)$V1
-d_censoring_time <- read.table("censoring_time.txt", header = FALSE)$V1
-d_event_time <- read.table("event_time.txt", header = FALSE)$V1
-d_outcome <- read.table("outcome.txt", header = FALSE)$V1
-d_outcome <- ifelse(d_outcome %in% c(2, 3, 4), 1, d_outcome)
-d_time <- d_event_time
-d_time[which(d_outcome == 0)] <- d_censoring_time[which(d_outcome == 0)]
-rm(list=c("d_censoring_time", "d_event_time"))
-covariates <- data.table::fread("sparse_design_matrix.txt")
-covariates[which(covariates$j == 1662 & covariates$val == 1),]$i[90151] <- "1047"
-covariates$i <- as.integer(covariates$i)
-cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
-
-
-# Vignette should not rely on the data set other people do not have access to.
-# Use the publicly available "Eunomia" data instead.
-
-library(CohortMethod)
-library(Eunomia)
 
 connectionDetails <- getEunomiaConnectionDetails()
 Eunomia::createCohorts(connectionDetails)
@@ -56,6 +36,7 @@ val <- covariates  %>% pull(.data$covariateValue)
 treatment <- population$treatment
 event_time <- population$survivalTime
 # It seems like the Eunomia data assumes no censoring, so we have to simulate censoring time.
+
 
 ## parameters
 rowId <- 1:length(d_outcome)

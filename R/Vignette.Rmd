@@ -1,0 +1,70 @@
+---
+title: "Vignette"
+author: "Shiyao Xu"
+date: "1/19/2025"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+devtools::load_all("/Users/shiyaoxu/Documents/Research/CausalSurvival")
+```
+
+## Load data
+
+Use synthetic `Eunomia` dataset to illustrate how to perform the simulation study. 
+
+```{r}
+
+connectionDetails <- Eunomia::getEunomiaConnectionDetails()
+Eunomia::createCohorts(connectionDetails)
+
+cohortMethodData <- CohortMethod::getDbCohortMethodData(connectionDetails = connectionDetails,
+                                                        cdmDatabaseSchema = "main",
+                                                        targetId = 1,
+                                                        comparatorId = 2,
+                                                        outcomeIds = 3,
+                                                        exposureDatabaseSchema = "main",
+                                                        outcomeDatabaseSchema = "main",
+                                                        exposureTable = "cohort",
+                                                        outcomeTable = "cohort",
+                                                        covariateSettings = FeatureExtraction::createDefaultCovariateSettings())
+
+population <- CohortMethod::createStudyPopulation(cohortMethodData = cohortMethodData,
+                                                  outcomeId = 3,
+                                                  riskWindowEnd = 99999)
+
+covariateData <- filterAndTidyCovariatesForPs(cohortMethodData, population)
+covariates <- covariateData$covariates
+row_id <- covariates %>% dplyr::pull(.data$rowId)
+covariate_id <- covariates %>% dplyr::pull(.data$covariateId)
+val <- covariates  %>% dplyr::pull(.data$covariateValue)
+treatment <- population$treatment
+event_time <- population$survivalTime
+```
+
+Simulate censoring time 
+
+
+## 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
