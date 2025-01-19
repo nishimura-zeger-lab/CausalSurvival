@@ -65,8 +65,8 @@ estimateAIPW <- function(treatment, eventObserved, time,
     ## solve estimating equation
     if(estimand=="risk"){
 
-    H1 <- - (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1
-    H0 <- - (ind * rep(SurvProb0[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH0
+    H1 <- as(matrix( - (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
+    H0 <- as(matrix( - (ind * rep(SurvProb0[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH0, ncol = 1), "sparseMatrix")
 
     }else if(estimand=="rmst"){
 
