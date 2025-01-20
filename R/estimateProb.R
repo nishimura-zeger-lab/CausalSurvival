@@ -67,7 +67,6 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
     cyclopsFit <- Cyclops::fitCyclopsModel(cyclopsData, prior = prior, control = control)
 
 
-
     ## adjust intercept to full-training dataset
     y.bar <- mean(outcomes_train_sub$y)
     y.odds <- y.bar/(1 - y.bar)
@@ -80,7 +79,6 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
 
     ## clear workspace
     rm(list=c("outcomes_train", "outcomes_train_sub", "covariates_train", "covariates_train_sub", "cyclopsData", "floatingPoint"))
-
 
 
     ## testing set

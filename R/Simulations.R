@@ -5,17 +5,17 @@
 #' @param seed to set.seed()
 
 estimateSimulationParams <- function(outcome, time, treatment, covariates,
-                                     simOutcome, simTime, covId,
-                                     nInt, hazEstimate, hazMethod, seed){
+                                     simOutcome=NULL, simTime=NULL, covId=NULL,
+                                     nInt=NULL, hazEstimate, hazMethod, seed){
 
-  ## parameters ##
-  cov <- Matrix::sparseMatrix(i = covariates$i, j = covariates$j, x = covariates$val, repr = "T")
+  ## parameters
+  cov <- Matrix::sparseMatrix(i = covariates$rowId, j = covariates$covariateId, x = covariates$covariateValue, repr = "T")
   rowId <- 1:length(outcome)
+  if(is.null(nInt)){nInt <- min(50, floor((sum(outcome)/10)))}
 
   if(is.null(covId)){
 
-
-  ## variable selection from real data ##
+  ## variable selection from real data
   if(hazEstimate == "censoring"){
     d_outcome <- 1 - outcome
     sigma <- exp(seq(log(0.5), log(0.01), length.out = 20))
@@ -40,12 +40,11 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
     }
     cov <- cov[, covId]
     cov_indx <- covId
-
   }
 
 
-  ## hazards from real data ##
-  cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
+  ## hazards from real data
+  cData <- coarsenData(time=time, outcome=outcome, nInt=nInt)
   if(!is.null(simTime)){
     outcome <- simOutcome
     cData$timeInt <- simTime
@@ -80,9 +79,9 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
                      timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=FALSE,
                      interactWithTime=treatment, hazEstimate="ridge", weight=NULL,
                      sigma=sigma, estimate_hazard=hazEstimate, getHaz=TRUE, coef_H=NULL,
-                     robust=FALSE, threshold=1e-10)
+                     robust=FALSE, threshold=1e-8)
 
-  return(list(haz=haz, cov_indx=cov_indx))
+  return(list(haz=haz, cov_indx=cov_indx, coarsenedData=cData))
 
 }
 
@@ -100,7 +99,7 @@ simData <- function(time, outcome, treatment, survHaz, cenHaz, nInt){
   n <- length(treatment)
 
   ## coarsen data
-  cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
+  cData <- coarsenData(time=time, outcome=outcome, nInt=nInt)
 
   ## simulation
   survHaz_all <- survHaz$Haz1 * treatment[survHaz$ID] + survHaz$Haz0 * (1 - treatment[survHaz$ID])
@@ -128,17 +127,16 @@ simData <- function(time, outcome, treatment, survHaz, cenHaz, nInt){
 
 
 #' Calculate counterfactuals from simulated data
+#' @param coarsenedTime Output from coarsenData
 #' @param survHaz Output from estimateHaz
-#' @param nInt number of time intervals for coarsening the data
+#' @param survCurve Output from calculateSurvCurve
+#'
 
-counterFactuals <- function(time, outcome, survHaz, nInt){
+calculateSurvCurve <- function(coarsenedTime, survHaz){
 
-  ## paramters
-  n <- dim(survHaz)[1]/nInt
+  n <- length(coarsenedTime$timeInt)
+  nInt <- length(coarsenedTime$timeIntMidPoint)
 
-  cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
-
-  ## surv prob
   Sm0 <- unlist(tapply(1-survHaz$Haz0, rep(1:n, each=nInt), cumprod, simplify = FALSE), use.names = FALSE)
   S0 <- tapply(Sm0, rep(1:nInt, n), mean)
   rm(list=c("Sm0"))
@@ -146,10 +144,16 @@ counterFactuals <- function(time, outcome, survHaz, nInt){
   S1 <- tapply(Sm1, rep(1:nInt, n), mean)
   rm(list=c("Sm1"))
 
-  rmst0 <- cumsum(cData$timeIntLength * S0)
-  rmst1 <- cumsum(cData$timeIntLength * S1)
+  return(data.frame(S0=S0, S1=S1))
 
-  return(data.frame(S0=S0, S1=S1, rmst0=rmst0, rmst1=rmst1))
+}
+
+calculateRMST <- function(coarsenedTime, survCurve){
+
+  rmst0 <- cumsum(coarsenedTime$timeIntLength * survCurve$S0)
+  rmst1 <- cumsum(coarsenedTime$timeIntLength * survCurve$S1)
+
+  return(data.frame(RMST0=rmst0, RMST1=rmst1))
 
 }
 
@@ -165,7 +169,7 @@ algorithmSim <- function(treatment, outcome, time,
                          estimand, algorithm){
 
   ## coarsen data parameters
-  cData <- coarseData(time=time, outcome=outcome, nInt=nInt)
+  cData <- coarsenData(time=time, outcome=outcome, nInt=nInt)
 
   if(estimand == "risk"){
     tau <- cData$timeIntMidPoint
@@ -217,7 +221,19 @@ algorithmSim <- function(treatment, outcome, time,
 }
 
 
-
+#' Simulate censoring time, nonproportional
+#'
+#
+# simCenTime <- function(treatment, covariates, lambda, nu, seed){
+#
+#   n <- length(treatment)
+#   nvar <- length(unique(covariates$covariateId))
+#
+#   set.seed(seed)
+#   u <- runif(n)
+#   beta <-
+#
+# }
 
 
 
