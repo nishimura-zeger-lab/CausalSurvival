@@ -157,68 +157,6 @@ calculateRMST <- function(coarsenedTime, survCurve){
 }
 
 
-#' Algorithms for simulated data
-#' @param nInt number of time intervals for coarsening the data
-#' @param estimand "risk" or "rmst"
-#' @param algorithm "TMLE", "AIPW", "IPW", "cox" or "weightedCox"
-
-algorithmSim <- function(treatment, outcome, time,
-                         survHaz, cenHaz, treatProb,
-                         simOutcome, simTime, nInt,
-                         estimand, algorithm){
-
-  ## coarsen data parameters
-  cData <- coarsenData(time=time, outcome=outcome, nInt=nInt)
-
-  if(estimand == "risk"){
-    tau <- cData$timeIntMidPoint
-  }else if(estimand == "rmst"){
-    tau <- cData$timeIntMidPoint
-    tau <- tau[-c(1, length(tau))]
-  }
-
-  ## algorithm
-  if(algorithm == "TMLE"){
-
-    result <- estimateTMLE(treatment=treatment, eventObserved=outcome, time=time,
-                           survHaz=survHaz, cenHaz=cenHaz, treatProb=treatProb, tau=tau,
-                           timeIntMidPoint=cData$timeIntMidPoint, timeIntLength=cData$timeIntLength,
-                           estimand=estimand, printIter=TRUE, printTau=TRUE, tempCompare=FALSE)
-
-  }else if(algorithm == "AIPW"){
-
-    result <- estimateAIPW(treatment=treatment, eventObserved=outcome, time=time,
-                           survHaz=SurvHaz, cenHaz=CenHaz, treatProb=treatProb, tau=tau,
-                           timeIntMidPoint=cData$timeIntMidPoint, timeIntLength=cData$timeIntLength,
-                           estimand=estimand, printTau=TRUE)
-
-  }else if(algorithm == "IPW"){
-
-    result <- estimateIPW(treatment=treatment, eventObserved=outcome, time=time,
-                          cenHaz=CenHaz, treatProb=treatProb, tau=tau,
-                          timeIntMidPoint=cData$timeIntMidPoint, timeIntLength=cData$timeIntLength,
-                          estimand=estimand, printTau=TRUE)
-
-  }else if(algorithm == "cox"){
-
-    result <- strataCox(treatment=treatment, eventObserved=outcome,
-                        time=time, treatProb=treatProb, cenHaz=NULL,
-                        timeIntMidPoint=cData$timeIntMidPoint, timeIntLength=cData$timeIntLength, breaks=cData$breaks,
-                        nsim=10000, printSim=TRUE)
-
-  }else if(algorithm == "weightedCox"){
-
-    result <- strataCox(treatment=treatment, eventObserved=outcome, time=time,
-                        treatProb=treatProb, cenHaz=cenHaz,
-                        timeIntMidPoint=cData$timeIntMidPoint, timeIntLength=cData$timeIntLength, breaks=cData$breaks,
-                        nsim=10000, printSim=TRUE)
-
-  }
-
-  return(result)
-
-}
-
 
 #' Simulate censoring time, nonproportional
 #'
