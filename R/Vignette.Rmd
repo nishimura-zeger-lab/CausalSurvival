@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+library(tidyverse)
 devtools::load_all("/Users/shiyaoxu/Documents/Research/CausalSurvival")
 ```
 
@@ -41,15 +42,37 @@ covariateData <- filterAndTidyCovariatesForPs(cohortMethodData, population)
 covariates <- covariateData$covariates
 row_id <- covariates %>% dplyr::pull(.data$rowId)
 covariate_id <- covariates %>% dplyr::pull(.data$covariateId)
-val <- covariates  %>% dplyr::pull(.data$covariateValue)
+val <- covariates %>% dplyr::pull(.data$covariateValue)
+covariates <- data.frame(rowId=row_id, covariateId=covariate_id, covariateValue=val)
+
 treatment <- population$treatment
 event_time <- population$survivalTime
+id <- 1:length(treatment)
+rm(list=c("row_id", "covariate_id", "val", "covariateData", "cohortMethodData", "connectionDetails", "population"))
 ```
 
-Simulate censoring time 
+Simulate censoring time seperately for each treatment group. 
+
+```{r}
+censoring_time
+```
 
 
-## 
+## Initial parameters
+### PS calculation from real data
+
+```{r}
+treatProb <- estimateTreatProb(id=id, treatment=treatment, covariates=covariates, covIdTreatProb=NULL)
+```
+
+### Survival and censoring hazards from real data
+
+```{r}
+estimatedSurvHazard
+```
+
+
+## Simulation 
 
 
 
