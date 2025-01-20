@@ -12,8 +12,8 @@
 #'                    If crossFitNum = 1, then no cross-fitting (default)
 #' @return A data frame with columns: id, TreatProb
 
-estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb,
-                              treatProbEstimate, maxCohortSizeForFitting,
+estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
+                              treatProbEstimate="LASSO", maxCohortSizeForFitting=25000,
                               index_ls=NULL, crossFitNum=1){
 
   ## container
