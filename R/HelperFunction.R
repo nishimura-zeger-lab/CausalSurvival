@@ -118,12 +118,11 @@ coarsenData <- function(time, outcome, nInt){
 estimateCounterfactSurvival <- function(treatment, outcome, time,
                                         survHaz, cenHaz, treatProb,
                                         coarsenedTime, estimand, method){
-  if(estimand == "risk"){
-    tau <- coarsenedTime$timeIntMidPoint
-  }else if(estimand == "RMST"){
-    tau <- coarsenedTime$timeIntMidPoint
-    tau <- tau[-c(1, length(tau))]
+
+  if(is.null(coarsenedTime)){
+    coarsenedTime <- list(timeIntMidPoint=1:max(time), timeIntLength=rep(1, max(time)), breaks=c(0, 1:max(time)))
   }
+    tau <- coarsenedTime$timeIntMidPoint
 
   ## algorithm
   if(method == "TMLE"){
