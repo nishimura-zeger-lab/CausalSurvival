@@ -60,9 +60,9 @@ rm(list=c("row_id", "covariate_id", "val", "covariateData", "cohortMethodData", 
 Simulate censoring time separately for each treatment group. 
 
 ```{r}
-censoring_time
-outcome
-time
+censoring_time <- simCenTime(treatment=treatment, covariates=covariates, lambda1, nu1, lambda0, nu0, seed=2019)
+outcome <- 1*(event_time <= censoring_time)
+time <- min(event_time, censoring_time)
 ```
 
 

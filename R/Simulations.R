@@ -152,16 +152,23 @@ calculateRMST <- function(coarsenedTime, survCurve){
 #' Simulate censoring time, nonproportional
 #'
 #
-# simCenTime <- function(treatment, covariates, lambda, nu, seed){
-#
-#   n <- length(treatment)
-#   nvar <- length(unique(covariates$covariateId))
-#
-#   set.seed(seed)
-#   u <- runif(n)
-#   beta <-
-#
-# }
+simCenTime <- function(treatment, covariates, lambda1, nu1, lambda0, nu0, seed){
+
+  n <- length(treatment)
+  nvar <- length(unique(covariates$covariateId))
+  cov <- Matrix::sparseMatrix(i = covariates$rowId, j = covariates$covariateId, x = covariates$covariateValue, repr = "T")
+  time <- rep(0, n)
+
+  set.seed(seed)
+  u <- runif(n)
+  beta <- log(runif(nvar, min=1, max=5))
+
+  time[treatment == 0] <- -(u[treatment == 0]/(lambda0 * exp(cov %*% beta)[, 1]))^(1/nu0)
+  time[treatment == 1] <- -(u[treatment == 1]/(lambda1 * exp(log(5) + cov %*% beta)[, 1]))^(1/nu1)
+
+  return(time)
+
+}
 
 
 
