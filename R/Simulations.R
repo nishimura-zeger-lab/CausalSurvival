@@ -12,9 +12,9 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
   cov <- Matrix::sparseMatrix(i = covariates$rowId, j = covariates$covariateId, x = covariates$covariateValue, repr = "T")
   rowId <- 1:length(outcome)
   if(is.null(nInt)){nInt <- min(50, floor((sum(outcome)/10)))}
+  cData <- coarsenData(time=time, outcome=outcome, nInt=nInt)
 
   if(is.null(covId)){
-
   ## variable selection from real data
   if(hazEstimate == "censoring"){
     d_outcome <- 1 - outcome
@@ -23,16 +23,13 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
     d_outcome <- outcome
     sigma <- exp(seq(log(1), log(0.01), length.out = 20))
   }
-
-  ## variable selection
   set.seed(seed)
   fit <- glmnet::cv.glmnet(x=cbind(treatment, cov), y=Surv(time=time, event=d_outcome), family = "cox", nfolds = 5, penalty.factor = c(0, rep(1, dim(cov)[2])))
   cf <- coef(fit, s = fit$lambda.1se)
   cov_indx <- setdiff(which(cf != 0)-1, 0)
   rm(list=c("fit", "cf"))
-
   }else{
-
+  ## directly choose covariates
     if(hazEstimate == "censoring"){
       sigma <- exp(seq(log(0.5), log(0.01), length.out = 20))
     }else if(hazEstimate == "survival"){
@@ -42,9 +39,7 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
     cov_indx <- covId
   }
 
-
   ## hazards from real data
-  cData <- coarsenData(time=time, outcome=outcome, nInt=nInt)
   if(!is.null(simTime)){
     outcome <- simOutcome
     cData$timeInt <- simTime
@@ -52,6 +47,7 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
 
   if(hazMethod == "twoStage"){
 
+    ## long-format data
     dlong <- transformData(dwide=data.frame(eventObserved=outcome, time=cData$timeInt), timeIntMidPoint=cData$timeIntMidPoint, type="survival")
     rownames(dlong) <- NULL
     dlong <- dlong[, c("Lt", "It", "t")]
@@ -61,7 +57,6 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
     offset_t <- predict(fit, newdata = data.frame(t=cData$timeIntMidPoint))
     rm(list=c("dlong", "fit"))
 
-    ## other parameters
     timeEffect <- "linear"
     evenKnot <- NULL
 
@@ -74,12 +69,10 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
   }
 
   haz <- estimateHaz(id=rowId, treatment=treatment, eventObserved=outcome, time=cData$timeInt,
-                     offset_t=offset_t, offset_X=FALSE, intercept=TRUE, breaks=cData$breaks,
-                     covariates=covariates, covIdHaz=cov_indx, crossFitNum=1, index_ls=NULL,
+                     offset_t=offset_t, breaks=cData$breaks, covariates=covariates, covIdHaz=cov_indx,
                      timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=FALSE,
-                     interactWithTime=treatment, hazEstimate="ridge", weight=NULL,
-                     sigma=sigma, estimate_hazard=hazEstimate, getHaz=TRUE, coef_H=NULL,
-                     robust=FALSE, threshold=1e-8)
+                     interactWithTime=treatment, hazEstimate="ridge",
+                     sigma=sigma, estimate_hazard=hazEstimate, getHaz=TRUE, coef_H=NULL)
 
   return(list(haz=haz, cov_indx=cov_indx, coarsenedData=cData))
 
@@ -95,11 +88,9 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
 
 simData <- function(treatment, survHaz, cenHaz, coarsenedTime, seed){
 
-  ## parameters
   n <- length(treatment)
   nInt <- length(coarsenedTime$timeIntMidPoint)
 
-  ## simulation
   survHaz_all <- survHaz$Haz1 * treatment[survHaz$ID] + survHaz$Haz0 * (1 - treatment[survHaz$ID])
   cenHaz_all <- cenHaz$Haz1 * treatment[cenHaz$ID] + cenHaz$Haz0 * (1 - treatment[cenHaz$ID])
 
