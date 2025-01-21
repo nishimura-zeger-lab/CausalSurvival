@@ -110,6 +110,68 @@ coarsenData <- function(time, outcome, nInt){
 
 }
 
+
+#' Run the algorithm
+#'
+#'
+
+estimateCounterfactSurvival <- function(treatment, outcome, time,
+                                        survHaz, cenHaz, treatProb,
+                                        coarsenedTime, estimand, method){
+  if(estimand == "risk"){
+    tau <- coarsenedTime$timeIntMidPoint
+  }else if(estimand == "RMST"){
+    tau <- coarsenedTime$timeIntMidPoint
+    tau <- tau[-c(1, length(tau))]
+  }
+
+  ## algorithm
+  if(method == "TMLE"){
+
+    result <- estimateTMLE(treatment=treatment, eventObserved=outcome, time=time,
+                           survHaz=survHaz, cenHaz=cenHaz, treatProb=treatProb$TreatProb, tau=tau,
+                           timeIntMidPoint=coarsenedTime$timeIntMidPoint, timeIntLength=coarsenedTime$timeIntLength,
+                           estimand=estimand, printIter=FALSE, printTau=TRUE, tempCompare=FALSE)
+
+  }else if(method == "AIPW"){
+
+    result <- estimateAIPW(treatment=treatment, eventObserved=outcome, time=time,
+                           survHaz=survHaz, cenHaz=cenHaz, treatProb=treatProb$TreatProb, tau=tau,
+                           timeIntMidPoint=coarsenedTime$timeIntMidPoint, timeIntLength=coarsenedTime$timeIntLength,
+                           estimand=estimand, printTau=TRUE)
+
+  }else if(method == "IPW"){
+
+    result <- estimateIPW(treatment=treatment, eventObserved=outcome, time=time,
+                          cenHaz=cenHaz, treatProb=treatProb$TreatProb, tau=tau,
+                          timeIntMidPoint=coarsenedTime$timeIntMidPoint, timeIntLength=coarsenedTime$timeIntLength,
+                          estimand=estimand, printTau=TRUE)
+
+  }else if(method == "cox"){
+
+    result <- strataCox(treatment=treatment, eventObserved=outcome,
+                        time=time, treatProb=treatProb$TreatProb, cenHaz=NULL,
+                        timeIntMidPoint=coarsenedTime$timeIntMidPoint,
+                        timeIntLength=coarsenedTime$timeIntLength, breaks=coarsenedTime$breaks,
+                        nsim=10000, printSim=TRUE)
+
+  }else if(algorithm == "weightedCox"){
+
+    result <- strataCox(treatment=treatment, eventObserved=outcome, time=time,
+                        treatProb=treatProb$TreatProb, cenHaz=cenHaz,
+                        timeIntMidPoint=coarsenedTime$timeIntMidPoint,
+                        timeIntLength=coarsenedTime$timeIntLength, breaks=coarsenedTime$breaks,
+                        nsim=10000, printSim=TRUE)
+
+  }
+
+  result_final <- data.frame(estimand = result$estimand1 - result$estimand0, SE = result$SE)
+
+  return(result_final)
+
+}
+
+
 ## For simulation data
 
 filterAndTidyCovariatesForPs <- function(cohortMethodData,
