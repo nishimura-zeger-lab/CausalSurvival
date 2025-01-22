@@ -106,7 +106,7 @@ strataCox <- function(treatment, eventObserved, time,
       nsBase <- splines::ns(timeIntMidPoint, knots=quantile(rep(timeIntMidPoint, times=indx_subset), probs=c(0.2, 0.4, 0.6, 0.8)))
 
       designM <- expand.grid(treat=1, stratumId2=c(0, 1), stratumId3=c(0, 1), stratumId4=c(0, 1), stratumId5=c(0, 1), t=1:length(timeIntMidPoint))
-      designM <- cbind(designM[, -6], nsBase[t, ])
+      designM <- cbind(designM[, -6], nsBase[designM$t, ])
       designM <- cbind(designM, designM[, 2:5] * designM[, 6])
       designM <- cbind(designM, designM[, 2:5] * designM[, 7])
       designM <- cbind(designM, designM[, 2:5] * designM[, 8])

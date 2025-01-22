@@ -98,10 +98,10 @@ estimateTMLE <- function(treatment, eventObserved, time,
 
       if(iter == 1){
         eps   <- coefSparse(outcome=dlong$Lt[which(dlong$It == 1 & ind)], offset=qlogis(SurvHaz_obs[which(dlong$It == 1 & ind)]), H=H,
-                            maxiter=40, threshold=1e-8, initial_coef=NULL, printIter=TRUE)
+                            maxiter=40, threshold=1e-8, initial_coef=NULL, printIter=FALSE)
       }else{
         eps   <- coefSparse(outcome=dlong$Lt[which(dlong$It == 1 & ind)], offset=qlogis(SurvHaz_obs[which(dlong$It == 1 & ind)]), H=H,
-                            maxiter=40, threshold=1e-8, initial_coef=eps, printIter=TRUE)
+                            maxiter=40, threshold=1e-8, initial_coef=eps, printIter=FALSE)
       }
 
       ## NA as 0 for the new values

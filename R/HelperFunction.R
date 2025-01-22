@@ -152,7 +152,7 @@ estimateCounterfactSurvival <- function(treatment, outcome, time,
                         time=time, treatProb=treatProb$TreatProb, cenHaz=NULL,
                         timeIntMidPoint=coarsenedTime$timeIntMidPoint,
                         timeIntLength=coarsenedTime$timeIntLength, breaks=coarsenedTime$breaks,
-                        nsim=10000, printSim=TRUE, hazMethod=hazMethod)
+                        nsim=5000, printSim=TRUE, hazMethod=hazMethod)
 
   }else if(method == "weightedCox"){
 
@@ -160,11 +160,18 @@ estimateCounterfactSurvival <- function(treatment, outcome, time,
                         treatProb=treatProb$TreatProb, cenHaz=cenHaz,
                         timeIntMidPoint=coarsenedTime$timeIntMidPoint,
                         timeIntLength=coarsenedTime$timeIntLength, breaks=coarsenedTime$breaks,
-                        nsim=10000, printSim=TRUE, hazMethod=hazMethod)
+                        nsim=5000, printSim=TRUE, hazMethod=hazMethod)
 
   }
 
-  result_final <- data.frame(estimand = result$estimand1 - result$estimand0, SE = result$SE)
+    if(method %in% c("TMLE", "AIPW", "IPW")){
+      result_final <- data.frame(estimand = result$estimand1 - result$estimand0, SE = result$SE)
+    }else{
+      result_final <- data.frame(estimand_risk = result$S1 - result$S0,
+                                 SE_risk = SE_S,
+                                 estimand_rmst = result$rmst1 - result$rmst0,
+                                 SE_rmst = SE_rmst)
+    }
 
   return(result_final)
 

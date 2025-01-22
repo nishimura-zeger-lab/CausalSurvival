@@ -129,14 +129,14 @@ aipw_S <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$Obser
                                       estimand="risk", method="AIPW")
 
 ipw_S <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
-                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                      coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                      estimand="risk", method="IPW")
+                                     survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
+                                     treatProb=treatProb, coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                     estimand="risk", method="IPW")
 
 cox_S <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
-                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                      coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                      estimand="risk", method="cox", hazMethod=hazMethod)
+                                     survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
+                                     treatProb=treatProb, coarsenedTime=estimatedSurvHazard$coarsenedData, 
+                                     estimand="risk", method="cox", hazMethod=hazMethod)
 
 weightedCox_S <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
                                       survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
