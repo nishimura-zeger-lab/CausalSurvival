@@ -24,7 +24,7 @@ estimateSimulationParams <- function(outcome, time, treatment, covariates,
     sigma <- exp(seq(log(1), log(0.01), length.out = 20))
   }
   set.seed(seed)
-  fit <- glmnet::cv.glmnet(x=cbind(treatment, cov), y=Surv(time=time, event=d_outcome), family = "cox", nfolds = 5, penalty.factor = c(0, rep(1, dim(cov)[2])))
+  fit <- glmnet::cv.glmnet(x=cbind(treatment, cov), y=survival::Surv(time=time, event=d_outcome), family = "cox", nfolds = 5, penalty.factor = c(0, rep(1, dim(cov)[2])))
   cf <- coef(fit, s = fit$lambda.1se)
   cov_indx <- setdiff(which(cf != 0)-1, 0)
   rm(list=c("fit", "cf"))
@@ -107,7 +107,7 @@ simData <- function(treatment, survHaz, cenHaz, coarsenedTime, seed){
   ObservedEvent <- ifelse(is.na(ObservedEvent), 0, ObservedEvent)
 
   ObservedEvent <- as.double(ObservedEvent)
-  ObservedTime <- as.double(as.character(factor(ObservedTime, labels = cData$timeIntMidPoint)))
+  ObservedTime <- as.double(as.character(factor(ObservedTime, labels = coarsenedTime$timeIntMidPoint)))
 
   return(list(ObservedEvent=ObservedEvent,
               ObservedTime=ObservedTime))
@@ -151,7 +151,7 @@ calculateRMST <- function(coarsenedTime, survCurve){
 
 #' Simulate censoring time, nonproportional
 #'
-#
+
 simCenTime <- function(treatment, covariates, lambda1, nu1, lambda0, nu0, seed){
 
   n <- length(treatment)
@@ -161,10 +161,10 @@ simCenTime <- function(treatment, covariates, lambda1, nu1, lambda0, nu0, seed){
 
   set.seed(seed)
   u <- runif(n)
-  beta <- log(runif(nvar, min=1, max=5))
+  beta <- log(runif(nvar, min=1, max=3))
 
-  time[treatment == 0] <- -(u[treatment == 0]/(lambda0 * exp(cov %*% beta)[, 1]))^(1/nu0)
-  time[treatment == 1] <- -(u[treatment == 1]/(lambda1 * exp(log(5) + cov %*% beta)[, 1]))^(1/nu1)
+  time[treatment == 0] <- (- log(u)[which(treatment == 0)]/(lambda0 * exp(cov[which(treatment == 0), ] %*% beta)[, 1]))^(1/nu0)
+  time[treatment == 1] <- (- log(u)[which(treatment == 1)]/(lambda1 * exp(log(2) + cov[which(treatment == 1), ] %*% beta)[, 1]))^(1/nu1)
 
   return(time)
 
