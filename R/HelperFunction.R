@@ -117,7 +117,7 @@ coarsenData <- function(time, outcome, nInt){
 
 estimateCounterfactSurvival <- function(treatment, outcome, time,
                                         survHaz, cenHaz, treatProb,
-                                        coarsenedTime, estimand, method){
+                                        coarsenedTime, estimand, method, hazMethod=NULL){
 
   if(is.null(coarsenedTime)){
     coarsenedTime <- list(timeIntMidPoint=1:max(time), timeIntLength=rep(1, max(time)), breaks=c(0, 1:max(time)))
@@ -152,15 +152,15 @@ estimateCounterfactSurvival <- function(treatment, outcome, time,
                         time=time, treatProb=treatProb$TreatProb, cenHaz=NULL,
                         timeIntMidPoint=coarsenedTime$timeIntMidPoint,
                         timeIntLength=coarsenedTime$timeIntLength, breaks=coarsenedTime$breaks,
-                        nsim=10000, printSim=TRUE)
+                        nsim=10000, printSim=TRUE, hazMethod=hazMethod)
 
-  }else if(algorithm == "weightedCox"){
+  }else if(method == "weightedCox"){
 
     result <- strataCox(treatment=treatment, eventObserved=outcome, time=time,
                         treatProb=treatProb$TreatProb, cenHaz=cenHaz,
                         timeIntMidPoint=coarsenedTime$timeIntMidPoint,
                         timeIntLength=coarsenedTime$timeIntLength, breaks=coarsenedTime$breaks,
-                        nsim=10000, printSim=TRUE)
+                        nsim=10000, printSim=TRUE, hazMethod=hazMethod)
 
   }
 
