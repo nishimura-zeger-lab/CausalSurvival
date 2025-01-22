@@ -358,7 +358,8 @@ pooled_design_iter <- function(X_baseline, temporal_effect, weight, offset_t, of
 
     rm(list=c("temp_mu", "temp_X", "temp_temporal", "temp_Xtemporal",
               "atRiskIndx", "timeIndepCoef", "timeDepCoef",
-              "baselineEffect", "temporalEffect", "diagmu", "logLik_temp"))
+              "baselineEffect", "temporalEffect", "diagmu"))
+    if(!robust){rm(logLik_temp)}
   }
   ## result
   if(!robust){

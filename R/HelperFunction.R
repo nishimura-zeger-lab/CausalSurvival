@@ -168,9 +168,9 @@ estimateCounterfactSurvival <- function(treatment, outcome, time,
       result_final <- data.frame(estimand = result$estimand1 - result$estimand0, SE = result$SE)
     }else{
       result_final <- data.frame(estimand_risk = result$S1 - result$S0,
-                                 SE_risk = SE_S,
+                                 SE_risk = result$SE_S,
                                  estimand_rmst = result$rmst1 - result$rmst0,
-                                 SE_rmst = SE_rmst)
+                                 SE_rmst = result$SE_rmst)
     }
 
   return(result_final)
