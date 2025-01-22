@@ -133,12 +133,13 @@ ipw_S <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$Observ
                                      treatProb=treatProb, coarsenedTime=estimatedSurvHazard$coarsenedData, 
                                      estimand="risk", method="IPW")
 
-cox_S <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+## cox and weightedCox contain both estimators
+cox <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
                                      treatProb=treatProb, coarsenedTime=estimatedSurvHazard$coarsenedData, 
                                      estimand="risk", method="cox", hazMethod=hazMethod)
 
-weightedCox_S <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+weightedCox <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
                                       survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
                                       coarsenedTime=estimatedSurvHazard$coarsenedData, 
                                       estimand="risk", method="weightedCox", hazMethod=hazMethod)
@@ -166,17 +167,6 @@ ipw_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$Obs
                                         coarsenedTime=estimatedSurvHazard$coarsenedData, 
                                         estimand="rmst", method="IPW")
 
-cox_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
-                                        survHaz=estimatedSurvHazard_sim$haz, 
-                                        cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                        coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                        estimand="rmst", method="cox", hazMethod=hazMethod)
-
-weightedCox_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
-                                                survHaz=estimatedSurvHazard_sim$haz, 
-                                                cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                                coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                                estimand="rmst", method="weightedCox", hazMethod=hazMethod)
 
 ```
 
