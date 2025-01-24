@@ -43,7 +43,7 @@ population <- CohortMethod::createStudyPopulation(cohortMethodData = cohortMetho
                                                   outcomeId = 3,
                                                   riskWindowEnd = 99999)
 
-covariateData <- filterAndTidyCovariatesForPs(cohortMethodData, population)
+covariateData <- CausalSurvival::filterAndTidyCovariatesForPs(cohortMethodData, population)
 covariates <- covariateData$covariates
 row_id <- covariates %>% dplyr::pull(.data$rowId)
 covariate_id <- covariates %>% dplyr::pull(.data$covariateId)
