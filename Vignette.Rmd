@@ -87,7 +87,6 @@ estimatedCenHazard <- estimateSimulationParams(outcome=outcome, time=time, treat
 ### Counterfactual survival curve and RMST
 ```{r}
 Truth_S <- calculateSurvCurve(coarsenedTime=estimatedSurvHazard$coarsenedData, survHaz=estimatedSurvHazard$haz)
-Truth_rmst <- calculateRMST(coarsenedTime=estimatedSurvHazard$coarsenedData, survCurve=Truth_S)
 ```
 
 
@@ -143,30 +142,6 @@ weightedCox <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$
                                       survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
                                       coarsenedTime=estimatedSurvHazard$coarsenedData, 
                                       estimand="risk", method="weightedCox", hazMethod=hazMethod)
-
-```
-
-
-### difference in RMST
-```{r}
-tmle_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
-                                         survHaz=estimatedSurvHazard_sim$haz, 
-                                         cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                         coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                         estimand="rmst", method="TMLE")
-
-aipw_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
-                                         survHaz=estimatedSurvHazard_sim$haz, 
-                                         cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                         coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                         estimand="rmst", method="AIPW")
-
-ipw_rmst <- estimateCounterfactSurvival(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
-                                        survHaz=estimatedSurvHazard_sim$haz, 
-                                        cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                        coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                        estimand="rmst", method="IPW")
-
 
 ```
 
