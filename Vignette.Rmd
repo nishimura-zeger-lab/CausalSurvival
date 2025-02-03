@@ -61,94 +61,147 @@ rm(list=c("row_id", "covariate_id", "val", "covariateData", "cohortMethodData", 
 Simulate censoring time separately for each treatment group. 
 
 ```{r}
-censoring_time <- 6 + simCenTime(treatment=treatment, covariates=covariates, lambda1=0.000003, nu1=1.5, lambda0=0.000003, nu0=1.5, seed=2019)
+censoring_time <- 6 + simCenTime(treatment=treatment, covariates=covariates, 
+                                 lambda1=0.000003, nu1=1.5, lambda0=0.000003, nu0=1.5, seed=2019)
 outcome <- 1*(event_time <= censoring_time)
 time <- apply(cbind(event_time, censoring_time), 1, min)
 ```
 
 
-## Initial parameters
+
+## Compute on real data
 
 ### PS calculation from real data
 ```{r}
-treatProb <- estimateTreatProb(id=id, treatment=treatment, covariates=covariates, covIdTreatProb=NULL)
+treatProb <- estimateTreatProb(id=id, treatment=treatment, covariates=covariates)
 ```
 
 ### Survival and censoring hazards from real data
-Default is `covId=NULL`, which perform variable selection before estimating survival and censoring hazards. If the researchers have the covariates in mind for simulating hazards, specify in `covId`. 
+
+First perform pre-screening of the baseline covariates via cox LASSO for both survival and censoring hazards. 
 
 ```{r}
-estimatedSurvHazard <- estimateSimulationParams(outcome=outcome, time=time, treatment=treatment, covariates=covariates, 
-                                                covId=NULL, hazEstimate="survival", hazMethod=hazMethod, seed=2010)
-estimatedCenHazard <- estimateSimulationParams(outcome=outcome, time=time, treatment=treatment, covariates=covariates,
-                                               covId=NULL, hazEstimate="censoring", hazMethod=hazMethod, seed=2019)
+cov <- Matrix::sparseMatrix(i = covariates$rowId, j = covariates$covariateId, x = covariates$covariateValue, repr = "T")
+
+set.seed(1)
+survFit <- glmnet::cv.glmnet(x=cbind(treatment, cov), y=survival::Surv(time=time, event=outcome), 
+                             family = "cox", nfolds = 5, penalty.factor = c(0, rep(1, dim(cov)[2])))
+survCf <- coef(survFit, s = survFit$lambda.1se)
+survCov_indx <- setdiff(which(survCf != 0)-1, 0)
+
+set.seed(1)
+cenFit <- glmnet::cv.glmnet(x=cbind(treatment, cov), y=survival::Surv(time=time, event=1-outcome), 
+                            family = "cox", nfolds = 5, penalty.factor = c(0, rep(1, dim(cov)[2])))
+cenCf <- coef(cenFit, s = cenFit$lambda.1se)
+cenCov_indx <- setdiff(which(cenCf != 0)-1, 0)
+
 ```
+
+Then perform ridge regression with the selected baseline covariates, treatment, functions of time, interaction between treatment and functions of time to predict survival and censoring hazards. Time is coarsened to non-uniform time intervals with each interval containing about the same number of events. 
+
+```{r}
+
+coarsenedData <- coarsenData(time=time, outcome=outcome)
+
+estimatedSurvHazard <- estimateHazards(coarsenedData=coarsenedData, outcome=outcome, 
+                                       treatment=treatment, covariates=covariates, 
+                                       covId=survCov_indx,
+                                       hazEstimate="survival", hazMethod=hazMethod)
+
+estimatedCenHazard <- estimateHazards(coarsenedData=coarsenedData, outcome=outcome, 
+                                      treatment=treatment, covariates=covariates, 
+                                      covId=cenCov_indx,
+                                      hazEstimate="censoring", hazMethod=hazMethod)
+
+```
+
+
+### Algorithm 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Simulation studies
 
 ### Counterfactual survival curve and RMST
+
+Derive counterfactual survival curve from the estimated survival hazard. And transform to RMST. 
+
 ```{r}
-Truth_S <- calculateSurvCurve(coarsenedTime=estimatedSurvHazard$coarsenedData, survHaz=estimatedSurvHazard$haz)
+Truth_S <- calculateSurvCurve(coarsenedTime=coarsenedData, survHaz=estimatedSurvHazard$haz)
+Truth_rmst <- calculateRMST(coarsenedTime=coarsenedData, survCurve=Truth_S)
 ```
 
 
-## Simulation 
+### Simulation 
+
+Simulate one set of data with the estimated survival and censoring hazard. 
 
 ```{r}
-simData <- simulateData(treatment=treatment, survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz,
-                        coarsenedTime=estimatedSurvHazard$coarsenedData, seed=2019)
-observedEvent <- simData$ObservedEvent
-observedTime <- simData$ObservedTime
-
+SimData <- simData(treatment=treatment, survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz,
+                   coarsenedTime=coarsenedData, seed=2019)
 ```
 
-## Survival and censoring hazards from simulated data
+### Survival and censoring hazards from simulated data
 
 ```{r}
+## replace timeInt with simulated data
+coarsenedData_sim <- coarsenedData
+coarsenedData_sim$timeInt <- SimData$ObservedTime
+
 ## survival hazards and selected covariates
-estimatedSurvHazard_sim <- estimateSimulationParams(outcome=outcome, time=time, treatment=treatment, covariates=covariates,
-                                                    simOutcome=observedEvent, simTime=observedTime, 
-                                                    covId=estimatedSurvHazard$cov_indx,
-                                                    hazEstimate="survival", hazMethod=hazMethod)
-
+estimatedSurvHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outcome=SimData$ObservedEvent, 
+                                           treatment=treatment, covariates=covariates, 
+                                           covId=survCov_indx,
+                                           hazEstimate="survival", hazMethod=hazMethod)
 ## censoring hazards and selected covariates
-estimatedCenHazard_sim <- estimateSimulationParams(outcome=outcome, time=time, treatment=treatment, covariates=covariates,
-                                                   simOutcome=observedEvent, simTime=observedTime, 
-                                                   covId=estimatedCenHazard$cov_indx,
-                                                   hazEstimate="censoring", hazMethod=hazMethod)
+estimatedCenHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outcome=SimData$ObservedEvent, 
+                                          treatment=treatment, covariates=covariates, 
+                                          covId=cenCov_indx,
+                                          hazEstimate="censoring", hazMethod=hazMethod)
+
 ```
 
-## Algorithm
 
-### risk difference
+### Algorithm 
+
 ```{r}
-tmle_S <- estimateCounterfactSurvival(treatment=treatment, outcome=observedEvent, time=observedTime,
-                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                      coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                      estimand="risk", method="TMLE")
+tmle <- computeEstimator(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+                         initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                         coarseningParam=coarsenedData, method="TMLE")
 
-aipw_S <- estimateCounterfactSurvival(treatment=treatment, outcome=observedEvent, time=observedTime,
-                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                      coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                      estimand="risk", method="AIPW")
+aipw <- computeEstimator(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+                         initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                         coarseningParam=coarsenedData, method="AIPW")
 
-ipw_S <- estimateCounterfactSurvival(treatment=treatment, outcome=observedEvent, time=observedTime,
-                                     survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
-                                     treatProb=treatProb, coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                     estimand="risk", method="IPW")
+ipw <- computeEstimator(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+                        initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                        coarseningParam=coarsenedData, method="IPW")
 
-## cox and weightedCox contain both estimators
-cox <- estimateCounterfactSurvival(treatment=treatment, outcome=observedEvent, time=observedTime,
-                                     survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
-                                     treatProb=treatProb, coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                     estimand="risk", method="cox", hazMethod=hazMethod)
+cox <- computeEstimator(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+                        survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
+                        treatProb=treatProb, coarseningParam=estimatedSurvHazard$coarsenedData, 
+                        method="cox", hazMethod=hazMethod)
 
-weightedCox <- estimateCounterfactSurvival(treatment=treatment, outcome=observedEvent, time=observedTime,
-                                      survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                      coarsenedTime=estimatedSurvHazard$coarsenedData, 
-                                      estimand="risk", method="weightedCox", hazMethod=hazMethod)
+weightedCox <- computeEstimator(treatment=treatment, outcome=SimData$ObservedEvent, time=SimData$ObservedTime,
+                                survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                coarseningParam=estimatedSurvHazard$coarsenedData, 
+                                method="weightedCox", hazMethod=hazMethod)
 
 ```
 
-## Result
+
+### Result
 
 
 
