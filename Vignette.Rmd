@@ -72,6 +72,7 @@ time <- apply(cbind(event_time, censoring_time), 1, min)
 ## Compute on real data
 
 ### PS calculation from real data
+
 ```{r}
 treatProb <- estimateTreatProb(id=id, treatment=treatment, covariates=covariates)
 ```
@@ -89,7 +90,7 @@ survFit <- glmnet::cv.glmnet(x=cbind(treatment, cov), y=survival::Surv(time=time
 survCf <- coef(survFit, s = survFit$lambda.1se)
 survCov_indx <- setdiff(which(survCf != 0)-1, 0)
 
-set.seed(1)
+set.seed(0)
 cenFit <- glmnet::cv.glmnet(x=cbind(treatment, cov), y=survival::Surv(time=time, event=1-outcome), 
                             family = "cox", nfolds = 5, penalty.factor = c(0, rep(1, dim(cov)[2])))
 cenCf <- coef(cenFit, s = cenFit$lambda.1se)
@@ -118,21 +119,68 @@ estimatedCenHazard <- estimateHazards(coarsenedData=coarsenedData, outcome=outco
 
 ### Algorithm 
 
+Before conducting the simulation studies, let's first see how to run the algorithm with the above estimated survival and censoring hazards. 
+
+```{r}
+tmle <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
+                         initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, treatProb=treatProb,
+                         coarseningParam=coarsenedData, method="TMLE")
+
+aipw <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
+                         initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, treatProb=treatProb,
+                         coarseningParam=coarsenedData, method="AIPW")
+
+ipw <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
+                        initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, treatProb=treatProb,
+                        coarseningParam=coarsenedData, method="IPW")
+
+cox <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
+                        initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, 
+                        treatProb=treatProb, coarseningParam=coarsenedData_sim, 
+                        method="cox", hazMethod=hazMethod)
+
+weightedCox <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
+                                initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, 
+                                treatProb=treatProb, coarseningParam=coarsenedData_sim, 
+                                method="weightedCox", hazMethod=hazMethod)
+
+```
 
 
+### Result
+
+```{r}
+par(mfrow=c(1,2))
+plot(coarsenedData$breaks, c(1, ipw$S1), main="S(1)", xlab="Time (90 days)", ylab="Survival probability", type="l", ylim=c(0.3, 1), lwd=1, col=367)
+lines(coarsenedData$breaks, c(1, aipw$S1), col=562)
+lines(coarsenedData$breaks, c(1, tmle$S1), col=413)
+lines(coarsenedData$breaks, c(1, cox$S1), col=547)
+lines(coarsenedData$breaks, c(1, weightedCox$S1), col="green4")
+plot(coarsenedData$breaks, c(1, ipw$S0), col=367, main="S(0)", xlab="Time (90 days)", ylab="Survival probability", type="l", ylim=c(0.3, 1), lwd=1)
+lines(coarsenedData$breaks, c(1, aipw$S0), col=562)
+lines(coarsenedData$breaks, c(1, tmle$S0), col=413)
+lines(coarsenedData$breaks, c(1, cox$S0), col=547)
+lines(coarsenedData$breaks, c(1, weightedCox$S0), col="green4")
+```
 
 
-
-
-
-
-
-
-
+```{r}
+par(mfrow=c(1,2))
+plot(coarsenedData$breaks, c(0, ipw$risk_diff), main="Risk difference", xlab="Time (days)", ylab="Difference in survival", type = "b", pch = 20, ylim=c(-0.2, 0.1), lwd=1, col=367)
+lines(coarsenedData$breaks, c(0, aipw$risk_diff), col=562, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, tmle$risk_diff), col=413, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, cox$risk_diff), col=547, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, weightedCox$risk_diff), col="green4", type = "b", pch = 20)
+legend("bottomleft", c("IPW", "Augmented IPW", "TMLE", "Stratified cox", "Weighted stratified cox"),col=c(367, 562, 413, 547, "green4"), box.lty=0, lwd=c(1, 1, 1, 1, 1), cex=0.6)
+plot(coarsenedData$breaks[-1], ipw$SE_risk_diff, main="SD of risk difference", xlab="Time (days)", ylab="Standard deviation", type = "p", pch = 20, ylim=c(0, 0.09), col=367)
+lines(coarsenedData$breaks[-1], aipw$SE_risk_diff, col=562, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], tmle$SE_risk_diff, col=413, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], cox$SE_risk_diff, col=547, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], weightedCox$SE_risk_diff, col="green4", type = "p", pch = 20)
+```
 
 
 ## Simulation studies
-
 
 ### Simulation 
 
@@ -144,6 +192,8 @@ simData <- simulateData(treatment=treatment, survHaz=estimatedSurvHazard$haz, ce
 ```
 
 ### Survival and censoring hazards from simulated data
+
+Then perform ridge regression with the selected baseline covariates, treatment, functions of time, interaction between treatment and functions of time to predict survival and censoring hazards in the simulated data. 
 
 ```{r}
 ## replace timeInt with simulated data
@@ -166,27 +216,29 @@ estimatedCenHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outco
 
 ### Algorithm 
 
+Run the algorithm with the simulated data and estimated hazards. 
+
 ```{r}
-tmle <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
+tmle_sim <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
                          initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
                          coarseningParam=coarsenedData, method="TMLE")
 
-aipw <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
+aipw_sim <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
                          initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
                          coarseningParam=coarsenedData, method="AIPW")
 
-ipw <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
+ipw_sim <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
                         initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
                         coarseningParam=coarsenedData, method="IPW")
 
-cox <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
-                        survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
-                        treatProb=treatProb, coarseningParam=estimatedSurvHazard$coarsenedData, 
+cox_sim <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
+                        initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
+                        treatProb=treatProb, coarseningParam=coarsenedData_sim, 
                         method="cox", hazMethod=hazMethod)
 
-weightedCox <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
-                                survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                                coarseningParam=estimatedSurvHazard$coarsenedData, 
+weightedCox_sim <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
+                                initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
+                                treatProb=treatProb, coarseningParam=coarsenedData_sim, 
                                 method="weightedCox", hazMethod=hazMethod)
 
 ```
@@ -203,8 +255,38 @@ Truth_rmst <- calculateRMST(coarsenedTime=coarsenedData, survCurve=Truth_S)
 
 ### Result
 
+```{r}
+par(mfrow=c(1,2))
+plot(coarsenedData$breaks, c(1, Truth_S$S1), main="S(1)", xlab="Time (90 days)", ylab="Survival probability", type="l", ylim=c(0.3, 1), lwd=2, col=24)
+lines(coarsenedData$breaks, c(1, ipw_sim$S1), col=367)
+lines(coarsenedData$breaks, c(1, aipw_sim$S1), col=562)
+lines(coarsenedData$breaks, c(1, tmle_sim$S1), col=413)
+lines(coarsenedData$breaks, c(1, cox_sim$S1), col=547)
+lines(coarsenedData$breaks, c(1, weightedCox_sim$S1), col="green4")
+legend("bottomleft", c("Truth","IPW", "Augmented IPW", "TMLE", "Stratified cox", "Weighted stratified cox"),col=c(24, 367, 562, 413, 547, "green4"), box.lty=0, lwd=c(2, 1, 1, 1, 1, 1), cex=0.6)
+plot(coarsenedData$breaks, c(1, Truth_S$S0), main="S(0)", xlab="Time (90 days)", ylab="Survival probability", type="l", ylim=c(0.3, 1), lwd=2, col=24)
+lines(coarsenedData$breaks, c(1, ipw_sim$S0), col=367)
+lines(coarsenedData$breaks, c(1, aipw_sim$S0), col=562)
+lines(coarsenedData$breaks, c(1, tmle_sim$S0), col=413)
+lines(coarsenedData$breaks, c(1, cox_sim$S0), col=547)
+lines(coarsenedData$breaks, c(1, weightedCox_sim$S0), col="green4")
+```
 
-
+```{r}
+par(mfrow=c(1,2))
+plot(coarsenedData$breaks, c(0, (Truth_S$S1-Truth_S$S0)), main="Risk difference", xlab="Time (days)", ylab="Difference in survival", type = "b", pch = 20, ylim=c(-0.2, 0.05), lwd=2, col=24)
+lines(coarsenedData$breaks, c(0, ipw_sim$risk_diff), col=367, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, aipw_sim$risk_diff), col=562, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, tmle_sim$risk_diff), col=413, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, cox_sim$risk_diff), col=547, type = "b", pch = 20)
+lines(coarsenedData$breaks, c(0, weightedCox_sim$risk_diff), col="green4", type = "b", pch = 20)
+legend("bottomleft", c("Truth","IPW", "Augmented IPW", "TMLE", "Stratified cox", "Weighted stratified cox"),col=c(24, 367, 562, 413, 547, "green4"), box.lty=0, lwd=c(2, 1, 1, 1, 1, 1), cex=0.6)
+plot(coarsenedData$breaks[-1], ipw_sim$SE_risk_diff, main="SD of risk difference", xlab="Time (days)", ylab="Standard deviation", type = "p", pch = 20, ylim=c(0, 0.09), col=367)
+lines(coarsenedData$breaks[-1], aipw_sim$SE_risk_diff, col=562, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], tmle_sim$SE_risk_diff, col=413, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], cox_sim$SE_risk_diff, col=547, type = "p", pch = 20)
+lines(coarsenedData$breaks[-1], weightedCox_sim$SE_risk_diff, col="green4", type = "p", pch = 20)
+```
 
 
 
