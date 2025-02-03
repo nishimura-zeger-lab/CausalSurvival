@@ -28,7 +28,7 @@ estimateIPW <- function(treatment, eventObserved, time,
   rownames(dlong) <- NULL
 
   ## Estimate survival hazards
-  survHaz <- coef_lm(dlong=dlong, timeIntMidPoint=timeIntMidPoint, n=n, printIter=TRUE)
+  survHaz <- coef_lm(dlong=dlong, timeIntMidPoint=timeIntMidPoint, n=n, printIter=FALSE)
   survHaz1 <- survHaz$Haz1
   survHaz0 <- survHaz$Haz0
   rm(list=c("survHaz"))
