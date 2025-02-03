@@ -120,10 +120,12 @@ coarsenData <- function(time, outcome, nInt=NULL){
 computeEstimator <- function(treatment, outcome, time, initial_survHaz, cenHaz, treatProb,
                              coarseningParam, estimand="both", method, hazMethod=NULL){
 
-  if(is.null(coarseningParameter)){
+  if(is.null(coarseningParam)){
     coarsenedTime <- list(timeIntMidPoint=1:max(time), timeIntLength=rep(1, max(time)), breaks=c(0, 1:max(time)))
   }
     tau <- coarseningParam$timeIntMidPoint
+
+    print("Start algorithm")
 
   ## algorithm
   if(method == "TMLE"){
@@ -165,14 +167,21 @@ computeEstimator <- function(treatment, outcome, time, initial_survHaz, cenHaz, 
 
   }
 
+    print("Complete algorithm")
+
     if(method %in% c("TMLE", "AIPW", "IPW") & estimand != "both"){
-      result_final <- data.frame(estimand = result$estimand1 - result$estimand0, SE = result$SE)
+      result_final <- data.frame(estimand = result$estimand1 - result$estimand0, SE = result$SE,
+                                 estimand1 = result$estimand1, estimand0=result$estimand0)
     }else if(method %in% c("TMLE", "AIPW", "IPW") & estimand == "both"){
       result_final <- data.frame(risk_diff = result$S1 - result$S0, SE_risk_diff = result$SE_S,
-                                 rmst_diff = result$rmst1 - result$rmst0, SE_rmst_diff = result$SE_rmst)
+                                 S1 = result$S1, S0=result$S0,
+                                 rmst_diff = result$rmst1 - result$rmst0, SE_rmst_diff = result$SE_rmst,
+                                 rmst1 = result$rmst1, rmst0=result$rmst0)
     }else if(method  %in% c("cox", "weightedCox")){
       result_final <- data.frame(risk_diff = result$S1 - result$S0, SE_risk_diff = result$SE_S,
-                                 rmst_diff = result$rmst1 - result$rmst0, SE_rmst_diff = result$SE_rmst)
+                                 S1 = result$S1, S0=result$S0,
+                                 rmst_diff = result$rmst1 - result$rmst0, SE_rmst_diff = result$SE_rmst,
+                                 rmst1 = result$rmst1, rmst0=result$rmst0)
     }
 
   return(result_final)
