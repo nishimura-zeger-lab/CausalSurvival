@@ -117,62 +117,62 @@ coarsenData <- function(time, outcome, nInt=NULL){
 #'
 #'
 
-estimateCounterfactSurvival <- function(treatment, outcome, time,
-                                        survHaz, cenHaz, treatProb,
-                                        coarsenedTime, estimand, method, hazMethod=NULL){
+computeEstimator <- function(treatment, outcome, time, initial_survHaz, cenHaz, treatProb,
+                             coarseningParam, estimand="both", method, hazMethod=NULL){
 
-  if(is.null(coarsenedTime)){
+  if(is.null(coarseningParameter)){
     coarsenedTime <- list(timeIntMidPoint=1:max(time), timeIntLength=rep(1, max(time)), breaks=c(0, 1:max(time)))
   }
-    tau <- coarsenedTime$timeIntMidPoint
+    tau <- coarseningParam$timeIntMidPoint
 
   ## algorithm
   if(method == "TMLE"){
 
     result <- estimateTMLE(treatment=treatment, eventObserved=outcome, time=time,
-                           survHaz=survHaz, cenHaz=cenHaz, treatProb=treatProb$TreatProb, tau=tau,
-                           timeIntMidPoint=coarsenedTime$timeIntMidPoint, timeIntLength=coarsenedTime$timeIntLength,
-                           estimand=estimand, printIter=FALSE, printTau=TRUE, tempCompare=FALSE)
+                           survHaz=initial_survHaz, cenHaz=cenHaz, treatProb=treatProb$TreatProb, tau=tau,
+                           timeIntMidPoint=coarseningParam$timeIntMidPoint, timeIntLength=coarseningParam$timeIntLength,
+                           estimand=estimand, printIter=FALSE, printTau=TRUE)
 
   }else if(method == "AIPW"){
 
     result <- estimateAIPW(treatment=treatment, eventObserved=outcome, time=time,
-                           survHaz=survHaz, cenHaz=cenHaz, treatProb=treatProb$TreatProb, tau=tau,
-                           timeIntMidPoint=coarsenedTime$timeIntMidPoint, timeIntLength=coarsenedTime$timeIntLength,
+                           survHaz=initial_survHaz, cenHaz=cenHaz, treatProb=treatProb$TreatProb, tau=tau,
+                           timeIntMidPoint=coarseningParam$timeIntMidPoint, timeIntLength=coarseningParam$timeIntLength,
                            estimand=estimand, printTau=TRUE)
 
   }else if(method == "IPW"){
 
     result <- estimateIPW(treatment=treatment, eventObserved=outcome, time=time,
                           cenHaz=cenHaz, treatProb=treatProb$TreatProb, tau=tau,
-                          timeIntMidPoint=coarsenedTime$timeIntMidPoint, timeIntLength=coarsenedTime$timeIntLength,
+                          timeIntMidPoint=coarseningParam$timeIntMidPoint, timeIntLength=coarseningParam$timeIntLength,
                           estimand=estimand, printTau=TRUE)
 
   }else if(method == "cox"){
 
     result <- strataCox(treatment=treatment, eventObserved=outcome,
                         time=time, treatProb=treatProb$TreatProb, cenHaz=NULL,
-                        timeIntMidPoint=coarsenedTime$timeIntMidPoint,
-                        timeIntLength=coarsenedTime$timeIntLength, breaks=coarsenedTime$breaks,
+                        timeIntMidPoint=coarseningParam$timeIntMidPoint,
+                        timeIntLength=coarseningParam$timeIntLength, breaks=coarseningParam$breaks,
                         nsim=5000, printSim=TRUE, hazMethod=hazMethod)
 
   }else if(method == "weightedCox"){
 
     result <- strataCox(treatment=treatment, eventObserved=outcome, time=time,
                         treatProb=treatProb$TreatProb, cenHaz=cenHaz,
-                        timeIntMidPoint=coarsenedTime$timeIntMidPoint,
-                        timeIntLength=coarsenedTime$timeIntLength, breaks=coarsenedTime$breaks,
+                        timeIntMidPoint=coarseningParam$timeIntMidPoint,
+                        timeIntLength=coarseningParam$timeIntLength, breaks=coarseningParam$breaks,
                         nsim=5000, printSim=TRUE, hazMethod=hazMethod)
 
   }
 
-    if(method %in% c("TMLE", "AIPW", "IPW")){
+    if(method %in% c("TMLE", "AIPW", "IPW") & estimand != "both"){
       result_final <- data.frame(estimand = result$estimand1 - result$estimand0, SE = result$SE)
-    }else{
-      result_final <- data.frame(estimand_risk = result$S1 - result$S0,
-                                 SE_risk = result$SE_S,
-                                 estimand_rmst = result$rmst1 - result$rmst0,
-                                 SE_rmst = result$SE_rmst)
+    }else if(method %in% c("TMLE", "AIPW", "IPW") & estimand == "both"){
+      result_final <- data.frame(risk_diff = result$S1 - result$S0, SE_risk_diff = result$SE_S,
+                                 rmst_diff = result$rmst1 - result$rmst0, SE_rmst_diff = result$SE_rmst)
+    }else if(method  %in% c("cox", "weightedCox")){
+      result_final <- data.frame(risk_diff = result$S1 - result$S0, SE_risk_diff = result$SE_S,
+                                 rmst_diff = result$rmst1 - result$rmst0, SE_rmst_diff = result$SE_rmst)
     }
 
   return(result_final)
