@@ -51,12 +51,12 @@ strataCox <- function(treatment, eventObserved, time,
     colnames(covariates) <- c("rowId", "covariateId", "covariateValue")
 
     eps <- estimateHaz(id=1:length(treatment), treatment=treatment, eventObserved=eventObserved, time=time,
-                       offset_t=offset_t, offset_X=FALSE, breaks=breaks, weight=NULL,
-                       covariates=covariates, covIdHaz=NULL, crossFitNum=1, index_ls=NULL,
-                       timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=NULL,
-                       interactWithTime=as.matrix(interactWithTime), hazEstimate="glm", intercept=TRUE,
+                       offset_t=offset_t, breaks=breaks,
+                       covariates=covariates, covIdHaz=NULL,
+                       timeEffect=timeEffect, evenKnot=evenKnot,
+                       interactWithTime=as.matrix(interactWithTime), hazEstimate="glm",
                        estimate_hazard="survival", getHaz=FALSE, coef_H=NULL, sigma=NULL,
-                       robust=FALSE, threshold=1e-10)
+                       robust=FALSE)
 
   }else{
 
@@ -79,12 +79,12 @@ strataCox <- function(treatment, eventObserved, time,
     colnames(covariates) <- c("rowId", "covariateId", "covariateValue")
 
     eps <- estimateHaz(id=1:length(treatment), treatment=treatment, eventObserved=eventObserved, time=time,
-                       offset_t=offset_t, offset_X=FALSE, breaks=breaks, weight=weight,
-                       covariates=covariates, covIdHaz=NULL, crossFitNum=1, index_ls=NULL,
-                       timeEffect=timeEffect, evenKnot=evenKnot, penalizeTimeTreatment=NULL,
-                       interactWithTime=as.matrix(interactWithTime), hazEstimate="glm", intercept=TRUE,
+                       offset_t=offset_t, breaks=breaks, weight=weight,
+                       covariates=covariates, covIdHaz=NULL,
+                       timeEffect=timeEffect, evenKnot=evenKnot,
+                       interactWithTime=as.matrix(interactWithTime), hazEstimate="glm",
                        estimate_hazard="survival", getHaz=FALSE, coef_H=NULL, sigma=NULL,
-                       robust=TRUE, threshold=1e-10)
+                       robust=TRUE)
 
   }
 
@@ -172,7 +172,7 @@ strataCox <- function(treatment, eventObserved, time,
 
     rm(list = c("haz1", "haz0", "SurvProb1", "SurvProb0", "SProb1", "SProb0"))
 
-    if(printSim){print(paste("Simulation", i, "finished"))}
+    if(printSim & (i == floor(nsim/2))){print("Halfway finished")}
 
   }
 

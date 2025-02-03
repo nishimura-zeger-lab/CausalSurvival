@@ -13,6 +13,10 @@ estimateIPW <- function(treatment, eventObserved, time,
 
   ## container
   estimand1_result <- estimand0_result <- SE_result <- rep(0, length=length(tau))
+  if(estimand == "both"){
+    Dac <- 0
+    SE_transform_result <- rep(0, length=length(tau))
+  }
 
   ## parameter
   n <- length(treatment)
@@ -69,10 +73,10 @@ estimateIPW <- function(treatment, eventObserved, time,
     ind <- (dlong$t <= tau[TimePoint])
 
     ## IPW
-    if(estimand=="risk"){
+    if(estimand %in% c("risk", "both")){
       Z1ipw <- - ind * Z1weight
       Z0ipw <- - ind * Z0weight
-    }else if(estimand=="rmst"){
+    }else if(estimand == "rmst"){
       indTillTimePoint <- unlist(tapply(ind, ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
       Z1ipw <- - indTillTimePoint * Z1weight * rep(timeIntLength, n)
       Z0ipw <- - indTillTimePoint * Z0weight * rep(timeIntLength, n)
@@ -82,7 +86,7 @@ estimateIPW <- function(treatment, eventObserved, time,
     DT1ipw <- tapply(dlong$It * treatment[ID] * Z1ipw * dlong$Lt, ID, sum)
     DT0ipw <- tapply(dlong$It * (1-treatment[ID]) * Z0ipw * dlong$Lt , ID, sum)
 
-    if(estimand=="risk"){
+    if(estimand %in% c("risk", "both")){
       ipw  <- 1 + c(mean(DT0ipw), mean(DT1ipw))
     }else if(estimand=="rmst"){
       ipw  <- TimePoint + c(mean(DT0ipw), mean(DT1ipw))
@@ -91,7 +95,7 @@ estimateIPW <- function(treatment, eventObserved, time,
     rm(list=c("DT1ipw", "DT0ipw", "Z1ipw", "Z0ipw"))
 
     ## variance
-    if(estimand=="risk"){
+    if(estimand %in% c("risk", "both")){
 
       H1 <- as(matrix( - (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
       H0 <- as(matrix( - (ind * rep(SurvProb0[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH0, ncol = 1), "sparseMatrix")
@@ -112,7 +116,7 @@ estimateIPW <- function(treatment, eventObserved, time,
 
     rm(list=c("H1", "H0"))
 
-    if(estimand=="risk"){
+    if(estimand %in% c("risk", "both")){
 
       DW1 <- SurvProb1[which(dlong$t == tau[TimePoint])]
       DW0 <- SurvProb0[which(dlong$t == tau[TimePoint])]
@@ -126,6 +130,10 @@ estimateIPW <- function(treatment, eventObserved, time,
 
     D <- DT1 - DT0 + DW1 - DW0
     sdn <- sqrt(var(D) / n)
+    if(estimand == "both"){
+      Dac <- Dac + D * timeIntLength[TimePoint]
+      SE_transform_result[TimePoint] <- sqrt(var(Dac) / n)
+    }
 
     rm(list=c("D", "DW1", "DW0", "DT1", "DT0"))
 
@@ -134,13 +142,19 @@ estimateIPW <- function(treatment, eventObserved, time,
     estimand0_result[TimePoint] <- ipw[1]
     SE_result[TimePoint] <- sdn
 
-    if(printTau){print(paste("Time point", TimePoint, "finished"))}
+    if(printTau & (TimePoint == floor(length(tau)/2))){print("Halfway finished")}
 
   }
 
   ## result
-  out <- data.frame(estimand1=estimand1_result, estimand0=estimand0_result, SE=SE_result)
-  return(out)
+  if(estimand == "both"){
+    out <- data.frame(S1=estimand1_result, S0=estimand0_result,
+                      rmst1=cumsum(estimand1_result), rmst0=cumsum(estimand0_result),
+                      SE_S=SE_result, SE_rmst=SE_transform_result)
+  }else{
+    out <- data.frame(estimand1=estimand1_result, estimand0=estimand0_result, SE=SE_result)
+  }
+   return(out)
 }
 
 
