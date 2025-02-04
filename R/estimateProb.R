@@ -113,11 +113,11 @@ estimateTreatProb <- function(id, treatment, covariates, covIdTreatProb=NULL,
 
 #' Estimate discrete survival/censoring hazards
 #'
-#' @param id
-#' @param treatment
-#' @param eventObserved
-#' @param time
-#' @param covariates
+#' @param id Subject id
+#' @param treatment Treatment indicator
+#' @param eventObserved Indicator for observed event
+#' @param time Observed time: time-to-event or time-to-censoring
+#' @param covariates Baseline covariates with three columns: rowId, covariateId, covariateValue
 #' @param covIdHaz Covariates id to include in modeling discrete hazards. If NULL, then include all covariates in the model
 #' @param crossFitNum For cross-fitting: random partition of subjects into XXX prediction sets of approximately the same size.
 #'                    If crossFitNum = 1 and index_ls = NULL, then no cross-fitting (default)
