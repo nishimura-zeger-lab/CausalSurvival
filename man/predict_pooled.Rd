@@ -8,9 +8,11 @@ predict_pooled(
   coef,
   X_baseline,
   temporal_effect,
+  offset_t,
+  offset_X,
+  timeIntMidPoint,
   timeEffect,
-  maxTime,
-  maxTimeSplines
+  nsBase
 )
 }
 \arguments{
@@ -25,11 +27,11 @@ Need to include intercept if is.temporal = TRUE}
 \item{timeEffect}{Functions of time in the discrete censoring hazards model.
 Options currently include "linear", "cubic", NULL}
 
+\item{indx_subset}{Subset index for each time point}
+
 \item{maxTime}{Maximum time for prediction}
 
-\item{maxTimeSplines}{Maximum time used in regression. Relavant when using ns(time, df=5)}
-
-\item{indx_subset}{Subset index for each time point}
+\item{maxTimeSplines}{Maximum time used in regression. Relavant when using ns(time, df=3)}
 }
 \value{
 Probability, in the order of: id1(t1, t2....), id2(t1, t2....)....

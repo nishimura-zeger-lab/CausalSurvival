@@ -8,9 +8,9 @@ estimateTreatProb(
   id,
   treatment,
   covariates,
-  covIdTreatProb,
-  treatProbEstimate,
-  maxCohortSizeForFitting,
+  covIdTreatProb = NULL,
+  treatProbEstimate = "LASSO",
+  maxCohortSizeForFitting = 25000,
   index_ls = NULL,
   crossFitNum = 1
 )
