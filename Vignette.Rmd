@@ -74,7 +74,7 @@ time <- apply(cbind(event_time, censoring_time), 1, min)
 ### PS calculation from real data
 
 ```{r}
-treatProb <- estimateTreatProb(id=id, treatment=treatment, covariates=covariates)
+treatProb <- CausalSurvival::estimateTreatProb(id=id, treatment=treatment, covariates=covariates)
 ```
 
 ### Survival and censoring hazards from real data
@@ -102,17 +102,17 @@ Then perform ridge regression with the selected baseline covariates, treatment, 
 
 ```{r}
 
-coarsenedData <- coarsenData(time=time, outcome=outcome)
+coarsenedData <- CausalSurvival::coarsenData(time=time, outcome=outcome)
 
-estimatedSurvHazard <- estimateHazards(coarsenedData=coarsenedData, outcome=outcome, 
-                                       treatment=treatment, covariates=covariates, 
-                                       covId=survCov_indx,
-                                       hazEstimate="survival", hazMethod=hazMethod)
+estimatedSurvHazard <- CausalSurvival::estimateHazards(coarsenedData=coarsenedData, outcome=outcome, 
+                                                       treatment=treatment, covariates=covariates, 
+                                                       covId=survCov_indx,
+                                                       hazEstimate="survival", hazMethod=hazMethod)
 
-estimatedCenHazard <- estimateHazards(coarsenedData=coarsenedData, outcome=outcome, 
-                                      treatment=treatment, covariates=covariates, 
-                                      covId=cenCov_indx,
-                                      hazEstimate="censoring", hazMethod=hazMethod)
+estimatedCenHazard <- CausalSurvival::estimateHazards(coarsenedData=coarsenedData, outcome=outcome, 
+                                                      treatment=treatment, covariates=covariates, 
+                                                      covId=cenCov_indx,
+                                                      hazEstimate="censoring", hazMethod=hazMethod)
 
 ```
 
@@ -122,27 +122,27 @@ estimatedCenHazard <- estimateHazards(coarsenedData=coarsenedData, outcome=outco
 Before conducting the simulation studies, let's first see how to run the algorithm with the above estimated survival and censoring hazards. 
 
 ```{r}
-tmle <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
-                         initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, treatProb=treatProb,
-                         coarseningParam=coarsenedData, method="TMLE")
+tmle <- CausalSurvival::computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
+                                         initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, treatProb=treatProb,
+                                         coarseningParam=coarsenedData, method="TMLE")
 
-aipw <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
-                         initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, treatProb=treatProb,
-                         coarseningParam=coarsenedData, method="AIPW")
+aipw <- CausalSurvival::computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
+                                         initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, treatProb=treatProb,
+                                         coarseningParam=coarsenedData, method="AIPW")
 
-ipw <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
-                        initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, treatProb=treatProb,
-                        coarseningParam=coarsenedData, method="IPW")
+ipw <- CausalSurvival::computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
+                                        initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, treatProb=treatProb,
+                                        coarseningParam=coarsenedData, method="IPW")
 
-cox <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
-                        initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, 
-                        treatProb=treatProb, coarseningParam=coarsenedData_sim, 
-                        method="cox", hazMethod=hazMethod)
+cox <- CausalSurvival::computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
+                                        initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, 
+                                        treatProb=treatProb, coarseningParam=coarsenedData_sim, 
+                                        method="cox", hazMethod=hazMethod)
 
-weightedCox <- computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
-                                initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, 
-                                treatProb=treatProb, coarseningParam=coarsenedData_sim, 
-                                method="weightedCox", hazMethod=hazMethod)
+weightedCox <- CausalSurvival::computeEstimator(treatment=treatment, outcome=outcome, time=coarsenedData$timeInt,
+                                                initial_survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz, 
+                                                treatProb=treatProb, coarseningParam=coarsenedData_sim, 
+                                                method="weightedCox", hazMethod=hazMethod)
 
 ```
 
@@ -187,8 +187,8 @@ lines(coarsenedData$breaks[-1], weightedCox$SE_risk_diff, col="green4", type = "
 Simulate one set of data with the estimated survival and censoring hazard. 
 
 ```{r}
-simData <- simulateData(treatment=treatment, survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz,
-                        coarsenedTime=coarsenedData, seed=2019)
+simData <- CausalSurvival::simulateData(treatment=treatment, survHaz=estimatedSurvHazard$haz, cenHaz=estimatedCenHazard$haz,
+                                        coarsenedTime=coarsenedData, seed=2019)
 ```
 
 ### Survival and censoring hazards from simulated data
@@ -201,15 +201,15 @@ coarsenedData_sim <- coarsenedData
 coarsenedData_sim$timeInt <- simData$ObservedTime
 
 ## survival hazards and selected covariates
-estimatedSurvHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outcome=simData$ObservedEvent, 
-                                           treatment=treatment, covariates=covariates, 
-                                           covId=survCov_indx,
-                                           hazEstimate="survival", hazMethod=hazMethod)
+estimatedSurvHazard_sim <- CausalSurvival::estimateHazards(coarsenedData=coarsenedData_sim, outcome=simData$ObservedEvent, 
+                                                           treatment=treatment, covariates=covariates, 
+                                                           covId=survCov_indx,
+                                                           hazEstimate="survival", hazMethod=hazMethod)
 ## censoring hazards and selected covariates
-estimatedCenHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outcome=simData$ObservedEvent, 
-                                          treatment=treatment, covariates=covariates, 
-                                          covId=cenCov_indx,
-                                          hazEstimate="censoring", hazMethod=hazMethod)
+estimatedCenHazard_sim <- CausalSurvival::estimateHazards(coarsenedData=coarsenedData_sim, outcome=simData$ObservedEvent, 
+                                                          treatment=treatment, covariates=covariates, 
+                                                          covId=cenCov_indx,
+                                                          hazEstimate="censoring", hazMethod=hazMethod)
 
 ```
 
@@ -219,27 +219,27 @@ estimatedCenHazard_sim <- estimateHazards(coarsenedData=coarsenedData_sim, outco
 Run the algorithm with the simulated data and estimated hazards. 
 
 ```{r}
-tmle_sim <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
-                         initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+tmle_sim <- CausalSurvival::computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
+                                             initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
                          coarseningParam=coarsenedData, method="TMLE")
 
-aipw_sim <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
-                         initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                         coarseningParam=coarsenedData, method="AIPW")
+aipw_sim <- CausalSurvival::computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
+                                             initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                             coarseningParam=coarsenedData, method="AIPW")
 
-ipw_sim <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
-                        initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
-                        coarseningParam=coarsenedData, method="IPW")
+ipw_sim <- CausalSurvival::computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
+                                            initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, treatProb=treatProb,
+                                            coarseningParam=coarsenedData, method="IPW")
 
-cox_sim <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
-                        initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
-                        treatProb=treatProb, coarseningParam=coarsenedData_sim, 
-                        method="cox", hazMethod=hazMethod)
+cox_sim <- CausalSurvival::computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
+                                            initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
+                                            treatProb=treatProb, coarseningParam=coarsenedData_sim, 
+                                            method="cox", hazMethod=hazMethod)
 
-weightedCox_sim <- computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
-                                initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
-                                treatProb=treatProb, coarseningParam=coarsenedData_sim, 
-                                method="weightedCox", hazMethod=hazMethod)
+weightedCox_sim <- CausalSurvival::computeEstimator(treatment=treatment, outcome=simData$ObservedEvent, time=simData$ObservedTime,
+                                                    initial_survHaz=estimatedSurvHazard_sim$haz, cenHaz=estimatedCenHazard_sim$haz, 
+                                                    treatProb=treatProb, coarseningParam=coarsenedData_sim, 
+                                                    method="weightedCox", hazMethod=hazMethod)
 
 ```
 
@@ -249,8 +249,8 @@ weightedCox_sim <- computeEstimator(treatment=treatment, outcome=simData$Observe
 Derive counterfactual survival curve from the estimated survival hazard. And transform to RMST. 
 
 ```{r}
-Truth_S <- calculateSurvCurve(coarsenedTime=coarsenedData, survHaz=estimatedSurvHazard$haz)
-Truth_rmst <- calculateRMST(coarsenedTime=coarsenedData, survCurve=Truth_S)
+Truth_S <- CausalSurvival::calculateSurvCurve(coarsenedTime=coarsenedData, survHaz=estimatedSurvHazard$haz)
+Truth_rmst <- CausalSurvival::calculateRMST(coarsenedTime=coarsenedData, survCurve=Truth_S)
 ```
 
 ### Result
