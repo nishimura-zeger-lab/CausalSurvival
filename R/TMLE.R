@@ -35,9 +35,9 @@ estimateTMLE <- function(treatment, eventObserved, time,
   maxTime <- dim(survHaz)[1]/n
 
   ## dlong
-  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), timeIntMidPoint=timeIntMidPoint, type="survival")
+  dlong <- transformData(time=time, eventObserved=eventObserved,
+                         timeIntMidPoint=timeIntMidPoint, type="survival")
   rownames(dlong) <- NULL
-  dlong <- dlong[, c("Lt", "It", "t")]
 
   for (TimePoint in 1:length(tau)){
 
@@ -47,7 +47,7 @@ estimateTMLE <- function(treatment, eventObserved, time,
     SurvHaz_obs  <- treatment[survHaz$ID]*SurvHaz1 + (1-treatment[survHaz$ID])*SurvHaz0
 
     ## parameter
-    ind <- (dlong$t <= tau[TimePoint])
+    ind <- (dlong$time <= tau[TimePoint])
     converged <- FALSE
     iter <- 1
 
@@ -71,8 +71,8 @@ estimateTMLE <- function(treatment, eventObserved, time,
       if(estimand %in% c("risk", "both")){
 
       ## clever covariate for updating survival hazards
-      H1 <- as(matrix(- (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
-      H0 <- as(matrix(- (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH0, ncol = 1), "sparseMatrix")
+      H1 <- as(matrix(- (ind * rep(SurvProb1[which(dlong$time == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
+      H0 <- as(matrix(- (ind * rep(SurvProb1[which(dlong$time == tau[TimePoint])], each=maxTime)) * weightH0, ncol = 1), "sparseMatrix")
 
       rm(list=c("weightH1", "weightH0"))
 
@@ -88,7 +88,7 @@ estimateTMLE <- function(treatment, eventObserved, time,
 
       }
 
-      H <- treatment[survHaz$ID[which(dlong$It == 1 & ind)]] * H1[which(dlong$It == 1 & ind)] + (1-treatment[survHaz$ID[which(dlong$It == 1 & ind)]]) * H0[which(dlong$It == 1 & ind)]
+      H <- treatment[survHaz$ID[which(dlong$valid == 1 & ind)]] * H1[which(dlong$valid == 1 & ind)] + (1-treatment[survHaz$ID[which(dlong$valid == 1 & ind)]]) * H0[which(dlong$valid == 1 & ind)]
       H <- as(matrix(H, ncol = 1), "sparseMatrix")
 
       ## update for survival hazard
@@ -96,10 +96,10 @@ estimateTMLE <- function(treatment, eventObserved, time,
       #                          family = binomial()))
 
       if(iter == 1){
-        eps   <- coefSparse(outcome=dlong$Lt[which(dlong$It == 1 & ind)], offset=qlogis(SurvHaz_obs[which(dlong$It == 1 & ind)]), H=H,
+        eps   <- coefSparse(outcome=dlong$y[which(dlong$valid == 1 & ind)], offset=qlogis(SurvHaz_obs[which(dlong$valid == 1 & ind)]), H=H,
                             maxiter=40, threshold=1e-8, initial_coef=NULL, printIter=FALSE)
       }else{
-        eps   <- coefSparse(outcome=dlong$Lt[which(dlong$It == 1 & ind)], offset=qlogis(SurvHaz_obs[which(dlong$It == 1 & ind)]), H=H,
+        eps   <- coefSparse(outcome=dlong$y[which(dlong$valid == 1 & ind)], offset=qlogis(SurvHaz_obs[which(dlong$valid == 1 & ind)]), H=H,
                             maxiter=40, threshold=1e-8, initial_coef=eps, printIter=FALSE)
       }
 
@@ -142,8 +142,8 @@ estimateTMLE <- function(treatment, eventObserved, time,
     if(estimand %in% c("risk", "both")){
 
       ## clever covariate for updating survival hazards
-      H1 <- as(matrix(- (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
-      H0 <- as(matrix(- (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH0, ncol = 1), "sparseMatrix")
+      H1 <- as(matrix(- (ind * rep(SurvProb1[which(dlong$time == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
+      H0 <- as(matrix(- (ind * rep(SurvProb1[which(dlong$time == tau[TimePoint])], each=maxTime)) * weightH0, ncol = 1), "sparseMatrix")
 
       rm(list=c("weightH1", "weightH0"))
 
@@ -159,14 +159,14 @@ estimateTMLE <- function(treatment, eventObserved, time,
 
     }
 
-    DT <- tapply(dlong$It * (treatment[survHaz$ID] * H1[, 1] - (1 - treatment[survHaz$ID]) * H0[, 1]) * (dlong$Lt - SurvHaz_obs), survHaz$ID, sum)
+    DT <- tapply(dlong$valid * (treatment[survHaz$ID] * H1[, 1] - (1 - treatment[survHaz$ID]) * H0[, 1]) * (dlong$y - SurvHaz_obs), survHaz$ID, sum)
 
     rm(list=c("H1", "H0"))
 
     if(estimand %in% c("risk", "both")){
 
-      DW1 <- SurvProb1[which(dlong$t == tau[TimePoint])]
-      DW0 <- SurvProb0[which(dlong$t == tau[TimePoint])]
+      DW1 <- SurvProb1[which(dlong$time == tau[TimePoint])]
+      DW0 <- SurvProb0[which(dlong$time == tau[TimePoint])]
 
     }else if(estimand == "rmst"){
 

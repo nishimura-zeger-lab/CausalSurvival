@@ -49,9 +49,9 @@ estimateAIPW <- function(treatment, eventObserved, time,
   rm(list=c("CenProb1List", "CenProb0List", "cenHaz"))
 
   ## dlong
-  dlong <- transformData(dwide=data.frame(eventObserved=eventObserved, time=time), timeIntMidPoint=timeIntMidPoint, type="survival")
+  dlong <- transformData(time=time, eventObserved=eventObserved,
+                         timeIntMidPoint=timeIntMidPoint, type="survival")
   rownames(dlong) <- NULL
-  dlong <- dlong[, c("Lt", "It", "t")]
 
   ## denominator
   weightH1 <- 1/(SurvProb1 * treatProb[ID] * CenProb1)
@@ -64,13 +64,13 @@ estimateAIPW <- function(treatment, eventObserved, time,
   for (TimePoint in 1:length(tau)){
 
     ## parameter
-    ind <- (dlong$t <= tau[TimePoint])
+    ind <- (dlong$time <= tau[TimePoint])
 
     ## solve estimating equation
     if(estimand %in% c("risk", "both")){
 
-    H1 <- as(matrix( - (ind * rep(SurvProb1[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
-    H0 <- as(matrix( - (ind * rep(SurvProb0[which(dlong$t == tau[TimePoint])], each=maxTime)) * weightH0, ncol = 1), "sparseMatrix")
+    H1 <- as(matrix( - (ind * rep(SurvProb1[which(dlong$time == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
+    H0 <- as(matrix( - (ind * rep(SurvProb0[which(dlong$time == tau[TimePoint])], each=maxTime)) * weightH0, ncol = 1), "sparseMatrix")
 
     }else if(estimand=="rmst"){
 
@@ -85,15 +85,15 @@ estimateAIPW <- function(treatment, eventObserved, time,
 
     }
 
-    DT1 <- tapply(dlong$It * treatment[ID] * H1[, 1] * (dlong$Lt - SurvHaz_obs), ID, sum)
-    DT0 <- tapply(dlong$It * (1 - treatment[ID]) * H0[, 1] * (dlong$Lt - SurvHaz_obs), ID, sum)
+    DT1 <- tapply(dlong$valid * treatment[ID] * H1[, 1] * (dlong$y - SurvHaz_obs), ID, sum)
+    DT0 <- tapply(dlong$valid * (1 - treatment[ID]) * H0[, 1] * (dlong$y - SurvHaz_obs), ID, sum)
 
     rm(list=c("H1", "H0"))
 
     if(estimand %in% c("risk", "both")){
 
-      DW1 <- SurvProb1[which(dlong$t == tau[TimePoint])]
-      DW0 <- SurvProb0[which(dlong$t == tau[TimePoint])]
+      DW1 <- SurvProb1[which(dlong$time == tau[TimePoint])]
+      DW0 <- SurvProb0[which(dlong$time == tau[TimePoint])]
 
     }else if(estimand=="rmst"){
 

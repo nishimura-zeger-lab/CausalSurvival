@@ -26,7 +26,7 @@ bound <- function(x, r = 1e-7){
 #'               with columns: rowId, stratumId (subject id), time and y
 #'
 
-transformData <- function(time, eventObserved, timeIntMidPoint, type){
+transformData <- function(time, eventObserved, dwide=NULL, timeIntMidPoint, type, subset=FALSE){
 
   n <- length(time)
   maxTime <- length(timeIntMidPoint)
@@ -47,11 +47,23 @@ transformData <- function(time, eventObserved, timeIntMidPoint, type){
     }
   }
 
-  longOut <- longOut[which(valid==1)]
-  t <- t[which(valid==1)]
-  stratumId <- stratumId[which(valid==1)]
+  if(subset){
+    longOut <- longOut[which(valid==1)]
+    t <- t[which(valid==1)]
+    stratumId <- stratumId[which(valid==1)]
+    if(is.null(dwide)){
+      dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut, valid=valid)
+    }else{
+      dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut, valid=valid, dwide[stratumId, ])
+    }
+  }else{
+    if(is.null(dwide)){
+      dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut)
+    }else{
+      dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut, dwide[stratumId, ])
+    }
+  }
 
-  dlong <- data.frame(rowId = 1:length(longOut), stratumId = stratumId, time = t, y = longOut)
   return(dlong)
 
 }
