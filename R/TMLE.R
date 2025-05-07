@@ -22,8 +22,9 @@ estimateTMLE <- function(treatment, eventObserved, time,
   }
 
   ## calculate censoring probability that doesn't need iterative updates
-  CenProb1List <- tapply(1 - cenHaz$Haz1, survHaz$ID, cumprod, simplify = FALSE)
-  CenProb0List <- tapply(1 - cenHaz$Haz0, survHaz$ID, cumprod, simplify = FALSE)
+  prodlag <- function(x) cumprod(c(1, x[-length(x)]))
+  CenProb1List <- tapply(1 - cenHaz$Haz1, survHaz$ID, prodlag, simplify = FALSE)
+  CenProb0List <- tapply(1 - cenHaz$Haz0, survHaz$ID, prodlag, simplify = FALSE)
 
   CenProb1 <- unlist(CenProb1List, use.names = FALSE)
   CenProb0 <- unlist(CenProb0List, use.names = FALSE)
