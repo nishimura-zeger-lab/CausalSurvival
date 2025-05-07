@@ -23,7 +23,7 @@ strataCox <- function(treatment, eventObserved, time,
 
   ## create dlong
   dlong <- transformData(time=time, eventObserved=eventObserved,
-                         dwide=data.frame(stratumId=stratumId, treat=treatment),
+                         dwide=data.frame(obsTime=time, treat=treatment),
                          timeIntMidPoint=timeIntMidPoint, type="survival")
   rownames(dlong) <- NULL
 
@@ -61,9 +61,9 @@ strataCox <- function(treatment, eventObserved, time,
                        robust=FALSE)
 
   }else{
-
-    CenProb1List <- tapply(1 - cenHaz$Haz1, ID, cumprod, simplify = FALSE)
-    CenProb0List <- tapply(1 - cenHaz$Haz0, ID, cumprod, simplify = FALSE)
+    prodlag <- function(x) cumprod(c(1, x[-length(x)]))
+    CenProb1List <- tapply(1 - cenHaz$Haz1, ID, prodlag, simplify = FALSE)
+    CenProb0List <- tapply(1 - cenHaz$Haz0, ID, prodlag, simplify = FALSE)
 
     weight1 <- 1/unlist(CenProb1List, use.names = FALSE)
     weight0 <- 1/unlist(CenProb0List, use.names = FALSE)
@@ -74,7 +74,7 @@ strataCox <- function(treatment, eventObserved, time,
     weight0[which(weight0 >= quantile(weight0, probs = 0.95))] <- quantile(weight0, probs = 0.95)
 
     weight <- weight1 * dlong$treat + weight0 * (1 - dlong$treat)
-    weight <- weight[order(-dlong$t, dlong$time, 1-dlong$eventObserved, decreasing = TRUE)]
+    weight <- weight[order(-dlong$time, dlong$obsTime, 1-dlong$y, decreasing = TRUE)]
 
     interactWithTime <- as(as.matrix(model.matrix(~ as.factor(stratumId), data.frame(stratumId=stratumId))[, -1]), "sparseMatrix")
     covariates <- Matrix::summary(interactWithTime)
