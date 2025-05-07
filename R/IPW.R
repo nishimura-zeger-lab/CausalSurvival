@@ -44,8 +44,9 @@ estimateIPW <- function(treatment, eventObserved, time,
 
   rm(list=c("SurvProb1List", "SurvProb0List"))
 
-  CenProb1List <- tapply(1 - cenHaz$Haz1, ID, cumprod, simplify = FALSE)
-  CenProb0List <- tapply(1 - cenHaz$Haz0, ID, cumprod, simplify = FALSE)
+  prodlag <- function(x) cumprod(c(1, x[-length(x)]))
+  CenProb1List <- tapply(1 - cenHaz$Haz1, ID, prodlag, simplify = FALSE)
+  CenProb0List <- tapply(1 - cenHaz$Haz0, ID, prodlag, simplify = FALSE)
 
   CenProb1 <- unlist(CenProb1List, use.names = FALSE)
   CenProb0 <- unlist(CenProb0List, use.names = FALSE)
