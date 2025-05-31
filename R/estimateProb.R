@@ -435,7 +435,7 @@ estimateHazards <- function(coarsenedData, outcome, treatment, covariates, covId
                      interactWithTime=treatment, hazEstimate="ridge",
                      sigma=sigma, estimate_hazard=hazEstimate, getHaz=TRUE, coef_H=NULL)
 
-  return(list(haz=haz))
+  return(haz)
 
 }
 
