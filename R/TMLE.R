@@ -13,7 +13,7 @@
 #' @param timeIntLength
 #' @param printIter
 #' @param printTau
-#' @return A data frame with three columns: estimand1, estimand0, SE
+#' @return A list with estimates and square root variance of survival probability at time tau, RMST at time tau, log-ratio of log-survival probability
 
 estimateTMLE <- function(treatment, eventObserved, time,
                          survHaz, cenHaz, treatProb, tau,
