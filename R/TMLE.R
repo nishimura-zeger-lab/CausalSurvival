@@ -9,7 +9,6 @@
 #'               Estimated censoring hazards for each person at each time points if receive treatment 1 (CenHaz1) and if receive treatment 0 (CenHaz0)
 #' @param treatProb Estimated probability for treatment for each person if receive treatment 1
 #' @param tau Time of interest. Can be a vector (multiple time of interest)
-#' @param weights
 #' @param timeIntMidPoint
 #' @param timeIntLength
 #' @param printIter
