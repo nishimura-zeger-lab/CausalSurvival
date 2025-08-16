@@ -145,7 +145,7 @@ estimateTMLE <- function(treatment, eventObserved, time,
     rm(list=c("SurvProb1", "SurvProb0", "ind"))
 
     ## standard error of S1-S0
-    D <- DT1 - DT0 + DW1 - DW0 + mean(DW1) - mean(DW0)
+    D <- DT1 - DT0 + DW1 - DW0
     sdn_S <- sqrt(var(D) / n)
     ## standard error of rmst1-rmst0
     D_rmst <- D_rmst + D * timeIntLength[TimePoint]
