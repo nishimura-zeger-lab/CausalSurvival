@@ -1,25 +1,32 @@
-#' Estimate Augmented IPW of survival probability / rmst at time tau
+#' Estimate Augmented IPW of survival probability at time tau, RMST at time tau, log-ratio of log-survival probability
 #'
+#' @param treatment
+#' @param eventObserved
+#' @param time
 #' @param survHaz Data frame with two columns: Haz1, Haz0
 #'                Estimated survival hazards for each person at each time points if receive treatment 1 (Haz1) and if receive treatment 0 (Haz0)
 #' @param cenHaz Data frame with two columns: Haz1, Haz0
 #'               Estimated censoring hazards for each person at each time points if receive treatment 1 (Haz1) and if receive treatment 0 (Haz0)
 #' @param treatProb Estimated probability for treatment for each person if receive treatment 1
 #' @param tau Time of interest. Can be a vector (multiple time of interest)
-#' @return A data frame with three columns: estimand1, estimand0, SE
+#' @param timeIntMidPoint
+#' @param timeIntLength
+#' @param printTau
+#' @return A list with estimates and square root variance of survival probability at time tau, RMST at time tau, log-ratio of log-survival probability
 
 estimateAIPW <- function(treatment, eventObserved, time,
                          survHaz, cenHaz, treatProb,
                          tau, timeIntMidPoint, timeIntLength,
-                         estimand="both", printTau){
+                         printTau){
 
 
   ## container
-  estimand1_result <- estimand0_result <- SE_result <- rep(0, length=length(tau))
-  if(estimand == "both"){
-    Dac <- 0
-    SE_transform_result <- rep(0, length=length(tau))
-  }
+  S1_result <- S0_result <- SE_S_diff_result <- rep(0, length=length(tau))
+  RMST1_result <- RMST0_result <- SE_RMST_diff_result <- rep(0, length=length(tau))
+  rho_result <- SE_rho_result <- 0
+  D_rmst <- 0
+  D1_rmst <- D0_rmst <- 0
+  D_rho <- W_rho <- rho_2term <- 0
 
   ## parameter
   n <- length(unique(survHaz$ID))
@@ -68,78 +75,57 @@ estimateAIPW <- function(treatment, eventObserved, time,
     ind <- (dlong$time <= tau[TimePoint])
 
     ## solve estimating equation
-    if(estimand %in% c("risk", "both")){
-
     H1 <- as(matrix( - (ind * rep(SurvProb1[which(dlong$time == tau[TimePoint])], each=maxTime)) * weightH1, ncol = 1), "sparseMatrix")
     H0 <- as(matrix( - (ind * rep(SurvProb0[which(dlong$time == tau[TimePoint])], each=maxTime)) * weightH0, ncol = 1), "sparseMatrix")
-
-    }else if(estimand=="rmst"){
-
-      ## solve estimating equation
-      cumProb1TillTimePoint <- unlist(tapply(ind * SurvProb1, ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      H1 <- as(matrix(- cumProb1TillTimePoint * weightH1 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
-
-      cumProb0TillTimePoint <- unlist(tapply(ind * SurvProb0, ID, function(x){rev(cumsum(rev(x)))}), use.names = FALSE)
-      H0 <- as(matrix(- cumProb0TillTimePoint * weightH0 * rep(timeIntLength, n), ncol = 1), "sparseMatrix")
-
-      rm(list=c("cumProb1TillTimePoint", "cumProb0TillTimePoint"))
-
-    }
 
     DT1 <- tapply(dlong$valid * treatment[ID] * H1[, 1] * (dlong$y - SurvHaz_obs), ID, sum)
     DT0 <- tapply(dlong$valid * (1 - treatment[ID]) * H0[, 1] * (dlong$y - SurvHaz_obs), ID, sum)
 
     rm(list=c("H1", "H0"))
 
-    if(estimand %in% c("risk", "both")){
+    DW1 <- SurvProb1[which(dlong$time == tau[TimePoint])]
+    DW0 <- SurvProb0[which(dlong$time == tau[TimePoint])]
 
-      DW1 <- SurvProb1[which(dlong$time == tau[TimePoint])]
-      DW0 <- SurvProb0[which(dlong$time == tau[TimePoint])]
-
-    }else if(estimand=="rmst"){
-
-      DW1 <- tapply(ind * SurvProb1 * rep(timeIntLength, n), ID, sum)
-      DW0 <- tapply(ind * SurvProb0 * rep(timeIntLength, n), ID, sum)
-
-    }
-
-    if(estimand %in% c("risk", "both")){
-
-      aipw <- c(mean(DT0 + DW0), mean(DT1 + DW1))
-
-    }else if(estimand=="rmst"){
-
-      aipw <- 1+c(mean(DT0 + DW0), mean(DT1 + DW1))
-
-    }
+    aipw_S <- c(mean(DT0 + DW0), mean(DT1 + DW1))
+    D1_rmst <- D1_rmst + (DT1 + DW1)* timeIntLength[TimePoint]
+    D0_rmst <- D0_rmst + (DT0 + DW0)* timeIntLength[TimePoint]
 
     ## SE
     D <- DT1 - DT0 + DW1 - DW0
-    sdn <- sqrt(var(D) / n)
-    if(estimand == "both"){
-      Dac <- Dac + D * timeIntLength[TimePoint]
-      SE_transform_result[TimePoint] <- sqrt(var(Dac) / n)
-    }
+    sdn_S <- sqrt(var(D) / n)
+    ## standard error of rmst1-rmst0
+    D_rmst <- D_rmst + D * timeIntLength[TimePoint]
+    sdn_rmst <- sqrt(var(D_rmst) / n)
+    ## rho
+    W_rho <- W_rho + 1/(sdn_S^2)
+    D_rho <- D_rho + 1/(sdn_S^2)*((DT1+DW1+mean(DW1))/(mean(DW1)*log(mean(DW1)))-
+                                    (DT0+DW0+mean(DW0))/(mean(DW0)*log(mean(DW0))))
+    rho_2term <- rho_2term + 1/(sdn_S^2)*log(log(mean(DW1))/log(mean(DW0)))
 
-    rm(list=c("D", "DW1", "DW0", "DT1", "DT0"))
+    rm(list=c("DT1", "DT0", "DW1", "DW0", "D"))
 
     ## store
-    estimand1_result[TimePoint] <- aipw[2]
-    estimand0_result[TimePoint] <- aipw[1]
-    SE_result[TimePoint] <- sdn
+    S1_result[TimePoint] <- aipw_S[2]
+    S0_result[TimePoint] <- aipw_S[1]
+    SE_S_diff_result[TimePoint] <- sdn_S
+
+    RMST1_result[TimePoint] <- mean(D1_rmst)
+    RMST0_result[TimePoint] <- mean(D0_rmst)
+    SE_RMST_diff_result[TimePoint] <- sdn_rmst
 
     if(printTau & (TimePoint == floor(length(tau)/2))){print("Halfway finished")}
 
   }
 
+  rho_result <- 1/W_rho * rho_2term
+  D_rho <- 1/W_rho*D_rho
+  SE_rho_result <- sqrt(var(D_rho)/n)
+
   ## result
-  if(estimand == "both"){
-    out <- data.frame(S1=estimand1_result, S0=estimand0_result,
-                      rmst1=cumsum(estimand1_result), rmst0=cumsum(estimand0_result),
-                      SE_S=SE_result, SE_rmst=SE_transform_result)
-  }else{
-    out <- data.frame(estimand1=estimand1_result, estimand0=estimand0_result, SE=SE_result)
-  }
+  out <- list(S1=S1_result, S0=S0_result, SE_S_diff=SE_S_diff_result,
+              rmst1=RMST1_result, rmst0=RMST0_result, SE_rmst_diff=SE_RMST_diff_result,
+              rho=rho_result, SE_rho=SE_rho_result)
+
     return(out)
 }
 
